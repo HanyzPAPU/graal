@@ -459,13 +459,13 @@ suite = {
         "ASM_UTIL_9.5",
       ],
       "exclude" : [
-        # TODO: return back
-        # "mx:JUNIT",
+        "mx:JUNIT",
         "JAVA_ALLOCATION_INSTRUMENTER",
       ],
       "testDistribution" : True,
       "maven": False,
     },
+    
     "GRAAL_TEST_PREVIEW_FEATURE" : {
       "subDir" : "src",
       "dependencies" : [
