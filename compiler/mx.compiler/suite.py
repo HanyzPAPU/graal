@@ -156,11 +156,22 @@ suite = {
     "JAZZER" : {
       "maven" : {
         "groupId" : "com.code-intelligence",
+        "artifactId" : "jazzer",
+        "version" : "0.22.1",
+      },
+      "digest" : "sha512:5b5a19b89060020424e9e1e0ed3e6e8fecc82eb924656e1472058dc1e4c377f825057c53940068cef59c701f9eb86f970a2144fcc02c80b388c7c2e3e75a4621"
+    },
+    
+    "JAZZER_API" : {
+      "maven" : {
+        "groupId" : "com.code-intelligence",
         "artifactId" : "jazzer-api",
         "version" : "0.22.1",
       },
       "digest" : "sha512:65349c41255c90400992b5d79173fd68c67597f05d70d1b748cd5b79a4c2a036c952f1c93c71a7fe4554a4e89e1838923acae1e26da3048fe3797ff58bfe8a0b"
     },
+    
+    
   },
 
   "projects" : {
@@ -252,6 +263,7 @@ suite = {
         "truffle:TRUFFLE_TEST",
         "truffle:TRUFFLE_RUNTIME",
         "JAZZER",
+        "JAZZER_API"
       ],
       "requires" : [
         "jdk.unsupported",
