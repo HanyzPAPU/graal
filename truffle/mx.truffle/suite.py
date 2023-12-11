@@ -163,7 +163,7 @@ suite = {
     },
 
     "JIMFS" : {
-      "sha1": "48462eb319817c90c27d377341684b6b81372e08",
+      "digest": "sha512:0a9df2cd8e0073545582cec28932ee91c75dcd61b06cd0a3bc9ab46527d149379d929e866a54758e6c110569359bec2b45b50a97b046356014e8302cd84544eb",
       "sourceSha1": "bc1cd4901ef5f6ed1f62fe2e876758ce081e2aba",
       "maven": {
         "groupId": "com.google.jimfs",
@@ -174,7 +174,7 @@ suite = {
 
     "GUAVA": { # JIMFS dependency
       "moduleName": "com.google.common",
-      "sha1": "119ea2b2bc205b138974d351777b20f02b92704b",
+      "digest": "sha512:c8d8aa38e6fb04c409c37922efcbbe182f65156a853f691d8381d56eea208adf22f7a28873bb7895210e41857dd4411aaf952682a2692051220e281910d0798f",
       "sourceSha1": "d34772c01bd6637982d1aafe895c4fcd8b42e139",
       "maven": {
         "groupId": "com.google.guava",

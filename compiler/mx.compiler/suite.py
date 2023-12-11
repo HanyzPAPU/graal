@@ -152,6 +152,15 @@ suite = {
         },
       },
     },
+    
+    "JAZZER" : {
+      "maven" : {
+        "groupId" : "com.code-intelligence",
+        "artifactId" : "jazzer-api",
+        "version" : "0.22.1",
+      },
+      "digest" : "sha512:65349c41255c90400992b5d79173fd68c67597f05d70d1b748cd5b79a4c2a036c952f1c93c71a7fe4554a4e89e1838923acae1e26da3048fe3797ff58bfe8a0b"
+    },
   },
 
   "projects" : {
@@ -242,6 +251,7 @@ suite = {
         "truffle:TRUFFLE_SL_TEST",
         "truffle:TRUFFLE_TEST",
         "truffle:TRUFFLE_RUNTIME",
+        "JAZZER",
       ],
       "requires" : [
         "jdk.unsupported",
@@ -437,7 +447,8 @@ suite = {
         "ASM_UTIL_9.5",
       ],
       "exclude" : [
-        "mx:JUNIT",
+        # TODO: return back
+        # "mx:JUNIT",
         "JAVA_ALLOCATION_INSTRUMENTER",
       ],
       "testDistribution" : True,
