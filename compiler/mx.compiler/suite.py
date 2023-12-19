@@ -461,6 +461,8 @@ suite = {
       "exclude" : [
         "mx:JUNIT",
         "JAVA_ALLOCATION_INSTRUMENTER",
+        "JAZZER",
+        "JAZZER_API"
       ],
       "testDistribution" : True,
       "maven": False,
