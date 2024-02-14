@@ -8,6 +8,7 @@ import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.Path;
+import java.util.Map;
 
 import org.junit.Test;
 
@@ -22,15 +23,12 @@ public class FuzzSandbox extends GraalCompilerTest {
         ByteClassLoader loader = new ByteClassLoader();
 
         try {
-            
             Class<?> hello = loader.LoadFromBytes(null, bytes);
-
             method = getResolvedJavaMethod(hello, "hello");
-
             reciever = method.isStatic() ? null : hello.getConstructor().newInstance();
         }
+        // Don't crash on reflection/loading errors
         catch (Exception ingored) {
-            // Don't crash on reflection errors
             return;
         }
         catch (java.lang.ClassFormatError ignored){
@@ -39,12 +37,18 @@ public class FuzzSandbox extends GraalCompilerTest {
         catch (java.lang.NoClassDefFoundError ignored){
             return;
         }
+
         test(method, reciever);
     }
 
     static FuzzSandbox instance;
 
     public static void fuzzerInitialize(){
+        Map<String, String> env = System.getenv();
+        for (String envName : env.keySet()) {
+            System.out.format("%s=%s%n", envName, env.get(envName));
+        }
+
         instance = new FuzzSandbox();
     }
 

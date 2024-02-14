@@ -14,6 +14,9 @@ CLASSPATH="$CLASSPATH:/home/honza/.mx/cache/HAMCREST_e237ae735aac4fa5a7253ec6931
 
 CORPUSDIR=/home/honza/graal/compiler/src/jdk.graal.compiler.test/src/jdk/graal/compiler/core/test/bytecodefuzz/corpus
 
+export LD_PRELOAD=/home/honza/graal/compiler/src/jdk.graal.compiler.test/src/jdk/graal/compiler/core/test/bytecodefuzz/build/libmutator.so
+export LD_DEBUG=libs
+
 # @export-hack exports the needed packages to all unknown modules, Jazzer being one of those unnamed modules
 # -XX:+UseParallelGC -XX:+EnableDynamicAgentLoading - recommended command line options
 # instrumentation includes only compiler code, not the test or reference interpreter
@@ -26,4 +29,5 @@ mx vm @export-hack \
     --instrumentation_excludes=jdk.graal.compiler.core.test**:jdk.graal.compiler.test** \
     --target_class=jdk.graal.compiler.core.test.bytecodefuzz.FuzzSandbox \
     --reproducer_path=./reproducers/ \
+    --experimental_mutator=true \
     $CORPUSDIR $@
