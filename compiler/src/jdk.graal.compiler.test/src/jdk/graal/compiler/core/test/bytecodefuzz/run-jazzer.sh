@@ -29,5 +29,4 @@ mx vm @export-hack \
     --instrumentation_excludes=jdk.graal.compiler.core.test**:jdk.graal.compiler.test** \
     --target_class=jdk.graal.compiler.core.test.bytecodefuzz.FuzzSandbox \
     --reproducer_path=./reproducers/ \
-    --experimental_mutator=true \
     $CORPUSDIR $@
