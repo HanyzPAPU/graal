@@ -8,7 +8,6 @@ import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.Path;
-import java.util.Map;
 
 import org.junit.Test;
 
@@ -44,11 +43,6 @@ public class FuzzSandbox extends GraalCompilerTest {
     static FuzzSandbox instance;
 
     public static void fuzzerInitialize(){
-        Map<String, String> env = System.getenv();
-        for (String envName : env.keySet()) {
-            System.out.format("%s=%s%n", envName, env.get(envName));
-        }
-
         instance = new FuzzSandbox();
     }
 
