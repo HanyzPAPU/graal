@@ -21,6 +21,8 @@ CORPUSDIR=/home/honza/graal/compiler/src/jdk.graal.compiler.test/src/jdk/graal/c
 # -XX:+UseParallelGC -XX:+EnableDynamicAgentLoading - recommended command line options
 # instrumentation includes only compiler code, not the test or reference interpreter
 
+#TODO: disable graal as JIT in the VM so the instrumentation wont get corrupted
+
 mx vm @export-hack \
     -XX:+UseParallelGC -XX:+EnableDynamicAgentLoading \
     -Djava.library.path=/home/honza/graal/compiler/src/jdk.graal.compiler.test/src/jdk/graal/compiler/core/test/bytecodefuzz/build \
