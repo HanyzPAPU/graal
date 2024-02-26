@@ -14,17 +14,17 @@ CLASSPATH="$CLASSPATH:/home/honza/.mx/cache/HAMCREST_e237ae735aac4fa5a7253ec6931
 
 CORPUSDIR=/home/honza/graal/compiler/src/jdk.graal.compiler.test/src/jdk/graal/compiler/core/test/bytecodefuzz/corpus
 
-#export LD_PRELOAD=/home/honza/graal/compiler/src/jdk.graal.compiler.test/src/jdk/graal/compiler/core/test/bytecodefuzz/build/libmutator.so
-#export LD_DEBUG=all
+export LD_PRELOAD=/home/honza/graal/compiler/src/jdk.graal.compiler.test/src/jdk/graal/compiler/core/test/bytecodefuzz/build/libmutator.so
 
 # @export-hack exports the needed packages to all unknown modules, Jazzer being one of those unnamed modules
 # -XX:+UseParallelGC -XX:+EnableDynamicAgentLoading - recommended command line options
+# -XX:-UseJVMCICompiler - disables Graal as the top tier JIT compiler => don't corrupt instrumentation by other compilations
 # instrumentation includes only compiler code, not the test or reference interpreter
 
 #TODO: disable graal as JIT in the VM so the instrumentation wont get corrupted
 
 mx vm @export-hack \
-    -XX:+UseParallelGC -XX:+EnableDynamicAgentLoading \
+    -XX:+UseParallelGC -XX:+EnableDynamicAgentLoading -XX:-UseJVMCICompiler \
     -Djava.library.path=/home/honza/graal/compiler/src/jdk.graal.compiler.test/src/jdk/graal/compiler/core/test/bytecodefuzz/build \
     -cp $CLASSPATH \
     com.code_intelligence.jazzer.Jazzer \

@@ -4,7 +4,7 @@ public class MutatorHarness {
     
     static {
         System.out.println("Mutator Harness Static CTOR");
-        //System.loadLibrary("mutator");
+        System.loadLibrary("mutator");
     }
 
     public static int Mutate(long data, int size, int maxSize, int seed) {
