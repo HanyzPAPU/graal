@@ -21,8 +21,6 @@ export LD_PRELOAD=/home/honza/graal/compiler/src/jdk.graal.compiler.test/src/jdk
 # -XX:-UseJVMCICompiler - disables Graal as the top tier JIT compiler => don't corrupt instrumentation by other compilations
 # instrumentation includes only compiler code, not the test or reference interpreter
 
-#TODO: disable graal as JIT in the VM so the instrumentation wont get corrupted
-
 mx vm @export-hack \
     -XX:+UseParallelGC -XX:+EnableDynamicAgentLoading -XX:-UseJVMCICompiler \
     -Djava.library.path=/home/honza/graal/compiler/src/jdk.graal.compiler.test/src/jdk/graal/compiler/core/test/bytecodefuzz/build \

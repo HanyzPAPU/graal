@@ -43,7 +43,7 @@ public class FuzzSandbox extends GraalCompilerTest {
     static FuzzSandbox instance;
 
     public static void fuzzerInitialize(){
-        MutatorHarness.initMutator();
+        MutatorHarness.InitMutator();
         instance = new FuzzSandbox();
     }
 
