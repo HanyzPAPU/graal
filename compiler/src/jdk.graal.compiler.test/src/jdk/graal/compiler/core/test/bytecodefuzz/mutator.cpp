@@ -16,22 +16,40 @@ extern "C" size_t LLVMFuzzerCustomMutator(uint8_t *Data, size_t Size, size_t Max
     // TODO: perhaps attach to a jvm, because this could be called from a different thread?
     // TODO: check that this even makes sense and that it does not have races
 
-    jint jsize = std::min(Size, static_cast<size_t>(std::numeric_limits<jint>::max()));
+    jint jSize = std::min(Size, static_cast<size_t>(std::numeric_limits<jint>::max()));
     jint jmaxSize = std::min(MaxSize, static_cast<size_t>(std::numeric_limits<jint>::max()));
     jint jseed = static_cast<jint>(Seed);
 
-    jint newSize = gEnv->CallStaticLongMethod(gHarness, gMutate, Data, jsize, jmaxSize, jseed);
-    
+    jbyteArray input = gEnv->NewByteArray(Size);
+
+    static_assert(sizeof(jbyte) == sizeof(uint8_t));
+
+    // Note: Memory copying occurs here
+    gEnv->SetByteArrayRegion(input, 0, Size, (jbyte*)Data);
+
+    jbyteArray output = (jbyteArray)gEnv->CallStaticObjectMethod(gHarness, gMutate, input, jmaxSize, jseed);
+
     if (gEnv->ExceptionCheck()) {
-      gEnv->ExceptionDescribe();
-      _Exit(1);
+        gEnv->ExceptionDescribe();
+        _Exit(1);
     }
-    return static_cast<uint32_t>(newSize);
+
+    // TODO: assert no overflow or truncate?
+    jsize newSize = gEnv->GetArrayLength(output);
+
+    // Note: Memory copying occurs here
+    gEnv->GetByteArrayRegion(output, 0, MaxSize, (jbyte*)Data);
+
+    // Free local refs, to not leak memory
+    gEnv->DeleteLocalRef(output);
+    gEnv->DeleteLocalRef(input);
+    
+    return std::min(MaxSize, static_cast<size_t>(newSize));
 }
 
 JNIEXPORT void JNICALL Java_jdk_graal_compiler_core_test_bytecodefuzz_MutatorHarness_initMutator (JNIEnv *env, jclass harness){
     gEnv = env;
     env->GetJavaVM(&gJavaVm);
     gHarness = reinterpret_cast<jclass>(env->NewGlobalRef(harness));
-    gMutate = env->GetStaticMethodID(harness, "mutate", "(JIII)I");
+    gMutate = env->GetStaticMethodID(harness, "mutate", "([BII)[B");
 }

@@ -8,33 +8,15 @@ public class MutatorHarness {
 
     static Mutator mutator;
 
-    // TODO: reimplement?
-
-    // private static byte[] readFromMem(long data, int size){
-    //     byte[] result = new byte[size];
-    //     UNSAFE.copyMemory(null, data, result, BYTE_ARRAY_OFFSET, size);
-    //     return result;
-    // }
-
-    // private static int writeToMem(long target, byte[] data, int maxSize){
-    //     int size = Math.min(data.length, maxSize);
-    //     UNSAFE.copyMemory(data, BYTE_ARRAY_OFFSET, null, target, size);
-    //     return size;
-    // }
-
-    private static int mutate(long data, int size, int maxSize, int seed) {
+    private static byte[] mutate(byte[] data, int maxSize, int seed) {
         
         // TODO: libFuzzer sends '\n' as a special signal when there are no corpus entries -> do we want to consider this case?
 
-        //byte[] inputData = readFromMem(data, size);
-        //byte[] outputData = mutator.Mutate(inputData, maxSize, seed);
+        var mutatedData = mutator.Mutate(data, maxSize, seed);
 
-        mutator.Mutate(null, maxSize, seed);
+        //TODO: Assert(mutatedData.length <= maxSize)
 
-        //TODO: Assert(outputData.length <= maxSize)
-
-        //return writeToMem(data, outputData, maxSize);
-        return size;
+        return mutatedData;
     }
 
     private static native void initMutator();
