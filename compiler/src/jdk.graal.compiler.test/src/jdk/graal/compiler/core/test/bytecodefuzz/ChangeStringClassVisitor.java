@@ -41,6 +41,7 @@ public class ChangeStringClassVisitor extends ClassVisitor {
                 char val = alphabet.charAt(rnd.nextInt(alphabet.length()));
                 builder.setCharAt(index, val);
                 String result = builder.toString();
+
                 this.mv.visitLdcInsn(result);
             }
             else {
