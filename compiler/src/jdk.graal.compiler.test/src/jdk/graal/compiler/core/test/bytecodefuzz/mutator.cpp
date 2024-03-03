@@ -38,7 +38,7 @@ extern "C" size_t LLVMFuzzerCustomMutator(uint8_t *Data, size_t Size, size_t Max
     jsize newSize = gEnv->GetArrayLength(output);
 
     // Note: Memory copying occurs here
-    gEnv->GetByteArrayRegion(output, 0, MaxSize, (jbyte*)Data);
+    gEnv->GetByteArrayRegion(output, 0, newSize, (jbyte*)Data);
 
     // Free local refs, to not leak memory
     gEnv->DeleteLocalRef(output);

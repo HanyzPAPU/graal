@@ -8,15 +8,18 @@ public class MutatorHarness {
 
     static Mutator mutator;
 
-    private static byte[] mutate(byte[] data, int maxSize, int seed) {
+    private static byte[] mutate(byte[] data, int maxSize, int seed) throws Exception {
         
         // TODO: libFuzzer sends '\n' as a special signal when there are no corpus entries -> do we want to consider this case?
 
-        var mutatedData = mutator.Mutate(data, maxSize, seed);
+        assert(data != null);
+        
+        var res = mutator.Mutate(data, maxSize, seed);
 
-        //TODO: Assert(mutatedData.length <= maxSize)
+        assert(res != null);
+        assert(res.length <= maxSize);
 
-        return mutatedData;
+        return res;
     }
 
     private static native void initMutator();
