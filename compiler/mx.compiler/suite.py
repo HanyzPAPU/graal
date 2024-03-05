@@ -256,13 +256,14 @@ suite = {
       "dependencies" : [
         "jdk.graal.compiler",
         "mx:JUNIT",
+        "ASM_9.5", # TODO: remove
         "ASM_TREE_9.5",
         "ASM_UTIL_9.5",
         "JAVA_ALLOCATION_INSTRUMENTER",
         "truffle:TRUFFLE_SL_TEST",
         "truffle:TRUFFLE_TEST",
         "truffle:TRUFFLE_RUNTIME",
-        "JAZZER",
+        "JAZZER", #TODO: Move
         "JAZZER_API"
       ],
       "requires" : [
@@ -455,13 +456,14 @@ suite = {
         "truffle:TRUFFLE_COMPILER",
         "truffle:TRUFFLE_RUNTIME",
         "regex:TREGEX",
+        "ASM_9.5", # TODO: remove
         "ASM_TREE_9.5",
         "ASM_UTIL_9.5",
       ],
       "exclude" : [
         "mx:JUNIT",
         "JAVA_ALLOCATION_INSTRUMENTER",
-        "JAZZER",
+        "JAZZER", ## TODO: remove
         "JAZZER_API"
       ],
       "testDistribution" : True,
