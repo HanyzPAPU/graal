@@ -1,4 +1,4 @@
-package jdk.graal.compiler.core.test.bytecodefuzz;
+package jdk.graal.compiler.test.bytecodefuzz;
 
 public class ByteClassLoader extends ClassLoader {
     public Class<?> LoadFromBytes(String name, byte[] bytes){

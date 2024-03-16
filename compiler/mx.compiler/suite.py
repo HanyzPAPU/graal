@@ -170,8 +170,6 @@ suite = {
       },
       "digest" : "sha512:65349c41255c90400992b5d79173fd68c67597f05d70d1b748cd5b79a4c2a036c952f1c93c71a7fe4554a4e89e1838923acae1e26da3048fe3797ff58bfe8a0b"
     },
-    
-    
   },
 
   "projects" : {
@@ -256,15 +254,12 @@ suite = {
       "dependencies" : [
         "jdk.graal.compiler",
         "mx:JUNIT",
-        "ASM_9.5", # TODO: remove
         "ASM_TREE_9.5",
         "ASM_UTIL_9.5",
         "JAVA_ALLOCATION_INSTRUMENTER",
         "truffle:TRUFFLE_SL_TEST",
         "truffle:TRUFFLE_TEST",
         "truffle:TRUFFLE_RUNTIME",
-        "JAZZER", #TODO: Move
-        "JAZZER_API"
       ],
       "requires" : [
         "jdk.unsupported",
@@ -438,6 +433,59 @@ suite = {
       "javaCompliance" : "21+",
       "workingSets" : "Graal,Test",
     },
+    
+    # ------------- Bytecode Fuzzing -------------
+    
+    "jdk.graal.compiler.test.bytecodefuzz" : {
+      "subDir" : "src",
+      "sourceDirs" : ["src"],
+      "testProject" : True,
+      "dependencies" : [
+        "jdk.graal.compiler.test",
+        "JAZZER",
+        "JAZZER_API"
+      ],
+      "requires" : [
+        "jdk.unsupported",
+        "java.compiler",
+        "java.logging",
+        "java.instrument",
+        "java.management",
+        "jdk.jfr",
+      ],
+      "requiresConcealed" : {
+        "java.base" : [
+          "jdk.internal.module",
+          "jdk.internal.misc",
+          "jdk.internal.util",
+          "jdk.internal.vm.annotation",
+        ],
+        "java.instrument" : [
+          "sun.instrument",
+        ],
+        "jdk.internal.vm.ci" : [
+          "jdk.vm.ci.meta",
+          "jdk.vm.ci.code",
+          "jdk.vm.ci.code.site",
+          "jdk.vm.ci.code.stack",
+          "jdk.vm.ci.common",
+          "jdk.vm.ci.amd64",
+          "jdk.vm.ci.aarch64",
+          "jdk.vm.ci.services",
+          "jdk.vm.ci.runtime",
+          "jdk.vm.ci.hotspot",
+          "jdk.vm.ci.hotspot.amd64",
+          "jdk.vm.ci.hotspot.aarch64",
+        ],
+      },
+      "annotationProcessors" : [
+        "GRAAL_PROCESSOR",
+        "truffle:TRUFFLE_DSL_PROCESSOR"
+      ],
+      "checkstyle" : "jdk.graal.compiler",
+      "javaCompliance" : "21+",
+      "jacoco" : "exclude",
+    },
   },
 
   "distributions" : {
@@ -456,15 +504,12 @@ suite = {
         "truffle:TRUFFLE_COMPILER",
         "truffle:TRUFFLE_RUNTIME",
         "regex:TREGEX",
-        "ASM_9.5", # TODO: remove
         "ASM_TREE_9.5",
         "ASM_UTIL_9.5",
       ],
       "exclude" : [
         "mx:JUNIT",
         "JAVA_ALLOCATION_INSTRUMENTER",
-        "JAZZER", ## TODO: remove
-        "JAZZER_API"
       ],
       "testDistribution" : True,
       "maven": False,
@@ -647,6 +692,27 @@ suite = {
       "exclude" : [
         "mx:JUNIT",
       ],
+      "maven": False,
+    },
+    
+    "GRAAL_TEST_BYTECODEFUZZ" : {
+      "subDir" : "src",
+      "dependencies" : [
+        "jdk.graal.compiler.test",
+        "jdk.graal.compiler.test.bytecodefuzz",
+      ],
+      "distDependencies" : [
+        "GRAAL",
+        "truffle:TRUFFLE_SL_TEST",
+        "truffle:TRUFFLE_TEST",
+        "truffle:TRUFFLE_COMPILER",
+        "truffle:TRUFFLE_RUNTIME",
+        "regex:TREGEX",
+        "ASM_9.5",
+        "ASM_TREE_9.5",
+        "ASM_UTIL_9.5",
+      ],
+      "testDistribution" : True,
       "maven": False,
     },
   },

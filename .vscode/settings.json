@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "limits": "cpp"
+    },
+    "java.compile.nullAnalysis.mode": "disabled",
+    "java.format.settings.url": "eclipse-formatter.xml"
+}

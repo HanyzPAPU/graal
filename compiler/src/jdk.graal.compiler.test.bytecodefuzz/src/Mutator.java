@@ -1,4 +1,4 @@
-package jdk.graal.compiler.core.test.bytecodefuzz;
+package jdk.graal.compiler.test.bytecodefuzz;
 
 import java.lang.Exception;
 
