@@ -1,15 +1,10 @@
 #!/bin/bash
 
-#TODO: do this in a sane way that is not dependent on absolute paths and perhaps dont input the cache of MX directly (with the sha512 digests)
-
 CLASSPATH="../../mxbuild/dists/graal-test-bytecodefuzz.jar"
-CLASSPATH="$CLASSPATH:../../mxbuild/dists/graal.jar"
-CLASSPATH="$CLASSPATH:../../../sdk/mxbuild/dists/collections.jar"
-# These packages have been explicitely excluded from the distribution, but we need them to run the fuzzing
-
 CORPUSDIR="./corpus"
 
-export LD_PRELOAD=/home/honza/graal/compiler/src/jdk.graal.compiler.test.bytecodefuzz/src/build/libmutator.so
+# LD_PRELOAD prefers the use of absolute paths, this works if you run it from the directory this script is located in
+export LD_PRELOAD="$PWD/src/build/libmutator.so"
 
 # @export-hack exports the needed packages to all unknown modules, Jazzer being one of those unnamed modules
 # -XX:+UseParallelGC -XX:+EnableDynamicAgentLoading - recommended command line options
@@ -20,7 +15,7 @@ export LD_PRELOAD=/home/honza/graal/compiler/src/jdk.graal.compiler.test.bytecod
 
 mx vm @export-hack \
     -XX:+UseParallelGC -XX:+EnableDynamicAgentLoading -XX:-UseJVMCICompiler \
-    -Djava.library.path=/home/honza/graal/compiler/src/jdk.graal.compiler.test.bytecodefuzz/src/build/ \
+    -Djava.library.path="$PWD/src/build/" \
     -cp $CLASSPATH \
     com.code_intelligence.jazzer.Jazzer \
     --instrumentation_excludes=jdk.graal.compiler.core.test.**:jdk.graal.compiler.test.**:org.objectweb.asm.** \
