@@ -21,7 +21,18 @@ public class FuzzTarget extends GraalCompilerTest {
 
         try {
             Class<?> hello = loader.LoadFromBytes(null, bytes);
-            method = getResolvedJavaMethod(hello, "hello");
+
+            var methods = hello.getMethods();
+            if (methods.length == 0) {
+                methods = hello.getDeclaredMethods();
+                if (methods.length == 0) {
+                    throw new RuntimeException("Class does not contain any methods!");
+                }
+            }
+            
+            // For now select the first method
+            method = asResolvedJavaMethod(methods[0]);
+            
             reciever = method.isStatic() ? null : hello.getConstructor().newInstance();
         }
         // Don't crash on reflection/loading errors
