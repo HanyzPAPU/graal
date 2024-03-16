@@ -20,6 +20,6 @@ mx vm @export-hack \
     com.code_intelligence.jazzer.Jazzer \
     --instrumentation_excludes=jdk.graal.compiler.core.test.**:jdk.graal.compiler.test.**:org.objectweb.asm.** \
     --instrumentation_includes=jdk.graal.compiler.** \
-    --target_class=jdk.graal.compiler.test.bytecodefuzz.FuzzSandbox \
+    --target_class=jdk.graal.compiler.test.bytecodefuzz.FuzzTarget \
     --reproducer_path=./reproducers/ \
     $CORPUSDIR $@

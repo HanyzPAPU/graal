@@ -9,9 +9,7 @@ import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.Path;
 
-import org.junit.Test;
-
-public class FuzzSandbox extends GraalCompilerTest {
+public class FuzzTarget extends GraalCompilerTest {
 
     void testBytecode(byte[] bytes) throws Exception {
 
@@ -40,23 +38,14 @@ public class FuzzSandbox extends GraalCompilerTest {
         test(method, reciever);
     }
 
-    static FuzzSandbox instance;
+    static FuzzTarget instance;
 
     public static void fuzzerInitialize(){
         MutatorHarness.InitMutator();
-        instance = new FuzzSandbox();
+        instance = new FuzzTarget();
     }
 
     public static void fuzzerTestOneInput(byte[] input) throws Exception {
         instance.testBytecode(input);
-    }
-
-    @Test
-    public void entry() throws Exception {
-
-        Path path = Paths.get("/home/honza/graal/compiler/src/jdk.graal.compiler.test/src/jdk/graal/compiler/core/test/bytecodefuzz/Hello.class");
-        byte[] data = Files.readAllBytes(path);
- 
-        testBytecode(data);
     }
 }
