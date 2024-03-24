@@ -17,15 +17,26 @@ public final class Mutator {
 
         ClassReader reader = new ClassReader(data);
         ClassWriter writer = new ClassWriter(0);
-        ChangeStringClassVisitor mutateString = new ChangeStringClassVisitor(Opcodes.ASM9, writer, seed);
+        MutateConstantClassVisitor mutateConstants = new MutateConstantClassVisitor(Opcodes.ASM9, writer, seed);
 
-        reader.accept(mutateString, ClassReader.EXPAND_FRAMES);
+        byte[] result;
+        int maxIters = 10;
+        int iter = 0;
 
-        byte[] result = writer.toByteArray();
+        do {
+            reader.accept(mutateConstants, ClassReader.EXPAND_FRAMES);
+            result = writer.toByteArray();
+            iter++;
+            if (iter > maxIters) {
+                // TODO: think of what to do!
+                break;
+            }
+        } while (result.length > maxSize);
+        
 
         if (result.length > maxSize) {
             // TODO: change into more appropriate exception type
-            throw new Exception("Generated Classfile that is too long!");
+            throw new Exception(String.format("Generated Classfile that is too long! Length %d > Max %d", result.length, maxSize));
         }
 
         return result;
