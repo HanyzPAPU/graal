@@ -1,3 +1,3 @@
 crash-*
 slow-unit-*
-build/
+graal_dumps/

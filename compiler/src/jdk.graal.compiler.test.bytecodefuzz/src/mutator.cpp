@@ -5,7 +5,7 @@
 
 #include <jni.h>
 
-#include "jdk_graal_compiler_core_test_bytecodefuzz_MutatorHarness.h"
+#include "jdk_graal_compiler_test_bytecodefuzz_MutatorHarness.h"
 
 static JNIEnv* gEnv = nullptr;
 static JavaVM *gJavaVm = nullptr;
@@ -47,7 +47,7 @@ extern "C" size_t LLVMFuzzerCustomMutator(uint8_t *Data, size_t Size, size_t Max
     return std::min(MaxSize, static_cast<size_t>(newSize));
 }
 
-JNIEXPORT void JNICALL Java_jdk_graal_compiler_core_test_bytecodefuzz_MutatorHarness_initMutator (JNIEnv *env, jclass harness){
+JNIEXPORT void JNICALL Java_jdk_graal_compiler_test_bytecodefuzz_MutatorHarness_initMutator(JNIEnv *env, jclass harness){
     gEnv = env;
     env->GetJavaVM(&gJavaVm);
     gHarness = reinterpret_cast<jclass>(env->NewGlobalRef(harness));
