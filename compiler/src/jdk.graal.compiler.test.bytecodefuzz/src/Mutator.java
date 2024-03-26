@@ -20,6 +20,8 @@ public final class Mutator {
 
     public byte[] Mutate(byte[] data, int maxSize, int seed) throws Exception {
 
+        // dumpBytecode(data);
+
         ClassReader reader = new ClassReader(data);
         ClassWriter writer = new ClassWriter(0);
         MutateConstantClassVisitor mutateConstants = new MutateConstantClassVisitor(Opcodes.ASM9, writer, seed);

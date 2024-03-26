@@ -20,11 +20,11 @@ public class FuzzTarget extends GraalCompilerTest {
         ByteClassLoader loader = new ByteClassLoader();
 
         try {
-            Class<?> hello = loader.LoadFromBytes(null, bytes);
+            Class<?> clazz = loader.LoadFromBytes(null, bytes);
 
-            var methods = hello.getMethods();
+            var methods = clazz.getMethods();
             if (methods.length == 0) {
-                methods = hello.getDeclaredMethods();
+                methods = clazz.getDeclaredMethods();
                 if (methods.length == 0) {
                     throw new RuntimeException("Class does not contain any methods!");
                 }
@@ -33,7 +33,7 @@ public class FuzzTarget extends GraalCompilerTest {
             // For now select the first method
             method = asResolvedJavaMethod(methods[0]);
             
-            reciever = method.isStatic() ? null : hello.getConstructor().newInstance();
+            reciever = method.isStatic() ? null : clazz.getConstructor().newInstance();
         }
         // Don't crash on reflection/loading errors
         catch (Exception ingored) {

@@ -46,6 +46,7 @@ public class MutateConstantClassVisitor extends ClassVisitor {
 
 
         <T> T mutateOrThrow(Object value, Class<T> clazz) throws Exception {
+
             AnnotatedType annotatedType = TypeSupport.asAnnotatedType(clazz);
 
             if (value instanceof String s) {
@@ -56,8 +57,11 @@ public class MutateConstantClassVisitor extends ClassVisitor {
 
             @SuppressWarnings("unchecked") // This method will throw before the cast would be unsuccesfull
             SerializingMutator<T> mutator = (SerializingMutator<T>)mutatorFactory.createOrThrow(annotatedType);
+
             return mutator.mutate(clazz.cast(value), prng);
         }
+
+        // TODO: special load constant instructions for small ints/floats/...
 
         @Override
         public void visitLdcInsn(Object value){
