@@ -20,7 +20,10 @@ public final class Mutator {
 
     public byte[] Mutate(byte[] data, int maxSize, int seed) throws Exception {
 
+        // dumpBytes(data);
         // dumpBytecode(data);
+
+        // System.out.println(data.length);
 
         ClassReader reader = new ClassReader(data);
         ClassWriter writer = new ClassWriter(0);
@@ -30,7 +33,8 @@ public final class Mutator {
         byte[] result = writer.toByteArray();
 
         if (result.length > maxSize) {
-            dumpBytecode(result);            
+            // dumpBytes(result);
+            dumpBytecode(result);      
             // TODO: change into more appropriate exception type
             throw new Exception(String.format("Generated Classfile that is too long! Length %d > Max %d", result.length, maxSize));
         }
@@ -48,5 +52,19 @@ public final class Mutator {
         TraceClassVisitor visitor = new TraceClassVisitor(new PrintWriter(sw));
         reader.accept(visitor, 0);
         System.err.println(sw.toString());
+    }
+
+    private void dumpBytes(byte[] bytes) {
+        for (int i = 0; i < bytes.length; ++i) {
+            System.err.printf("%02x", bytes[i]);
+
+            if ((i+1) % 16 == 0) {
+                System.err.println();
+            }
+            else if ((i+1) % 4 == 0) {
+                System.err.print(" ");
+            }
+        }
+        System.err.println();
     }
 }

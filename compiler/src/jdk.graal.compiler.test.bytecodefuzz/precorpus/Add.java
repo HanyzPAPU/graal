@@ -1,6 +1,6 @@
 public class Add {
-    int a = 420000;
-    int b = 1337000;
+    int a = 1;
+    int b = 5;
 
     public int add() {
         int c = a + b;
