@@ -27,12 +27,15 @@ public class MutateConstantClassVisitor extends ClassVisitor {
     boolean ctorOnly;
     private static final String ctorName = "<init>";
 
-    public MutateConstantClassVisitor(int api, ClassVisitor classVisitor, int seed, boolean ctorOnly) {
+    FreeSpace freeSpace;
+
+    public MutateConstantClassVisitor(int api, ClassVisitor classVisitor, int seed, boolean ctorOnly, FreeSpace freeSpace) {
         super(api, classVisitor);
         this.prng = new SeededPseudoRandom(seed);
         this.api = api;
         this.cv = classVisitor;
         this.ctorOnly = ctorOnly;
+        this.freeSpace = freeSpace;
     }
 
     @Override
@@ -42,21 +45,18 @@ public class MutateConstantClassVisitor extends ClassVisitor {
             return this.cv.visitMethod(access, name, descriptor, signature, exceptions);
         }
         else {
-            return new MutateConstantMethodVisitor(api, this.cv.visitMethod(access, name, descriptor, signature, exceptions), prng);    
+            return new MutateConstantMethodVisitor(api, this.cv.visitMethod(access, name, descriptor, signature, exceptions));    
         }
     }
     
     class MutateConstantMethodVisitor extends MethodVisitor {
 
-        PseudoRandom prng;
         MutatorFactory mutatorFactory = LangMutators.newFactory();
 
-        public MutateConstantMethodVisitor(int api, MethodVisitor methodVisitor, PseudoRandom prng) {
+        public MutateConstantMethodVisitor(int api, MethodVisitor methodVisitor) {
             super(api, methodVisitor);
             this.mv = methodVisitor;
-            this.prng = prng;
         }
-
 
         <T> T mutateOrThrow(Object value, Class<T> clazz) throws Exception {
             AnnotatedType annotatedType = TypeSupport.asAnnotatedType(clazz);
@@ -66,8 +66,6 @@ public class MutateConstantClassVisitor extends ClassVisitor {
 
             return mutator.mutate(clazz.cast(value), prng);    
         }
-
-        // TODO: special load constant instructions for small ints/floats/...
 
         // This function calculates the number of bytes needed to store the given string in a classfile
         int modifiedUTF8Len(String s) {
@@ -107,25 +105,29 @@ public class MutateConstantClassVisitor extends ClassVisitor {
                 Object mutant;
                 if (value instanceof String s) {
 
-                    AnnotatedType annotatedType = TypeSupport.asAnnotatedType(String.class);
+                    
 
                     int originalUTF8Length = s.getBytes(StandardCharsets.UTF_8).length;
-                    int maxLength = modifiedUTF8Len(s);
-
-                    // TODO: allow to grow a little based on free space?
-                    annotatedType = JazzerTypeSupport.WithUtf8Length(annotatedType, 0, originalUTF8Length);
+                    int maxUTF8Length = originalUTF8Length + freeSpace.Amount();
+                    int originalLength = modifiedUTF8Len(s);
+                    int maxLength = originalLength + freeSpace.Amount();
+                    
+                    AnnotatedType annotatedType = TypeSupport.asAnnotatedType(String.class);
+                    annotatedType = JazzerTypeSupport.WithUtf8Length(annotatedType, 0, maxUTF8Length);
 
                     @SuppressWarnings("unchecked") // This method will throw before the cast would be unsuccesfull
                     SerializingMutator<String> mutator = (SerializingMutator<String>)mutatorFactory.createOrThrow(annotatedType);
 
                     String mutated = mutator.mutate(s, prng);
+                    int mutatedLength;
 
-                    while (modifiedUTF8Len(mutated) > maxLength) {
+                    while ((mutatedLength = modifiedUTF8Len(mutated)) > maxLength) {
                         // Remove first character
                         mutated = mutated.substring(1);
                     }
 
                     mutant = mutated;
+                    freeSpace.Add(originalLength - mutatedLength);
                 }
                 else {
                     mutant = mutateOrThrow(value, value.getClass());

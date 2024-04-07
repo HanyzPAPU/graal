@@ -27,10 +27,13 @@ public final class Mutator {
 
         ClassReader reader = new ClassReader(data);
         ClassWriter writer = new ClassWriter(0);
-        MutateConstantClassVisitor mutateConstants = new MutateConstantClassVisitor(Opcodes.ASM9, writer, seed, true);
+        FreeSpace freeSpace = new FreeSpace(maxSize - data.length);
+        MutateConstantClassVisitor mutateConstants = new MutateConstantClassVisitor(Opcodes.ASM9, writer, seed, true, freeSpace);
 
         reader.accept(mutateConstants, 0);
         byte[] result = writer.toByteArray();
+
+        assert(freeSpace.Amount() == maxSize - result.length);
 
         if (result.length > maxSize) {
             // dumpBytes(result);
