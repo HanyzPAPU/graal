@@ -27,7 +27,7 @@ public final class Mutator {
 
         ClassReader reader = new ClassReader(data);
         ClassWriter writer = new ClassWriter(0);
-        MutateConstantClassVisitor mutateConstants = new MutateConstantClassVisitor(Opcodes.ASM9, writer, seed);
+        MutateConstantClassVisitor mutateConstants = new MutateConstantClassVisitor(Opcodes.ASM9, writer, seed, true);
 
         reader.accept(mutateConstants, 0);
         byte[] result = writer.toByteArray();

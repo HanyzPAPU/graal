@@ -24,16 +24,26 @@ public class MutateConstantClassVisitor extends ClassVisitor {
     PseudoRandom prng;
     int api;
 
-    public MutateConstantClassVisitor(int api, ClassVisitor classVisitor, int seed) {
+    boolean ctorOnly;
+    private static final String ctorName = "<init>";
+
+    public MutateConstantClassVisitor(int api, ClassVisitor classVisitor, int seed, boolean ctorOnly) {
         super(api, classVisitor);
         this.prng = new SeededPseudoRandom(seed);
         this.api = api;
         this.cv = classVisitor;
+        this.ctorOnly = ctorOnly;
     }
 
     @Override
     public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
-        return new MutateConstantMethodVisitor(api, this.cv.visitMethod(access, name, descriptor, signature, exceptions), prng);
+        if (ctorOnly && !name.equals(ctorName)) {
+            // Do not mutate non ctor methods when ctorOnly is true
+            return this.cv.visitMethod(access, name, descriptor, signature, exceptions);
+        }
+        else {
+            return new MutateConstantMethodVisitor(api, this.cv.visitMethod(access, name, descriptor, signature, exceptions), prng);    
+        }
     }
     
     class MutateConstantMethodVisitor extends MethodVisitor {
@@ -160,7 +170,6 @@ public class MutateConstantClassVisitor extends ClassVisitor {
                 this.mv.visitIntInsn(opcode, operand);
             }
         }
-
         
         private boolean isICONST(int opcode) {
             return 
