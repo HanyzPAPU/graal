@@ -22,8 +22,6 @@ public class MutateAndPrint {
 
     public static void main(String[] args) throws Exception {
 
-        System.out.println(System.getenv("JAZZER_MOCK_LIBFUZZER_MUTATOR"));
-
         int maxSize = 500;
         int seed = 42;
         String filename = args[1] + ".class";
