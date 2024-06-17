@@ -51,12 +51,13 @@ public class Duff {
         istore 2
 
         // Get array Length
-        arraylength
-        ldc 8
-        irem
+        arraylength // 7
+        ldc 8 // 8
+        irem // 9
 
-        tableswitch END {
-            0: L0
+        // [I, 1
+        tableswitch END { // 10
+            0: EPILOGUE
             1: L7
             2: L6
             3: L5
@@ -66,14 +67,17 @@ public class Duff {
             7: L1
         }
 
+        // 11
+
         L0:
-            dup
-            iload 2
-            iaload
-            iload 1
-            iadd
-            istore 1
-            iinc 2, [1]
+            dup // 12
+            iload 2 // 13
+            iaload // 14
+            iload 1 // 15
+            iadd // 16
+            istore 1 // 17
+            iinc 2, [1] // 18
+            
         L1:
             dup
             iload 2
@@ -132,11 +136,15 @@ public class Duff {
             iinc 2, [1]
 
         EPILOGUE:
+            // [I
             dup
+            // [I [I
             arraylength
+            // [I 1
             iload 2
+            // [I 1 1
             if_icmpgt L0
-
+            // [I
         END:
             iload 1
             ireturn

@@ -113,6 +113,16 @@ suite = {
       },
       "dependencies" : ["ASM_9.5"],
     },
+    
+    "ASM_COMMONS_9.5" : {
+      "digest" : "sha512:6121a9d033627a33839d9bd264fce4a531b6a3f974720adc6150816f0316d1522c3d8caf7df039fdd46cb66bedd788e50f709d4a1f75d3525912ad7a4d87f7da",
+      "maven" : {
+        "groupId" : "org.ow2.asm",
+        "artifactId" : "asm-commons",
+        "version" : "9.5",
+      },
+      "dependencies" : ["ASM_9.5"],
+    },
 
     "HSDIS" : {
       "urlbase" : "https://lafo.ssw.uni-linz.ac.at/pub/graal-external-deps/hsdis",
@@ -442,6 +452,7 @@ suite = {
       "testProject" : True,
       "dependencies" : [
         "jdk.graal.compiler.test",
+        "ASM_COMMONS_9.5",
         "JAZZER",
         "JAZZER_API"
       ],
@@ -711,6 +722,7 @@ suite = {
         "ASM_9.5",
         "ASM_TREE_9.5",
         "ASM_UTIL_9.5",
+        "ASM_COMMONS_9.5",
       ],
       "testDistribution" : True,
       "maven": False,

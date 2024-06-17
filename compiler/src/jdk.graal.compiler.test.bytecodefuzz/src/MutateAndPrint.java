@@ -19,6 +19,11 @@ import org.objectweb.asm.util.Printer;
 import org.objectweb.asm.util.Textifier;
 import org.objectweb.asm.util.TraceMethodVisitor;
 import org.objectweb.asm.util.TraceClassVisitor;
+import org.objectweb.asm.ClassVisitor;
+import org.objectweb.asm.MethodVisitor;
+import org.objectweb.asm.commons.AnalyzerAdapter;
+import org.objectweb.asm.commons.LocalVariablesSorter;
+
 
 public class MutateAndPrint {
 
@@ -34,25 +39,44 @@ public class MutateAndPrint {
         dumpBytecode(data);
         run(data);
 
-        ClassReader reader = new ClassReader(data);
-        ClassWriter writer = new ClassWriter(0);
-        FreeSpace freeSpace = new FreeSpace(maxSize - data.length);
-        MutateConstantClassVisitor mutateConstants = new MutateConstantClassVisitor(Opcodes.ASM9, writer, seed, true, freeSpace);
+        // ClassReader reader = new ClassReader(data);
+        // ClassWriter writer = new ClassWriter(0);
+        // FreeSpace freeSpace = new FreeSpace(maxSize - data.length);
+        // MutateConstantClassVisitor mutateConstants = new MutateConstantClassVisitor(Opcodes.ASM9, writer, seed, true, freeSpace);
 
-        reader.accept(mutateConstants, 0);
-        byte[] result = writer.toByteArray();
+        // reader.accept(mutateConstants, 0);
+        // byte[] result = writer.toByteArray();
         
-        assert(freeSpace.Amount() == maxSize - result.length);
+        // assert(freeSpace.Amount() == maxSize - result.length);
 
-        dumpBytecode(result);
-        run(result);
+        // dumpBytecode(result);
+        // run(result);
     }
 
     private static void dumpBytecode(byte[] bytecode) {
         ClassReader reader = new ClassReader(bytecode);
         StringWriter sw = new StringWriter();
-        TraceClassVisitor visitor = new TraceClassVisitor(new PrintWriter(sw));
-        reader.accept(visitor, 0);
+
+        TraceClassVisitor traceClassVisitor = new TraceClassVisitor(new PrintWriter(sw));
+
+        ClassVisitor classVisitor = new ClassVisitor(Opcodes.ASM9, traceClassVisitor) {
+
+            String name;
+
+            @Override
+            public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
+                this.name = name;
+                this.cv.visit(version, access, name, signature, superName, interfaces);
+            }
+
+            @Override
+            public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
+                return new FrameMapAnalyzer(this.api, this.name, access, name, descriptor);
+            }
+        };
+
+        
+        reader.accept(classVisitor, ClassReader.EXPAND_FRAMES);
         System.err.println(sw.toString());
     }
 
