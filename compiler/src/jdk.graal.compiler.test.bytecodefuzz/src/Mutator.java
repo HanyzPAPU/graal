@@ -15,6 +15,9 @@ import org.objectweb.asm.util.Textifier;
 import org.objectweb.asm.util.TraceMethodVisitor;
 import org.objectweb.asm.util.TraceClassVisitor;
 
+import com.code_intelligence.jazzer.mutation.api.PseudoRandom;
+import com.code_intelligence.jazzer.mutation.engine.SeededPseudoRandom;
+
 
 public final class Mutator {
 
@@ -26,14 +29,17 @@ public final class Mutator {
         // System.out.println(data.length);
 
         ClassReader reader = new ClassReader(data);
-        ClassWriter writer = new ClassWriter(0);
+        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
         FreeSpace freeSpace = new FreeSpace(maxSize - data.length);
-        MutateConstantClassVisitor mutateConstants = new MutateConstantClassVisitor(Opcodes.ASM9, writer, seed, true, freeSpace);
+        PseudoRandom prng = new SeededPseudoRandom(seed);
+        
+        Mutation mut = new ConstantMutation();
 
-        reader.accept(mutateConstants, 0);
+        mut.mutate(reader, writer, freeSpace, prng);
+
         byte[] result = writer.toByteArray();
 
-        assert(freeSpace.Amount() == maxSize - result.length);
+        assert(freeSpace.amount() == maxSize - result.length);
 
         if (result.length > maxSize) {
             // dumpBytes(result);

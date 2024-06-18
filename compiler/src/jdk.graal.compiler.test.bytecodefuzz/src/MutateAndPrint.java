@@ -8,7 +8,6 @@ import java.nio.file.Path;
 import java.io.StringWriter;
 import java.io.PrintWriter;
 
-
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
@@ -24,33 +23,41 @@ import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.commons.AnalyzerAdapter;
 import org.objectweb.asm.commons.LocalVariablesSorter;
 
+import com.code_intelligence.jazzer.mutation.api.PseudoRandom;
+import com.code_intelligence.jazzer.mutation.engine.SeededPseudoRandom;
+
 
 public class MutateAndPrint {
 
 
     public static void main(String[] args) throws Exception {
 
-        int maxSize = 500;
+        int maxSize = 1000;
         int seed = 42;
         String filename = args[1] + ".class";
 
         byte[] data = Files.readAllBytes(Path.of(".", "precorpus", filename));
 
-        dumpBytecode(data);
+        //dumpBytecode(data);
+        //run(data);
+
+        ClassReader reader = new ClassReader(data);
+        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
+        FreeSpace freeSpace = new FreeSpace(maxSize - data.length);
+        System.out.println(freeSpace.amount());
+        PseudoRandom prng = new SeededPseudoRandom(seed);
+
+        Mutation mut = new InsertJumpMutation();
+
+        mut.mutate(reader, writer, freeSpace, prng);
+
+        byte[] result = writer.toByteArray();
+
+        //dumpBytecode(data);
+        //dumpBytecode(result);
+
         run(data);
-
-        // ClassReader reader = new ClassReader(data);
-        // ClassWriter writer = new ClassWriter(0);
-        // FreeSpace freeSpace = new FreeSpace(maxSize - data.length);
-        // MutateConstantClassVisitor mutateConstants = new MutateConstantClassVisitor(Opcodes.ASM9, writer, seed, true, freeSpace);
-
-        // reader.accept(mutateConstants, 0);
-        // byte[] result = writer.toByteArray();
-        
-        // assert(freeSpace.Amount() == maxSize - result.length);
-
-        // dumpBytecode(result);
-        // run(result);
+        run(result);
     }
 
     private static void dumpBytecode(byte[] bytecode) {
@@ -58,25 +65,7 @@ public class MutateAndPrint {
         StringWriter sw = new StringWriter();
 
         TraceClassVisitor traceClassVisitor = new TraceClassVisitor(new PrintWriter(sw));
-
-        ClassVisitor classVisitor = new ClassVisitor(Opcodes.ASM9, traceClassVisitor) {
-
-            String name;
-
-            @Override
-            public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
-                this.name = name;
-                this.cv.visit(version, access, name, signature, superName, interfaces);
-            }
-
-            @Override
-            public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
-                return new FrameMapAnalyzer(this.api, this.name, access, name, descriptor);
-            }
-        };
-
-        
-        reader.accept(classVisitor, ClassReader.EXPAND_FRAMES);
+        reader.accept(traceClassVisitor, 0);
         System.err.println(sw.toString());
     }
 

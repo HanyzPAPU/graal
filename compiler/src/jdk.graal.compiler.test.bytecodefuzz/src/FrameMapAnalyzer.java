@@ -2,15 +2,13 @@ package jdk.graal.compiler.test.bytecodefuzz;
 
 import java.util.Map;
 import java.util.List;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.ArrayList;
 
-import org.objectweb.asm.Label;
-import org.objectweb.asm.Handle;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.commons.AnalyzerAdapter;
 
-public class FrameMapAnalyzer extends MethodVisitor {
+public class FrameMapAnalyzer extends MethodVisitor  {
 
     private FrameTracer frameTracer;
 
@@ -31,7 +29,7 @@ public class FrameMapAnalyzer extends MethodVisitor {
         return this.frameTracer.getMap();
     }
 
-    private class FrameTracer extends MethodVisitor {
+    private class FrameTracer extends InstructionVisitor {
 
         public AnalyzerAdapter analyzer = null;
 
@@ -46,6 +44,10 @@ public class FrameMapAnalyzer extends MethodVisitor {
             return this.map;
         }
 
+        public int getInstructionCount() {
+            return iindex;
+        }
+
         private String getCurrentSignature() {
             String stackSignature = analyzer.stack == null ? "NULL" : analyzer.stack.toString();
             String localsSignature = analyzer.locals == null ? "NULL" : analyzer.locals.toString();
@@ -54,7 +56,7 @@ public class FrameMapAnalyzer extends MethodVisitor {
 
         private void updateMap() {
             String signature = getCurrentSignature();
-            map.computeIfAbsent(signature, key -> new ArrayList<>()).add(iindex);
+            map.computeIfAbsent(signature, k -> new ArrayList<>()).add(iindex);
             iindex++;
         }
 
@@ -63,77 +65,13 @@ public class FrameMapAnalyzer extends MethodVisitor {
             // Reset variables
             iindex = 0;
             // Prefer creating a new Map instead of clearing in case anybody stored a reference
-            map = new HashMap<>();
+            map = new LinkedHashMap<>();
         }
 
         @Override
-        public void visitEnd() {
-            System.out.println(map);
-        }
-
-        @Override
-        public void visitFieldInsn(int opcode, String owner, String name, String descriptor) {
+        public void visitInstruction() {
             updateMap();
         }
-
-        @Override
-        public void visitIincInsn(int varIndex, int increment) {
-            updateMap();
-        }
-
-        @Override
-        public void visitInsn(int opcode) {
-            updateMap();
-        }
-
-        @Override
-        public void visitIntInsn(int opcode, int operand) {
-            updateMap();
-        }
-
-        @Override
-        public void visitInvokeDynamicInsn(String name, String descriptor, Handle bootstrapMethodHandle, Object... bootstrapMethodArguments) {
-            updateMap();
-        }
-
-        @Override
-        public void visitJumpInsn(int opcode, Label label) {
-            updateMap();
-        }
-
-        @Override
-        public void visitLdcInsn(Object value) {
-            updateMap();
-        }
-
-        @Override
-        public void visitLookupSwitchInsn(Label dflt, int[] keys, Label[] labels) {
-            updateMap();
-        }
-
-        @Override
-        public void visitMethodInsn(int opcodeAndSource, String owner, String name, String descriptor, boolean isInterface) {
-            updateMap();
-        }
-
-        @Override
-        public void visitMultiANewArrayInsn(String descriptor, int numDimensions) {
-            updateMap();
-        }
-
-        @Override
-        public void visitTableSwitchInsn(int min, int max, Label dflt, Label... labels) {
-            updateMap();
-        }
-
-        @Override
-        public void visitTypeInsn(int opcode, String type) {
-            updateMap();
-        }
-
-        @Override
-        public void visitVarInsn(int opcode, int varIndex) {
-            updateMap();
-        }
+        
     }
 }

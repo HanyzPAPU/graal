@@ -13,7 +13,6 @@ import com.code_intelligence.jazzer.mutation.api.MutatorFactory;
 import com.code_intelligence.jazzer.mutation.api.PseudoRandom;
 import com.code_intelligence.jazzer.mutation.api.SerializingMutator;
 import com.code_intelligence.jazzer.mutation.mutator.lang.LangMutators;
-import com.code_intelligence.jazzer.mutation.engine.SeededPseudoRandom;
 import com.code_intelligence.jazzer.mutation.support.TypeSupport;
 
 import com.code_intelligence.jazzer.mutation.annotation.WithUtf8Length;
@@ -29,9 +28,9 @@ public class MutateConstantClassVisitor extends ClassVisitor {
 
     FreeSpace freeSpace;
 
-    public MutateConstantClassVisitor(int api, ClassVisitor classVisitor, int seed, boolean ctorOnly, FreeSpace freeSpace) {
+    public MutateConstantClassVisitor(int api, ClassVisitor classVisitor, PseudoRandom prng, boolean ctorOnly, FreeSpace freeSpace) {
         super(api, classVisitor);
-        this.prng = new SeededPseudoRandom(seed);
+        this.prng = prng;
         this.api = api;
         this.cv = classVisitor;
         this.ctorOnly = ctorOnly;
@@ -108,9 +107,9 @@ public class MutateConstantClassVisitor extends ClassVisitor {
                     
 
                     int originalUTF8Length = s.getBytes(StandardCharsets.UTF_8).length;
-                    int maxUTF8Length = originalUTF8Length + freeSpace.Amount();
+                    int maxUTF8Length = originalUTF8Length + freeSpace.amount();
                     int originalLength = modifiedUTF8Len(s);
-                    int maxLength = originalLength + freeSpace.Amount();
+                    int maxLength = originalLength + freeSpace.amount();
                     
                     AnnotatedType annotatedType = TypeSupport.asAnnotatedType(String.class);
                     annotatedType = JazzerTypeSupport.WithUtf8Length(annotatedType, 0, maxUTF8Length);
@@ -127,7 +126,7 @@ public class MutateConstantClassVisitor extends ClassVisitor {
                     }
 
                     mutant = mutated;
-                    freeSpace.Add(originalLength - mutatedLength);
+                    freeSpace.add(originalLength - mutatedLength);
                 }
                 else {
                     mutant = mutateOrThrow(value, value.getClass());
