@@ -24,8 +24,21 @@ public class MethodSelector {
 
     private static double getPotential(MethodNode method, String owner) {
         double instructions = method.instructions.size();
-        double mutCnt = mutCounts.merge(getFullMethodName(method, owner), 1, (old, value) -> old + 1);
-        return instructions / mutCnt;
+        double mutCount = mutCounts.getOrDefault(getFullMethodName(method, owner), 1);
+        return instructions / mutCount;
+    }
+
+    private static int pickRandomMethodIndex(PseudoRandom prng, int methodCount) {
+        double rand;
+        int k;
+
+        do {
+            // Picks out of bounds with probability MethodSelector.epsilon
+            rand = prng.closedRange(0.0, 1.0);
+            k = (int)Math.floor(methodCount * Math.log(rand) / Math.log(epsilon));
+        } while (k >= methodCount);
+
+        return k;
     }
 
     public static MethodNode select(ClassNode classNode, PseudoRandom prng) {
@@ -35,20 +48,20 @@ public class MethodSelector {
         // Based on classming method selection
         // [link](doi.org/10.1109/ICSE.2019.00127)
 
-        var methodPotentials = classNode.methods.stream()
+        var methodsSortedByPotential = classNode.methods.stream()
             .filter(m -> !m.name.equals(ctorName))
             .map(m -> new MethodWithPotential(m, getPotential(m, owner)))
             .sorted((m1, m2) -> Double.compare(m2.potential(), m1.potential())) // TODO: check if this is descending order
-            .toArray(MethodWithPotential[]::new);
+            .map(m -> m.method())
+            .toArray(MethodNode[]::new);
 
-        double rand = prng.closedRange(0,1);
+        int k = pickRandomMethodIndex(prng, methodsSortedByPotential.length);
 
-        int k = (int)Math.floor(Math.pow(Math.log(1 - rand) / Math.log(epsilon), methodPotentials.length));
+        MethodNode result = methodsSortedByPotential[k];
 
-        if (k < 0 || k > methodPotentials.length) {
-            return null;
-        }
+        // Optimistically expect that the mutation will succeed and add 1 to mutCount
+        mutCounts.merge(getFullMethodName(result, owner), 1, (old, val) -> old + 1);
         
-        return methodPotentials[k].method();
+        return result;
     }
 }
