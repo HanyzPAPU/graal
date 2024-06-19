@@ -32,21 +32,24 @@ public class InsertJumpMutation implements Mutation {
     }
 
     public void mutate(ClassReader reader, ClassWriter writer, FreeSpace freeSpace, PseudoRandom prng) {
-    
-        if (freeSpace.amount() < InsertJumpClassVisitor.addedSpace) {
-            // Not enough space
-            // This should be unreachable when a proper dispatch is implemented
-            // TODO: redo
-            return;
-        }
 
         ClassNode cn = new ClassNode(Opcodes.ASM9);
         reader.accept(cn, ClassReader.EXPAND_FRAMES);
 
-        // Mutate one method for now?
-        // TODO: change
+        // TODO: better method selection
+        // Select first non-ctor method for now
+        MethodNode mn = null;
+        for (var m: cn.methods) {
+            if (!m.name.equals("<init>")) {
+                mn = m;
+                break;
+            }
+        }
 
-        MethodNode mn = cn.methods.get(1);
+        if (mn == null) {
+            throw new RuntimeException("Mutated class has no method other than the constructor!");
+        }
+
         FrameMapAnalyzer frameMapAnalyzer = new FrameMapAnalyzer(Opcodes.ASM9, cn.name, mn.access, mn.name, mn.desc);
         mn.accept(frameMapAnalyzer);
 
@@ -54,8 +57,13 @@ public class InsertJumpMutation implements Mutation {
 
         System.out.println("Selected jump: " + jump.toString());
 
-        InsertJumpClassVisitor jumpVisitor = new InsertJumpClassVisitor(Opcodes.ASM9, writer, jump, freeSpace, mn.name, this.maxJumps);
+        InsertJumpClassVisitor jumpVisitor = new InsertJumpClassVisitor(Opcodes.ASM9, writer, jump, mn.name, this.maxJumps);
         cn.accept(jumpVisitor);
+
+        freeSpace.add(reader.b.length - writer.toByteArray().length);
+        if (freeSpace.amount() < 0) {
+            System.err.println("Exceeded maximal Size!!!");
+        }
     }
 
     private static record Jump(int source, int target) {}
@@ -92,20 +100,15 @@ public class InsertJumpMutation implements Mutation {
     }
 
     private static class InsertJumpClassVisitor extends ClassVisitor {
-        
-        // TODO: set to correct size in bytes
-        public static final int addedSpace = 0;
-
+    
         private final String methodName;
         private final Jump jump;
-        private final FreeSpace freeSpace;
         private final int maxJumps;
 
-        public InsertJumpClassVisitor(int api, ClassVisitor classVisitor, Jump jump, FreeSpace freeSpace, String methodName, int maxJumps) {
+        public InsertJumpClassVisitor(int api, ClassVisitor classVisitor, Jump jump, String methodName, int maxJumps) {
             super(api, classVisitor);
 
             this.methodName = methodName;
-            this.freeSpace = freeSpace;
             this.jump = jump;
             this.maxJumps = maxJumps;
         }
@@ -120,8 +123,6 @@ public class InsertJumpMutation implements Mutation {
             }
 
             System.out.println("Mutation method " + name);
-
-            freeSpace.add(-addedSpace);
 
             InsertJumpMethodVisitor methodVisitor = new InsertJumpMethodVisitor(api, mv);
             LocalVariablesSorter localSorter = new LocalVariablesSorter(access, descriptor, methodVisitor);
@@ -146,8 +147,6 @@ public class InsertJumpMutation implements Mutation {
             @Override
             public void visitCode() {
 
-                System.out.println("Adding a new variable and initializing it!");
-
                 // Alloc a new variable and initialize it with maxJumps
                 varNum = localSorter.newLocal(Type.INT_TYPE);
                 mv.visitLdcInsn(maxJumps);
@@ -155,7 +154,6 @@ public class InsertJumpMutation implements Mutation {
             }
             
             private void insertJumpTarget() {
-                System.out.println("Adding a lable variable and initializing it!");
                 mv.visitLabel(label);
             }
 

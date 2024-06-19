@@ -32,7 +32,7 @@ public class MutateAndPrint {
 
     public static void main(String[] args) throws Exception {
 
-        int maxSize = 1000;
+        int extraSize = 100;
         int seed = 42;
         String filename = args[1] + ".class";
 
@@ -43,7 +43,7 @@ public class MutateAndPrint {
 
         ClassReader reader = new ClassReader(data);
         ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
-        FreeSpace freeSpace = new FreeSpace(maxSize - data.length);
+        FreeSpace freeSpace = new FreeSpace(extraSize);
         System.out.println(freeSpace.amount());
         PseudoRandom prng = new SeededPseudoRandom(seed);
 
@@ -54,7 +54,10 @@ public class MutateAndPrint {
         byte[] result = writer.toByteArray();
 
         //dumpBytecode(data);
-        //dumpBytecode(result);
+        dumpBytecode(result);
+
+        System.out.println(result.length - data.length);
+        System.out.println(freeSpace.amount());
 
         run(data);
         run(result);

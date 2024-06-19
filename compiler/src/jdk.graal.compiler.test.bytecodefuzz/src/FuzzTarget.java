@@ -31,6 +31,7 @@ public class FuzzTarget extends GraalCompilerTest {
             }
             
             // For now select the first method
+            // TODO: select first method without parameters
             method = asResolvedJavaMethod(methods[0]);
             
             reciever = method.isStatic() ? null : clazz.getConstructor().newInstance();
