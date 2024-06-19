@@ -36,26 +36,14 @@ public class InsertJumpMutation implements Mutation {
         ClassNode cn = new ClassNode(Opcodes.ASM9);
         reader.accept(cn, ClassReader.EXPAND_FRAMES);
 
-        // TODO: better method selection
-        // Select first non-ctor method for now
-        MethodNode mn = null;
-        for (var m: cn.methods) {
-            if (!m.name.equals("<init>")) {
-                mn = m;
-                break;
-            }
-        }
+        MethodNode mn = MethodSelector.select(cn, prng);
 
-        if (mn == null) {
-            throw new RuntimeException("Mutated class has no method other than the constructor!");
-        }
+        System.out.println("Selected: " + mn.name);
 
         FrameMapAnalyzer frameMapAnalyzer = new FrameMapAnalyzer(Opcodes.ASM9, cn.name, mn.access, mn.name, mn.desc);
         mn.accept(frameMapAnalyzer);
 
         Jump jump = selectJump(frameMapAnalyzer.getMap(), prng);
-
-        System.out.println("Selected jump: " + jump.toString());
 
         InsertJumpClassVisitor jumpVisitor = new InsertJumpClassVisitor(Opcodes.ASM9, writer, jump, mn.name, this.maxJumps);
         cn.accept(jumpVisitor);
@@ -121,8 +109,6 @@ public class InsertJumpMutation implements Mutation {
             if (!name.equals(methodName)) {
                 return mv;
             }
-
-            System.out.println("Mutation method " + name);
 
             InsertJumpMethodVisitor methodVisitor = new InsertJumpMethodVisitor(api, mv);
             LocalVariablesSorter localSorter = new LocalVariablesSorter(access, descriptor, methodVisitor);

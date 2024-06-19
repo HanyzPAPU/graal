@@ -54,13 +54,13 @@ public class MutateAndPrint {
         byte[] result = writer.toByteArray();
 
         //dumpBytecode(data);
-        dumpBytecode(result);
+        //dumpBytecode(result);
 
         System.out.println(result.length - data.length);
         System.out.println(freeSpace.amount());
 
-        run(data);
-        run(result);
+        // run(data);
+        // run(result);
     }
 
     private static void dumpBytecode(byte[] bytecode) {
