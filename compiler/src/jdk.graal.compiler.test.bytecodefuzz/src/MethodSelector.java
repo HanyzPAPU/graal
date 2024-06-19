@@ -33,8 +33,9 @@ public class MethodSelector {
         int k;
 
         do {
-            // Picks out of bounds with probability MethodSelector.epsilon
-            rand = prng.closedRange(0.0, 1.0);
+            // Pick from epsilon to avoid generating indices out of bounds.
+            // We still check just to be sure, because numerical stability could bite us
+            rand = prng.closedRange(epsilon, 1.0);
             k = (int)Math.floor(methodCount * Math.log(rand) / Math.log(epsilon));
         } while (k >= methodCount);
 
