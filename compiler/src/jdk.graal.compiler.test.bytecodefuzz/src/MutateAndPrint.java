@@ -47,17 +47,17 @@ public class MutateAndPrint {
         System.out.println(freeSpace.amount());
         PseudoRandom prng = new SeededPseudoRandom(seed);
 
-        Mutation mut = new InsertJumpMutation();
+        Mutation mut = new ConstantMutation();
 
         mut.mutate(reader, writer, freeSpace, prng);
 
         byte[] result = writer.toByteArray();
 
-        //dumpBytecode(data);
-        //dumpBytecode(result);
+        dumpBytecode(data);
+        dumpBytecode(result);
 
-        System.out.println(result.length - data.length);
-        System.out.println(freeSpace.amount());
+        // System.out.println(result.length - data.length);
+        // System.out.println(freeSpace.amount());
 
         // run(data);
         // run(result);

@@ -87,6 +87,8 @@ public class InsertJumpMutation implements Mutation {
         return new Jump(source, target);
     }
 
+    // TODO: couldn't we abstract this wrapping so it is reused in the multiple places where similar behavior occurs?
+
     private static class InsertJumpClassVisitor extends ClassVisitor {
     
         private final String methodName;
@@ -126,13 +128,12 @@ public class InsertJumpMutation implements Mutation {
             public LocalVariablesSorter localSorter;
 
             private int varNum = -1;
-            private int iindex = 0;
 
             private final Label label = new Label();
 
             @Override
             public void visitCode() {
-
+                super.visitCode();
                 // Alloc a new variable and initialize it with maxJumps
                 varNum = localSorter.newLocal(Type.INT_TYPE);
                 mv.visitLdcInsn(maxJumps);
@@ -150,14 +151,12 @@ public class InsertJumpMutation implements Mutation {
             }
 
             private void tryInsert() {
-                if (iindex == jump.source) {
+                if (iindex() == jump.source) {
                     insertJumpSource();
                 }
-                if (iindex == jump.target) {
+                if (iindex() == jump.target) {
                     insertJumpTarget();
                 }
-                
-                iindex++;
             }
 
             @Override

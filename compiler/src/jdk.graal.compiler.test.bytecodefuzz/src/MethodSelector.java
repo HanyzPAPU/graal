@@ -42,15 +42,15 @@ public class MethodSelector {
         return k;
     }
 
-    public static MethodNode select(ClassNode classNode, PseudoRandom prng) {
+    public static MethodNode select(ClassNode classNode, PseudoRandom prng, boolean includeCtor) {
 
         String owner = classNode.name;
 
         // Based on classming method selection
         // [link](doi.org/10.1109/ICSE.2019.00127)
 
-        var methodsSortedByPotential = classNode.methods.stream()
-            .filter(m -> !m.name.equals(ctorName))
+        MethodNode[] methodsSortedByPotential = classNode.methods.stream()
+            .filter(m -> includeCtor || !m.name.equals(ctorName))
             .map(m -> new MethodWithPotential(m, getPotential(m, owner)))
             .sorted((m1, m2) -> Double.compare(m2.potential(), m1.potential())) // TODO: check if this is descending order
             .map(m -> m.method())
@@ -64,5 +64,9 @@ public class MethodSelector {
         mutCounts.merge(getFullMethodName(result, owner), 1, (old, val) -> old + 1);
         
         return result;
+    }
+
+    public static MethodNode select(ClassNode classNode, PseudoRandom prng) {
+        return select(classNode, prng, false);
     }
 }

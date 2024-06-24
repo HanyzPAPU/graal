@@ -6,6 +6,8 @@ import org.objectweb.asm.MethodVisitor;
 
 public class InstructionVisitor extends MethodVisitor {
 
+    private int iindex;
+
     protected InstructionVisitor(int api) {
         super(api);
     }
@@ -14,83 +16,97 @@ public class InstructionVisitor extends MethodVisitor {
         super(api, mv);
     }
 
-    public void visitInstruction() {}
+    protected int iindex() {
+        return iindex;
+    }   
+
+    protected final void visitInstructionInternal() {
+        iindex++;
+        visitInstruction();
+    }
+
+    public void visitInstruction() { }
 
     @Override
-    public final void visitFieldInsn(int opcode, String owner, String name, String descriptor) {
-        visitInstruction();
+    public void visitCode() {
+        iindex = 0;
+    }
+
+    @Override
+    public void visitFieldInsn(int opcode, String owner, String name, String descriptor) {
+        visitInstructionInternal();
         super.visitFieldInsn(opcode, owner, name, descriptor);
     }
 
     @Override
-    public final void visitIincInsn(int varIndex, int increment) {
-        visitInstruction();
+    public void visitIincInsn(int varIndex, int increment) {
+        visitInstructionInternal();
         super.visitIincInsn(varIndex, increment);
     }
 
     @Override
-    public final void visitInsn(int opcode) {
-        visitInstruction();
+    public void visitInsn(int opcode) {
+        visitInstructionInternal();
         super.visitInsn(opcode);
     }
 
     @Override
-    public final void visitIntInsn(int opcode, int operand) {
-        visitInstruction();
+    public void visitIntInsn(int opcode, int operand) {
+        visitInstructionInternal();
         super.visitIntInsn(opcode, operand);
     }
 
     @Override
-    public final void visitInvokeDynamicInsn(String name, String descriptor, Handle bootstrapMethodHandle, Object... bootstrapMethodArguments) {
-        visitInstruction();
+    public void visitInvokeDynamicInsn(String name, String descriptor, Handle bootstrapMethodHandle, Object... bootstrapMethodArguments) {
+        visitInstructionInternal();
         super.visitInvokeDynamicInsn(name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments);
     }
 
     @Override
-    public final void visitJumpInsn(int opcode, Label label) {
-        visitInstruction();
+    public void visitJumpInsn(int opcode, Label label) {
+        visitInstructionInternal();
         super.visitJumpInsn(opcode, label);
     }
 
     @Override
-    public final void visitLdcInsn(Object value) {
-        visitInstruction();
+    public void visitLdcInsn(Object value) {
+        visitInstructionInternal();
         super.visitLdcInsn(value);
     }
 
     @Override
-    public final void visitLookupSwitchInsn(Label dflt, int[] keys, Label[] labels) {
-        visitInstruction();
+    public void visitLookupSwitchInsn(Label dflt, int[] keys, Label[] labels) {
+        visitInstructionInternal();
         super.visitLookupSwitchInsn(dflt, keys, labels);
     }
 
     @Override
-    public final void visitMethodInsn(int opcodeAndSource, String owner, String name, String descriptor, boolean isInterface) {
-        visitInstruction();
+    public void visitMethodInsn(int opcodeAndSource, String owner, String name, String descriptor, boolean isInterface) {
+        visitInstructionInternal();
         super.visitMethodInsn(opcodeAndSource, owner, name, descriptor, isInterface);
     }
 
     @Override
-    public final void visitMultiANewArrayInsn(String descriptor, int numDimensions) {
-        visitInstruction();
+    public void visitMultiANewArrayInsn(String descriptor, int numDimensions) {
+        visitInstructionInternal();
         super.visitMultiANewArrayInsn(descriptor, numDimensions);
     }
 
     @Override
-    public final void visitTableSwitchInsn(int min, int max, Label dflt, Label... labels) {
-        visitInstruction();
+    public void visitTableSwitchInsn(int min, int max, Label dflt, Label... labels) {
+        visitInstructionInternal();
         super.visitTableSwitchInsn(min, max, dflt, labels);
     }
 
     @Override
-    public final void visitTypeInsn(int opcode, String type) {
-        visitInstruction();
+    public void visitTypeInsn(int opcode, String type) {
+        visitInstructionInternal();
         super.visitTypeInsn(opcode, type);
     }
 
     @Override
-    public final void visitVarInsn(int opcode, int varIndex) {
-        visitInstruction();
+    public void visitVarInsn(int opcode, int varIndex) {
+        visitInstructionInternal();
         super.visitVarInsn(opcode, varIndex);
     }
 }

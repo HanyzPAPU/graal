@@ -34,7 +34,6 @@ public class FrameMapAnalyzer extends MethodVisitor  {
         public AnalyzerAdapter analyzer = null;
 
         private Map<String, List<Integer>> map = null;
-        private int iindex;
 
         public FrameTracer(int api) {
             super(api);
@@ -45,7 +44,7 @@ public class FrameMapAnalyzer extends MethodVisitor  {
         }
 
         public int getInstructionCount() {
-            return iindex;
+            return iindex();
         }
 
         private String getCurrentSignature() {
@@ -56,14 +55,12 @@ public class FrameMapAnalyzer extends MethodVisitor  {
 
         private void updateMap() {
             String signature = getCurrentSignature();
-            map.computeIfAbsent(signature, k -> new ArrayList<>()).add(iindex);
-            iindex++;
+            map.computeIfAbsent(signature, k -> new ArrayList<>()).add(iindex());
         }
 
         @Override
         public void visitCode() {
-            // Reset variables
-            iindex = 0;
+            super.visitCode();
             // Prefer creating a new Map instead of clearing in case anybody stored a reference
             map = new LinkedHashMap<>();
         }
