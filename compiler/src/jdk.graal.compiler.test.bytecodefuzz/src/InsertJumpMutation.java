@@ -45,8 +45,24 @@ public class InsertJumpMutation implements Mutation {
 
         Jump jump = selectJump(frameMapAnalyzer.getMap(), prng);
 
-        InsertJumpClassVisitor jumpVisitor = new InsertJumpClassVisitor(Opcodes.ASM9, writer, jump, mn.name, this.maxJumps);
-        cn.accept(jumpVisitor);
+        ClassVisitor insertJumpClassVisitor = new ClassVisitor(Opcodes.ASM9, writer) {
+            @Override
+            public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
+
+                MethodVisitor mv = this.cv.visitMethod(access, name, descriptor, signature, exceptions);
+                
+                if (!name.equals(mn.name)) {
+                    return mv;
+                }
+
+                InsertJumpMethodVisitor methodVisitor = new InsertJumpMethodVisitor(api, mv, jump);
+                LocalVariablesSorter localSorter = new LocalVariablesSorter(access, descriptor, methodVisitor);
+                methodVisitor.localSorter = localSorter;
+
+                return localSorter;
+            }
+        };
+        cn.accept(insertJumpClassVisitor);
 
         freeSpace.add(reader.b.length - writer.toByteArray().length);
         if (freeSpace.amount() < 0) {
@@ -87,83 +103,52 @@ public class InsertJumpMutation implements Mutation {
         return new Jump(source, target);
     }
 
-    // TODO: couldn't we abstract this wrapping so it is reused in the multiple places where similar behavior occurs?
+    private class InsertJumpMethodVisitor extends InstructionVisitor {
+            
+        Jump jump;
 
-    private static class InsertJumpClassVisitor extends ClassVisitor {
-    
-        private final String methodName;
-        private final Jump jump;
-        private final int maxJumps;
-
-        public InsertJumpClassVisitor(int api, ClassVisitor classVisitor, Jump jump, String methodName, int maxJumps) {
-            super(api, classVisitor);
-
-            this.methodName = methodName;
+        public InsertJumpMethodVisitor(int api, MethodVisitor mv, Jump jump) {
+            super(api, mv);
             this.jump = jump;
-            this.maxJumps = maxJumps;
+        }
+
+        public LocalVariablesSorter localSorter;
+
+        private int varNum = -1;
+
+        private final Label label = new Label();
+
+        @Override
+        public void visitCode() {
+            super.visitCode();
+            // Alloc a new variable and initialize it with maxJumps
+            varNum = localSorter.newLocal(Type.INT_TYPE);
+            mv.visitLdcInsn(maxJumps);
+            mv.visitVarInsn(Opcodes.ISTORE, varNum);
+        }
+        
+        private void insertJumpTarget() {
+            mv.visitLabel(label);
+        }
+
+        private void insertJumpSource() {
+            mv.visitIincInsn(varNum, -1);
+            mv.visitVarInsn(Opcodes.ILOAD, varNum);
+            mv.visitJumpInsn(Opcodes.IFGE, label);
+        }
+
+        private void tryInsert() {
+            if (iindex() == jump.source) {
+                insertJumpSource();
+            }
+            if (iindex() == jump.target) {
+                insertJumpTarget();
+            }
         }
 
         @Override
-        public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
-
-            MethodVisitor mv = this.cv.visitMethod(access, name, descriptor, signature, exceptions);
-            
-            if (!name.equals(methodName)) {
-                return mv;
-            }
-
-            InsertJumpMethodVisitor methodVisitor = new InsertJumpMethodVisitor(api, mv);
-            LocalVariablesSorter localSorter = new LocalVariablesSorter(access, descriptor, methodVisitor);
-            methodVisitor.localSorter = localSorter;
-
-            return localSorter;
-        }
-
-        private class InsertJumpMethodVisitor extends InstructionVisitor {
-            
-            public InsertJumpMethodVisitor(int api, MethodVisitor mv) {
-                super(api, mv);
-            }
-
-            public LocalVariablesSorter localSorter;
-
-            private int varNum = -1;
-
-            private final Label label = new Label();
-
-            @Override
-            public void visitCode() {
-                super.visitCode();
-                // Alloc a new variable and initialize it with maxJumps
-                varNum = localSorter.newLocal(Type.INT_TYPE);
-                mv.visitLdcInsn(maxJumps);
-                mv.visitVarInsn(Opcodes.ISTORE, varNum);
-            }
-            
-            private void insertJumpTarget() {
-                mv.visitLabel(label);
-            }
-
-            private void insertJumpSource() {
-                mv.visitIincInsn(varNum, -1);
-                mv.visitVarInsn(Opcodes.ILOAD, varNum);
-                mv.visitJumpInsn(Opcodes.IFGE, label);
-            }
-
-            private void tryInsert() {
-                if (iindex() == jump.source) {
-                    insertJumpSource();
-                }
-                if (iindex() == jump.target) {
-                    insertJumpTarget();
-                }
-            }
-
-            @Override
-            public void visitInstruction() {
-                tryInsert();
-            }
+        public void visitInstruction() {
+            tryInsert();
         }
     }
-
 }

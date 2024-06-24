@@ -58,8 +58,24 @@ public class ConstantMutation implements NonGrowingMutation {
 
         System.out.println(mn.name + ":" + location);
 
-        MutateConstantClassVisitor mccv = new MutateConstantClassVisitor(Opcodes.ASM9, writer, mn.name, location, prng, freeSpace);
-        cn.accept(mccv);
+        ClassVisitor cv = new ClassVisitor(Opcodes.ASM9, writer) {
+            @Override
+            public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
+    
+                MethodVisitor mv = this.cv.visitMethod(access, name, descriptor, signature, exceptions);
+    
+                if (name.equals(mn.name)) {
+                    MutateConstantsMethodVisitor mcmv = new MutateConstantsMethodVisitor(this.api, mv, prng, freeSpace);
+                    MutateConstantDelegator delegator = new MutateConstantDelegator(this.api, mv, mcmv, location);
+                    return delegator;
+                }
+                else {
+                    return mv;
+                }
+            }
+        };
+        
+        cn.accept(cv);
     }
 
     private static class LoadConstantLocator extends InstructionVisitor {
@@ -102,36 +118,6 @@ public class ConstantMutation implements NonGrowingMutation {
                 loadConstantLocations.add(iindex());
             }
             super.visitInsn(opcode);
-        }
-    }
-
-    private static class MutateConstantClassVisitor extends ClassVisitor {
-        String methodName;
-        int location;
-        PseudoRandom prng;
-        FreeSpace freeSpace;
-
-        public MutateConstantClassVisitor(int api, ClassVisitor cv, String methodName, int location, PseudoRandom prng, FreeSpace freeSpace) {
-            super(api, cv);
-            this.methodName = methodName;
-            this.location = location;
-            this.prng = prng;
-            this.freeSpace = freeSpace;
-        }
-
-        @Override
-        public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
-
-            MethodVisitor mv = this.cv.visitMethod(access, name, descriptor, signature, exceptions);
-
-            if (name.equals(methodName)) {
-                MutateConstantsMethodVisitor mcmv = new MutateConstantsMethodVisitor(this.api, mv, prng, freeSpace);
-                MutateConstantDelegator delegator = new MutateConstantDelegator(this.api, mv, mcmv, location);
-                return delegator;
-            }
-            else {
-                return mv;
-            }
         }
     }
     
