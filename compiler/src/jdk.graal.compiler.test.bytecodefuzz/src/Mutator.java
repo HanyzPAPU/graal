@@ -62,7 +62,6 @@ public final class Mutator {
                 throw new RuntimeException("Freespace computation does not work out!");
             }
 
-            dumpBytecode(result);
             return result;
         }
 
@@ -76,7 +75,6 @@ public final class Mutator {
             throw new RuntimeException("Freespace computation does not work out!");
         }
         
-        dumpBytecode(result);
         return result;
     }
 
