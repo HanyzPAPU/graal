@@ -1,6 +1,8 @@
 package jdk.graal.compiler.test.bytecodefuzz;
 
 import java.lang.Exception;
+import java.util.Arrays;
+import java.util.List;
 import java.io.StringWriter;
 import java.io.PrintWriter;
 
@@ -21,6 +23,22 @@ import com.code_intelligence.jazzer.mutation.engine.SeededPseudoRandom;
 
 public final class Mutator {
 
+    private static List<Mutation> getMutations() {
+        return Arrays.asList(
+            new InsertJumpMutation(),
+            new ConstantMutation()
+        );
+    }
+
+    private static List<NonGrowingMutation> getNonGrowingMutations() {
+        return Arrays.asList(
+            new ConstantMutation()
+        );
+    }
+
+    private final List<Mutation> mutations = getMutations();
+    private final List<NonGrowingMutation> nonGrowingMutations = getNonGrowingMutations();
+
     public byte[] Mutate(byte[] data, int maxSize, int seed) throws Exception {
 
         // dumpBytes(data);
@@ -32,22 +50,26 @@ public final class Mutator {
         ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
         FreeSpace freeSpace = new FreeSpace(maxSize - data.length);
         PseudoRandom prng = new SeededPseudoRandom(seed);
-        
-        Mutation mut = new ConstantMutation();
+        byte[] result;
+
+        Mutation mut = prng.pickIn(mutations);
 
         mut.mutate(reader, writer, freeSpace, prng);
 
-        byte[] result = writer.toByteArray();
-
-        assert(freeSpace.amount() == maxSize - result.length);
-
-        if (result.length > maxSize) {
-            // dumpBytes(result);
-            dumpBytecode(result);      
-            // TODO: change into more appropriate exception type
-            throw new Exception(String.format("Generated Classfile that is too long! Length %d > Max %d", result.length, maxSize));
+        if (freeSpace.amount() >= 0) {
+            result = writer.toByteArray();
+            assert(result.length <= maxSize);
+            return result;
         }
 
+        NonGrowingMutation nonGrowingMut = prng.pickIn(nonGrowingMutations);
+        writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
+
+        nonGrowingMut.mutate(reader, writer, prng);
+
+        result = writer.toByteArray();
+        assert(result.length <= maxSize);
+    
         return result;
     }
 
