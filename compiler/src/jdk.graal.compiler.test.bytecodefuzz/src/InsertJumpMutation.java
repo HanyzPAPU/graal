@@ -38,8 +38,6 @@ public class InsertJumpMutation implements Mutation {
 
         MethodNode mn = MethodSelector.select(cn, prng);
 
-        System.out.println("Selected: " + mn.name);
-
         FrameMapAnalyzer frameMapAnalyzer = new FrameMapAnalyzer(Opcodes.ASM9, cn.name, mn.access, mn.name, mn.desc);
         mn.accept(frameMapAnalyzer);
 

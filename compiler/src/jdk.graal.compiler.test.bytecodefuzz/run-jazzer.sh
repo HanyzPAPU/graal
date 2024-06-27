@@ -10,13 +10,14 @@ export LD_PRELOAD="$PWD/src/build/libmutator.so"
 # -XX:+UseParallelGC -XX:+EnableDynamicAgentLoading - recommended command line options
 # -XX:-UseJVMCICompiler - disables Graal as the top tier JIT compiler => don't corrupt instrumentation by other compilations
 # instrumentation includes only compiler code, not the test or reference interpreter
+# -Dgraal.MaxDuplicationFactor=1000.0 to make Graal compile even very convoluted irreducible code
 
 # TODO: still instruments unwanted classes with custom hooks
 
 mx vm @export-hack \
     -XX:+UseParallelGC -XX:+EnableDynamicAgentLoading -XX:-UseJVMCICompiler \
     -Djava.library.path="$PWD/src/build/" \
-    -Dgraal.MaxDuplicationFactor=4.0 \
+    -Dgraal.MaxDuplicationFactor=1000.0 \
     -cp $CLASSPATH \
     com.code_intelligence.jazzer.Jazzer \
     --instrumentation_excludes=jdk.graal.compiler.core.test.**:jdk.graal.compiler.test.**:org.objectweb.asm.** \

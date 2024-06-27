@@ -2,3 +2,4 @@ crash-*
 slow-unit-*
 graal_dumps/
 reproducers/
+corpus/*

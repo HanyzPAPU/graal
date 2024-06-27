@@ -56,8 +56,6 @@ public class ConstantMutation implements NonGrowingMutation {
 
         int location = prng.pickIn(locations);
 
-        System.err.println(mn.name + ":" + location);
-
         ClassVisitor cv = new ClassVisitor(Opcodes.ASM9, writer) {
             @Override
             public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {

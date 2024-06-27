@@ -32,7 +32,7 @@ class MutateConstantsMethodVisitor extends MethodVisitor {
     }
 
     <T> T mutateOrThrow(Object value, Class<T> clazz) throws Exception {
-        AnnotatedType annotatedType = TypeSupport.asAnnotatedType(clazz);
+        AnnotatedType annotatedType = TypeSupport.notNull(TypeSupport.asAnnotatedType(clazz));
 
         @SuppressWarnings("unchecked") // This method will throw before the cast would be unsuccesfull
         SerializingMutator<T> mutator = (SerializingMutator<T>)mutatorFactory.createOrThrow(annotatedType);
@@ -104,11 +104,10 @@ class MutateConstantsMethodVisitor extends MethodVisitor {
             }
 
             if (mutant == null) {
-                this.mv.visitInsn(Opcodes.ACONST_NULL);
+                throw new RuntimeException("Constant mutant should never be null!");
             }
-            else {
-                this.mv.visitLdcInsn(mutant);
-            }
+            
+            this.mv.visitLdcInsn(mutant);
         }
         catch (Exception e) {
             this.mv.visitLdcInsn(value);
