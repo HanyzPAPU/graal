@@ -16,6 +16,7 @@ export LD_PRELOAD="$PWD/src/build/libmutator.so"
 mx vm @export-hack \
     -XX:+UseParallelGC -XX:+EnableDynamicAgentLoading -XX:-UseJVMCICompiler \
     -Djava.library.path="$PWD/src/build/" \
+    -Dgraal.MaxDuplicationFactor=4.0 \
     -cp $CLASSPATH \
     com.code_intelligence.jazzer.Jazzer \
     --instrumentation_excludes=jdk.graal.compiler.core.test.**:jdk.graal.compiler.test.**:org.objectweb.asm.** \

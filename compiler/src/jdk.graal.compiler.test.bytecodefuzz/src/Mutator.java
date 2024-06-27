@@ -58,7 +58,11 @@ public final class Mutator {
 
         if (freeSpace.amount() >= 0) {
             result = writer.toByteArray();
-            assert(result.length <= maxSize);
+            if(result.length > maxSize) {
+                throw new RuntimeException("Freespace computation does not work out!");
+            }
+
+            dumpBytecode(result);
             return result;
         }
 
@@ -68,8 +72,11 @@ public final class Mutator {
         nonGrowingMut.mutate(reader, writer, prng);
 
         result = writer.toByteArray();
-        assert(result.length <= maxSize);
-    
+        if(result.length > maxSize) {
+            throw new RuntimeException("Freespace computation does not work out!");
+        }
+        
+        dumpBytecode(result);
         return result;
     }
 

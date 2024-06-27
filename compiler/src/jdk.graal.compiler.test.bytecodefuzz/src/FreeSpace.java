@@ -14,9 +14,6 @@ public class FreeSpace {
     // Adds space to the free space, can be also used to remove from the free space
     public void add(int space) {
         freeSpace += space;
-        if (freeSpace < 0) {
-            throw new Error("Free Space Less Than 0!!!");
-        }
     }
 
     public int amount() {

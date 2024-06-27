@@ -56,7 +56,7 @@ public class ConstantMutation implements NonGrowingMutation {
 
         int location = prng.pickIn(locations);
 
-        System.out.println(mn.name + ":" + location);
+        System.err.println(mn.name + ":" + location);
 
         ClassVisitor cv = new ClassVisitor(Opcodes.ASM9, writer) {
             @Override
@@ -127,7 +127,9 @@ public class ConstantMutation implements NonGrowingMutation {
      * 
      * When we delegate the instruction to mcmv, we still have to visit the instruction in InstructionVisitor, hence we call the visitInstructionInternal here.
      */
-    private static class MutateConstantDelegator extends InstructionVisitor {
+
+     // TODO: change back to private
+    public static class MutateConstantDelegator extends InstructionVisitor {
 
         private final MutateConstantsMethodVisitor mcmv;
         private final int location;
@@ -155,11 +157,11 @@ public class ConstantMutation implements NonGrowingMutation {
                 if (location == iindex()) {
                     mcmv.visitIntInsn(opcode, operand);
                     super.visitInstructionInternal();
+                    return;
                 }
-                else {
-                    super.visitIntInsn(opcode, operand);
-                }
+                
             }
+            super.visitIntInsn(opcode, operand);
         }
        
         @Override
@@ -168,11 +170,10 @@ public class ConstantMutation implements NonGrowingMutation {
                 if (location == iindex()) {
                     mcmv.visitInsn(opcode);
                     super.visitInstructionInternal();
-                }
-                else {
-                    super.visitInsn(opcode);
+                    return;
                 }
             }
+            super.visitInsn(opcode);
         }
     }
 }
