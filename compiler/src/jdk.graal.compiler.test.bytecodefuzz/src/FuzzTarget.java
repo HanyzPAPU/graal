@@ -3,11 +3,8 @@ package jdk.graal.compiler.test.bytecodefuzz;
 import jdk.graal.compiler.core.test.GraalCompilerTest;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 
-import java.io.IOException;
 import java.lang.reflect.Method;
-import java.nio.file.Files;
-import java.nio.file.Paths;
-import java.nio.file.Path;
+import java.util.Arrays;
 
 public class FuzzTarget extends GraalCompilerTest {
 
@@ -22,7 +19,7 @@ public class FuzzTarget extends GraalCompilerTest {
         try {
             Class<?> clazz = loader.LoadFromBytes(null, bytes);
 
-            var methods = clazz.getMethods();
+            Method[] methods = clazz.getMethods();
             if (methods.length == 0) {
                 methods = clazz.getDeclaredMethods();
                 if (methods.length == 0) {
@@ -30,10 +27,13 @@ public class FuzzTarget extends GraalCompilerTest {
                 }
             }
             
-            // For now select the first method
-            // TODO: select first method without parameters
-            method = asResolvedJavaMethod(methods[0]);
-            
+            // For now select the first method without formal parameters
+            Method chosenMethod = Arrays.stream(methods)
+                .filter(m -> m.getParameterCount() == 0)
+                .findFirst()
+                .get();
+
+            method = asResolvedJavaMethod(chosenMethod);
             reciever = method.isStatic() ? null : clazz.getConstructor().newInstance();
         }
         // Don't crash on reflection/loading errors
