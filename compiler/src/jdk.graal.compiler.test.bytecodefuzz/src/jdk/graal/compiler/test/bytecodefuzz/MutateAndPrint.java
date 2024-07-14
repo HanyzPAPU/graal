@@ -59,7 +59,7 @@ public class MutateAndPrint {
         // System.out.println(result.length - data.length);
         // System.out.println(freeSpace.amount());
 
-        // run(data);
+        run(data);
         // run(result);
     }
 

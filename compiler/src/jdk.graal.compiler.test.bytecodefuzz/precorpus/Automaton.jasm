@@ -1,0 +1,144 @@
+public class Automaton {
+
+    data [C
+
+    public <init>()V {
+        aload 0
+        invokespecial java/lang/Object.<init>()V
+        
+        aload 0
+        ldc "aralrrababrayraabbrnbrabrarbabgraraararrababeraraabbxrbrabrarjbrabgraxraararrababraraabbrbrabrarbabrarab"
+        invokevirtual java/lang/String.toCharArray()[C
+        putfield Automaton.data [C
+
+        return
+    }
+
+    public search()B {
+        ldc 0 
+        istore 1
+
+    STATE_EMPTY:
+        aload 0
+        getfield Automaton.data [C
+        arraylength
+        iload 1
+        if_icmple END
+
+        aload 0
+        getfield Automaton.data [C
+        iload 1
+        caload
+
+        iinc 1, [1]
+        
+        lookupswitch STATE_EMPTY {
+            97  /* a */: STATE_A 
+            98  /* b */: STATE_B
+        }
+
+    STATE_A:
+        aload 0                                            // this
+        getfield Automaton.data [C                         // data
+        arraylength                                        // data.length
+        iload 1                                            // data.length, i
+        if_icmple END
+        aload 0                                            // this
+        getfield Automaton.data [C                         // data
+        iload 1                                            // data, i
+        caload                                             // data[i]
+        iinc 1, [1]
+        
+        lookupswitch STATE_EMPTY {
+            97  /* a */: STATE_A
+            98  /* b */: STATE_B
+            114 /* r */: STATE_AR
+        }
+
+    STATE_AR:
+        aload 0                                            // this
+        getfield Automaton.data [C                         // data
+        arraylength                                        // data.length
+        iload 1                                            // data.length, i
+        if_icmple END
+        
+        aload 0                                            // this
+        getfield Automaton.data [C                         // data
+        iload 1                                            // data, i
+        caload                                             // data[i]
+        iinc 1, [1]
+        
+        lookupswitch STATE_EMPTY {
+            97  /* a */: STATE_ARA
+            98  /* b */: STATE_B
+        }
+
+    STATE_ARA:
+        aload 0                                            // this
+        getfield Automaton.data [C                         // data
+        arraylength                                        // data.length
+        iload 1                                            // data.length, i
+        if_icmple END
+        
+        aload 0                                            // this
+        getfield Automaton.data [C                         // data
+        iload 1                                            // data, i
+        caload                                             // data[i]
+        iinc 1, [1]
+        
+        lookupswitch STATE_EMPTY {
+            97  /* a */: STATE_A
+            98  /* b */: STATE_ARAB
+            114 /* r */: STATE_AR
+        }
+
+    STATE_ARAB:
+        ldc true
+        ireturn
+
+    STATE_B:
+        aload 0                                            // this
+        getfield Automaton.data [C                         // data
+        arraylength                                        // data.length
+        iload 1                                            // data.length, i
+        if_icmple END
+        
+        aload 0                                            // this
+        getfield Automaton.data [C                         // data
+        iload 1                                            // data, i
+        caload                                             // data[i]
+        iinc 1, [1]
+        
+        lookupswitch STATE_EMPTY {
+            97  /* a */: STATE_BA
+            98  /* b */: STATE_B
+        }
+
+    STATE_BA:
+        aload 0                                            // this
+        getfield Automaton.data [C                         // data
+        arraylength                                        // data.length
+        iload 1                                            // data.length, i
+        if_icmple END
+        
+        aload 0                                            // this
+        getfield Automaton.data [C                         // data
+        iload 1                                            // data, i
+        caload                                             // data[i]
+        iinc 1, [1]
+        
+        lookupswitch STATE_EMPTY {
+            97  /* a */: STATE_A
+            98  /* b */: STATE_B
+            114 /* r */: STATE_BAR
+        }
+
+    STATE_BAR:
+        ldc true
+        ireturn
+        
+    END:
+        ldc false
+        ireturn
+    }
+}
