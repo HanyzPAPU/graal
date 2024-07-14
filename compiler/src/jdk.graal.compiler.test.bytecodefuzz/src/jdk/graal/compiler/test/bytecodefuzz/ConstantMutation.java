@@ -64,8 +64,7 @@ public class ConstantMutation implements NonGrowingMutation {
     
                 if (name.equals(mn.name)) {
                     MutateConstantsMethodVisitor mcmv = new MutateConstantsMethodVisitor(this.api, mv, prng, freeSpace);
-                    MutateConstantDelegator delegator = new MutateConstantDelegator(this.api, mv, mcmv, location);
-                    return delegator;
+                    return new MutateConstantDelegator(this.api, mv, mcmv, location);
                 }
                 else {
                     return mv;
@@ -125,9 +124,7 @@ public class ConstantMutation implements NonGrowingMutation {
      * 
      * When we delegate the instruction to mcmv, we still have to visit the instruction in InstructionVisitor, hence we call the visitInstructionInternal here.
      */
-
-     // TODO: change back to private
-    public static class MutateConstantDelegator extends InstructionVisitor {
+    private static class MutateConstantDelegator extends InstructionVisitor {
 
         private final MutateConstantsMethodVisitor mcmv;
         private final int location;

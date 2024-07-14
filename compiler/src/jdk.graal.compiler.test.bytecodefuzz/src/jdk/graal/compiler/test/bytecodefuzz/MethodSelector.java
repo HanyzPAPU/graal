@@ -16,7 +16,7 @@ public class MethodSelector {
 
     private static HashMap<String, Integer> mutCounts = new HashMap<>();
 
-    private static record MethodWithPotential(MethodNode method, double potential){}
+    private record MethodWithPotential(MethodNode method, double potential){}
 
     private static String getFullMethodName(MethodNode method, String owner) {
         return owner + "." + method.name + method.desc;
@@ -53,7 +53,7 @@ public class MethodSelector {
             .filter(m -> includeCtor || !m.name.equals(ctorName))
             .map(m -> new MethodWithPotential(m, getPotential(m, owner)))
             .sorted((m1, m2) -> Double.compare(m2.potential(), m1.potential())) // TODO: check if this is descending order
-            .map(m -> m.method())
+            .map(MethodWithPotential::method)
             .toArray(MethodNode[]::new);
 
         int k = pickRandomMethodIndex(prng, methodsSortedByPotential.length);

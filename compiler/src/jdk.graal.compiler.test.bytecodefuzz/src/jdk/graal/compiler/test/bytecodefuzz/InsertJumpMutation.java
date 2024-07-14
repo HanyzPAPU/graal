@@ -76,7 +76,7 @@ public class InsertJumpMutation implements Mutation {
 
         int weightSum = frameMap.values().stream()
             .map(weightFunction)
-            .reduce(0, (a,x) -> a + x);
+            .reduce(0, Integer::sum);
 
         int rand = prng.indexIn(weightSum);
 
