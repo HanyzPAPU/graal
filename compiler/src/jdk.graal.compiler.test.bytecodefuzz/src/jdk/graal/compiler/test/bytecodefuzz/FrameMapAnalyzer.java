@@ -50,7 +50,7 @@ public class FrameMapAnalyzer extends MethodVisitor  {
         private String getCurrentSignature() {
             String stackSignature = analyzer.stack == null ? "NULL" : analyzer.stack.toString();
             String localsSignature = analyzer.locals == null ? "NULL" : analyzer.locals.toString();
-            return stackSignature + "$" + localsSignature;
+            return stackSignature + "<#$!>" + localsSignature;
         }
 
         private void updateMap() {

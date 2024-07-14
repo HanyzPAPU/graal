@@ -34,27 +34,30 @@ public class MutateAndPrint {
 
         int extraSize = 100;
         int seed = 42;
+
         String filename = args[1] + ".class";
+
+        System.out.println(filename);
 
         byte[] data = Files.readAllBytes(Path.of(".", "precorpus", filename));
 
         //dumpBytecode(data);
         //run(data);
 
-        ClassReader reader = new ClassReader(data);
-        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
-        FreeSpace freeSpace = new FreeSpace(extraSize);
-        System.out.println(freeSpace.amount());
-        PseudoRandom prng = new SeededPseudoRandom(seed);
+        // ClassReader reader = new ClassReader(data);
+        // ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
+        // FreeSpace freeSpace = new FreeSpace(extraSize);
+        // System.out.println(freeSpace.amount());
+        // PseudoRandom prng = new SeededPseudoRandom(seed);
 
-        Mutation mut = new ConstantMutation();
+        // Mutation mut = new ConstantMutation();
 
-        mut.mutate(reader, writer, freeSpace, prng);
+        // mut.mutate(reader, writer, freeSpace, prng);
 
-        byte[] result = writer.toByteArray();
+        // byte[] result = writer.toByteArray();
 
         dumpBytecode(data);
-        dumpBytecode(result);
+        // dumpBytecode(result);
 
         // System.out.println(result.length - data.length);
         // System.out.println(freeSpace.amount());
@@ -106,7 +109,6 @@ public class MutateAndPrint {
         }
 
         Object res = method.invoke(reciever);
-
         System.out.println(res);
     }
 }
