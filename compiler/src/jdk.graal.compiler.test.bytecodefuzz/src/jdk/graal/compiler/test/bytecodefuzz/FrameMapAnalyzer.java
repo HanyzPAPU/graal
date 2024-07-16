@@ -13,13 +13,19 @@ public class FrameMapAnalyzer extends MethodVisitor  {
     public static final String separator = "{€}";
 
     private FrameTracer frameTracer;
+    private final boolean varsInSig;
 
     public FrameMapAnalyzer(int api, String owner, int access, String name, String descriptor) {
+        this(api, owner, access, name, descriptor, true);
+    }
+
+    public FrameMapAnalyzer(int api, String owner, int access, String name, String descriptor, boolean varsInSig) {
         super(api);
         this.frameTracer = new FrameTracer(api);
         AnalyzerAdapter analyzer = new AnalyzerAdapter(owner, access, name, descriptor, this.frameTracer);
         this.mv = analyzer;
         this.frameTracer.analyzer = analyzer;
+        this.varsInSig = varsInSig;
     }
 
     /**
@@ -31,7 +37,7 @@ public class FrameMapAnalyzer extends MethodVisitor  {
         return this.frameTracer.getMap();
     }
 
-    private static class FrameTracer extends InstructionVisitor {
+    private class FrameTracer extends InstructionVisitor {
 
         public AnalyzerAdapter analyzer = null;
 
@@ -51,8 +57,14 @@ public class FrameMapAnalyzer extends MethodVisitor  {
 
         private String getCurrentSignature() {
             String stackSignature = analyzer.stack == null ? "NULL" : analyzer.stack.toString();
-            String localsSignature = analyzer.locals == null ? "NULL" : analyzer.locals.toString();
-            return stackSignature + FrameMapAnalyzer.separator + localsSignature;
+
+            if (varsInSig) {
+                String localsSignature = analyzer.locals == null ? "NULL" : analyzer.locals.toString();
+                return stackSignature + FrameMapAnalyzer.separator + localsSignature;
+            }
+            else {
+                return stackSignature;
+            }
         }
 
         private void updateMap() {
