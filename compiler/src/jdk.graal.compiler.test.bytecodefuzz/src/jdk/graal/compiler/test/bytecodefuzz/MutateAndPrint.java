@@ -33,7 +33,7 @@ public class MutateAndPrint {
     public static void main(String[] args) throws Exception {
 
         int extraSize = 100;
-        int seed = 42;
+        int seed = (int)System.nanoTime();
 
         String filename = args[1] + ".class";
 
@@ -54,16 +54,16 @@ public class MutateAndPrint {
 
         mut.mutate(reader, writer, freeSpace, prng);
 
-        // byte[] result = writer.toByteArray();
+        byte[] result = writer.toByteArray();
 
-        dumpBytecode(data);
-        // dumpBytecode(result);
+        //dumpBytecode(data);
+        dumpBytecode(result);
 
         // System.out.println(result.length - data.length);
         // System.out.println(freeSpace.amount());
 
-        // run(data);
-        // run(result);
+        run(data);
+        run(result);
     }
 
     private static void dumpBytecode(byte[] bytecode) {
