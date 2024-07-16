@@ -24,8 +24,9 @@
  */
 package jdk.graal.compiler.truffle.hotspot.amd64;
 
+import static jdk.graal.compiler.hotspot.meta.HotSpotHostForeignCallsProvider.X_FIELD_BARRIER;
+import static jdk.graal.compiler.hotspot.meta.HotSpotHostForeignCallsProvider.Z_LOAD_BARRIER;
 import static jdk.vm.ci.hotspot.HotSpotCallingConventionType.JavaCall;
-import static jdk.graal.compiler.hotspot.meta.HotSpotHostForeignCallsProvider.Z_FIELD_BARRIER;
 
 import jdk.graal.compiler.asm.Label;
 import jdk.graal.compiler.asm.amd64.AMD64Address;
@@ -36,16 +37,16 @@ import jdk.graal.compiler.core.common.spi.ForeignCallLinkage;
 import jdk.graal.compiler.hotspot.GraalHotSpotVMConfig;
 import jdk.graal.compiler.hotspot.HotSpotGraalRuntime;
 import jdk.graal.compiler.hotspot.amd64.AMD64HotSpotBackend;
-import jdk.graal.compiler.hotspot.amd64.AMD64HotSpotZBarrierSetLIRGenerator;
+import jdk.graal.compiler.hotspot.amd64.x.AMD64HotSpotXBarrierSetLIRGenerator;
+import jdk.graal.compiler.hotspot.amd64.z.AMD64HotSpotZBarrierSetLIRGenerator;
 import jdk.graal.compiler.hotspot.meta.HotSpotRegistersProvider;
 import jdk.graal.compiler.lir.amd64.AMD64Move;
 import jdk.graal.compiler.lir.asm.CompilationResultBuilder;
 import jdk.graal.compiler.lir.asm.EntryPointDecorator;
 import jdk.graal.compiler.serviceprovider.ServiceProvider;
+import jdk.graal.compiler.truffle.TruffleCompilerConfiguration;
 import jdk.graal.compiler.truffle.hotspot.TruffleCallBoundaryInstrumentationFactory;
 import jdk.graal.compiler.truffle.hotspot.TruffleEntryPointDecorator;
-import jdk.graal.compiler.truffle.TruffleCompilerConfiguration;
-
 import jdk.vm.ci.amd64.AMD64;
 import jdk.vm.ci.code.Register;
 import jdk.vm.ci.meta.JavaKind;
@@ -59,7 +60,7 @@ public class AMD64TruffleCallBoundaryInstrumentationFactory extends TruffleCallB
             @Override
             public void emitEntryPoint(CompilationResultBuilder crb) {
                 AMD64MacroAssembler masm = (AMD64MacroAssembler) crb.asm;
-                Register thisRegister = crb.codeCache.getRegisterConfig().getCallingConventionRegisters(JavaCall, JavaKind.Object).get(0);
+                Register thisRegister = crb.getCodeCache().getRegisterConfig().getCallingConventionRegisters(JavaCall, JavaKind.Object).get(0);
                 Register spillRegister = AMD64.r10;
                 Label doProlog = new Label();
                 int pos = masm.position();
@@ -78,10 +79,15 @@ public class AMD64TruffleCallBoundaryInstrumentationFactory extends TruffleCallB
                     // patching
                     masm.movq(spillRegister, address, true);
                     assert masm.position() - pos >= AMD64HotSpotBackend.PATCHED_VERIFIED_ENTRY_POINT_INSTRUCTION_SIZE : masm.position() + "-" + pos;
-                    if (config.gc == HotSpotGraalRuntime.HotSpotGC.Z) {
-                        ForeignCallLinkage callTarget = crb.providers.getForeignCalls().lookupForeignCall(Z_FIELD_BARRIER);
-                        AMD64HotSpotZBarrierSetLIRGenerator.emitBarrier(crb, masm, null, spillRegister, config, callTarget, address, null,
+                    if (config.gc == HotSpotGraalRuntime.HotSpotGC.X) {
+                        ForeignCallLinkage callTarget = crb.getForeignCalls().lookupForeignCall(X_FIELD_BARRIER);
+                        AMD64HotSpotXBarrierSetLIRGenerator.emitBarrier(crb, masm, null, spillRegister, config, callTarget, address, null,
                                         (AMD64HotSpotBackend.HotSpotFrameContext) crb.frameContext);
+                    }
+                    if (config.gc == HotSpotGraalRuntime.HotSpotGC.Z) {
+                        ForeignCallLinkage callTarget = crb.getForeignCalls().lookupForeignCall(Z_LOAD_BARRIER);
+                        AMD64HotSpotZBarrierSetLIRGenerator.emitLoadBarrier(crb, masm, spillRegister, callTarget, address, null,
+                                        (AMD64HotSpotBackend.HotSpotFrameContext) crb.frameContext, false);
                     }
                 }
                 masm.movq(spillRegister, new AMD64Address(spillRegister, entryPointOffset));

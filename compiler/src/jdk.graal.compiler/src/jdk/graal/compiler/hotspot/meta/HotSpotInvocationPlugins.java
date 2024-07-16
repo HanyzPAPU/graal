@@ -77,7 +77,7 @@ final class HotSpotInvocationPlugins extends InvocationPlugins {
         this.graalRuntime = graalRuntime;
         this.config = config;
         if (Options.WarnMissingIntrinsic.getValue(options)) {
-            this.unimplementedIntrinsics = new UnimplementedGraalIntrinsics();
+            this.unimplementedIntrinsics = new UnimplementedGraalIntrinsics(graalRuntime.getTarget().arch);
         } else {
             this.unimplementedIntrinsics = null;
         }
@@ -149,6 +149,24 @@ final class HotSpotInvocationPlugins extends InvocationPlugins {
     }
 
     @Override
+    protected boolean isDisabled(InvocationPlugin plugin, String declaringClassInternalName, String declaringClassJavaName, OptionValues options) {
+        if (super.isDisabled(plugin, declaringClassInternalName, declaringClassJavaName, options)) {
+            return true;
+        }
+        EconomicSet<MethodKey> disabledIntrinsicsSet = disabledIntrinsics.get(declaringClassInternalName);
+        if (disabledIntrinsicsSet != null) {
+            for (MethodKey mk : disabledIntrinsicsSet) {
+                if (mk.name.equals(plugin.name)) {
+                    if (mk.descriptor.startsWith(plugin.argumentsDescriptor)) {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
+    @Override
     public InvocationPlugin lookupInvocation(ResolvedJavaMethod method, boolean allowDecorators, boolean allowDisable, OptionValues options) {
         InvocationPlugin invocationPlugin = super.lookupInvocation(method, allowDecorators, allowDisable, options);
         if (invocationPlugin != null && allowDisable && !disabledIntrinsics.isEmpty()) {
@@ -157,7 +175,7 @@ final class HotSpotInvocationPlugins extends InvocationPlugins {
                 if (invocationPlugin.canBeDisabled()) {
                     if (invocationPlugin.isGraalOnly()) {
                         if (shouldLogDisabledIntrinsics(options)) {
-                            TTY.println("[Warning] Intrinsic for %s is only implemented in Graal and cannot be disabled via HotSpot flags. Use -Dgraal.DisableIntrinsics= instead.",
+                            TTY.println("[Warning] Intrinsic for %s is only implemented in Graal and cannot be disabled via HotSpot flags. Use -Djdk.graal.DisableIntrinsics= instead.",
                                             method.format("%H.%n(%p)"));
                         }
                     } else {

@@ -28,15 +28,51 @@ import static com.oracle.svm.core.graal.aarch64.SubstrateAArch64RegisterConfig.f
 import static com.oracle.svm.core.graal.code.SubstrateBackend.SubstrateMarkId.PROLOGUE_DECD_RSP;
 import static com.oracle.svm.core.graal.code.SubstrateBackend.SubstrateMarkId.PROLOGUE_END;
 import static com.oracle.svm.core.util.VMError.shouldNotReachHere;
-import static jdk.vm.ci.aarch64.AArch64.lr;
-import static jdk.vm.ci.aarch64.AArch64.sp;
-import static jdk.vm.ci.code.ValueUtil.asRegister;
 import static jdk.graal.compiler.core.common.GraalOptions.ZapStackOnMethodEntry;
 import static jdk.graal.compiler.lir.LIRInstruction.OperandFlag.REG;
 import static jdk.graal.compiler.lir.LIRValueUtil.asConstantValue;
 import static jdk.graal.compiler.lir.LIRValueUtil.differentRegisters;
+import static jdk.vm.ci.aarch64.AArch64.lr;
+import static jdk.vm.ci.aarch64.AArch64.sp;
+import static jdk.vm.ci.code.ValueUtil.asRegister;
 
 import java.util.function.BiConsumer;
+
+import org.graalvm.nativeimage.ImageSingletons;
+
+import com.oracle.svm.core.FrameAccess;
+import com.oracle.svm.core.ReservedRegisters;
+import com.oracle.svm.core.SubstrateOptions;
+import com.oracle.svm.core.SubstrateUtil;
+import com.oracle.svm.core.config.ConfigurationValues;
+import com.oracle.svm.core.deopt.Deoptimizer;
+import com.oracle.svm.core.graal.code.PatchConsumerFactory;
+import com.oracle.svm.core.graal.code.SubstrateBackend;
+import com.oracle.svm.core.graal.code.SubstrateCallingConvention;
+import com.oracle.svm.core.graal.code.SubstrateCallingConventionKind;
+import com.oracle.svm.core.graal.code.SubstrateCallingConventionType;
+import com.oracle.svm.core.graal.code.SubstrateCompiledCode;
+import com.oracle.svm.core.graal.code.SubstrateDataBuilder;
+import com.oracle.svm.core.graal.code.SubstrateDebugInfoBuilder;
+import com.oracle.svm.core.graal.code.SubstrateLIRGenerator;
+import com.oracle.svm.core.graal.code.SubstrateNodeLIRBuilder;
+import com.oracle.svm.core.graal.lir.VerificationMarkerOp;
+import com.oracle.svm.core.graal.meta.KnownOffsets;
+import com.oracle.svm.core.graal.meta.SharedConstantReflectionProvider;
+import com.oracle.svm.core.graal.meta.SubstrateForeignCallLinkage;
+import com.oracle.svm.core.graal.meta.SubstrateRegisterConfig;
+import com.oracle.svm.core.graal.nodes.CGlobalDataLoadAddressNode;
+import com.oracle.svm.core.graal.nodes.ComputedIndirectCallTargetNode;
+import com.oracle.svm.core.heap.ReferenceAccess;
+import com.oracle.svm.core.heap.SubstrateReferenceMapBuilder;
+import com.oracle.svm.core.meta.CompressedNullConstant;
+import com.oracle.svm.core.meta.SharedField;
+import com.oracle.svm.core.meta.SharedMethod;
+import com.oracle.svm.core.meta.SubstrateMethodPointerConstant;
+import com.oracle.svm.core.meta.SubstrateObjectConstant;
+import com.oracle.svm.core.nodes.SafepointCheckNode;
+import com.oracle.svm.core.thread.VMThreads.StatusSupport;
+import com.oracle.svm.core.util.VMError;
 
 import jdk.graal.compiler.asm.BranchTargetOutOfBoundsException;
 import jdk.graal.compiler.asm.Label;
@@ -119,43 +155,6 @@ import jdk.graal.compiler.options.OptionValues;
 import jdk.graal.compiler.phases.BasePhase;
 import jdk.graal.compiler.phases.common.AddressLoweringByUsePhase;
 import jdk.graal.compiler.phases.util.Providers;
-import org.graalvm.nativeimage.ImageSingletons;
-
-import com.oracle.svm.core.FrameAccess;
-import com.oracle.svm.core.ReservedRegisters;
-import com.oracle.svm.core.SubstrateOptions;
-import com.oracle.svm.core.SubstrateUtil;
-import com.oracle.svm.core.code.CodeInfoTable;
-import com.oracle.svm.core.config.ConfigurationValues;
-import com.oracle.svm.core.deopt.Deoptimizer;
-import com.oracle.svm.core.graal.code.PatchConsumerFactory;
-import com.oracle.svm.core.graal.code.SubstrateBackend;
-import com.oracle.svm.core.graal.code.SubstrateCallingConvention;
-import com.oracle.svm.core.graal.code.SubstrateCallingConventionKind;
-import com.oracle.svm.core.graal.code.SubstrateCallingConventionType;
-import com.oracle.svm.core.graal.code.SubstrateCompiledCode;
-import com.oracle.svm.core.graal.code.SubstrateDataBuilder;
-import com.oracle.svm.core.graal.code.SubstrateDebugInfoBuilder;
-import com.oracle.svm.core.graal.code.SubstrateLIRGenerator;
-import com.oracle.svm.core.graal.code.SubstrateNodeLIRBuilder;
-import com.oracle.svm.core.graal.lir.VerificationMarkerOp;
-import com.oracle.svm.core.graal.meta.KnownOffsets;
-import com.oracle.svm.core.graal.meta.SharedConstantReflectionProvider;
-import com.oracle.svm.core.graal.meta.SubstrateForeignCallLinkage;
-import com.oracle.svm.core.graal.meta.SubstrateRegisterConfig;
-import com.oracle.svm.core.graal.nodes.CGlobalDataLoadAddressNode;
-import com.oracle.svm.core.graal.nodes.ComputedIndirectCallTargetNode;
-import com.oracle.svm.core.heap.ReferenceAccess;
-import com.oracle.svm.core.heap.SubstrateReferenceMapBuilder;
-import com.oracle.svm.core.meta.CompressedNullConstant;
-import com.oracle.svm.core.meta.SharedField;
-import com.oracle.svm.core.meta.SharedMethod;
-import com.oracle.svm.core.meta.SubstrateMethodPointerConstant;
-import com.oracle.svm.core.meta.SubstrateObjectConstant;
-import com.oracle.svm.core.nodes.SafepointCheckNode;
-import com.oracle.svm.core.thread.VMThreads.StatusSupport;
-import com.oracle.svm.core.util.VMError;
-
 import jdk.vm.ci.aarch64.AArch64;
 import jdk.vm.ci.aarch64.AArch64Kind;
 import jdk.vm.ci.code.CallingConvention;
@@ -170,6 +169,7 @@ import jdk.vm.ci.code.StackSlot;
 import jdk.vm.ci.code.ValueUtil;
 import jdk.vm.ci.meta.AllocatableValue;
 import jdk.vm.ci.meta.Constant;
+import jdk.vm.ci.meta.ConstantReflectionProvider;
 import jdk.vm.ci.meta.JavaConstant;
 import jdk.vm.ci.meta.JavaKind;
 import jdk.vm.ci.meta.JavaType;
@@ -279,11 +279,11 @@ public class SubstrateAArch64Backend extends SubstrateBackend implements LIRGene
 
         private final ComputedIndirectCallTargetNode.Computation[] addressComputation;
         private final LIRKindTool lirKindTool;
-        private final SharedConstantReflectionProvider constantReflection;
+        private final ConstantReflectionProvider constantReflection;
 
         public SubstrateAArch64ComputedIndirectCallOp(ResolvedJavaMethod callTarget, Value result, Value[] parameters, Value[] temps,
                         Value addressBase, ComputedIndirectCallTargetNode.Computation[] addressComputation,
-                        LIRFrameState state, Value exceptionTemp, LIRKindTool lirKindTool, SharedConstantReflectionProvider constantReflection) {
+                        LIRFrameState state, Value exceptionTemp, LIRKindTool lirKindTool, ConstantReflectionProvider constantReflection) {
             super(TYPE, callTarget, result, parameters, temps, state);
             this.addressBase = this.addressBaseTemp = addressBase;
             this.exceptionTemp = exceptionTemp;
@@ -300,7 +300,7 @@ public class SubstrateAArch64Backend extends SubstrateBackend implements LIRGene
                 Register immediateScratch = sc1.getRegister();
                 Register addressScratch = sc2.getRegister();
 
-                CompressEncoding compressEncoding = ReferenceAccess.singleton().getCompressEncoding();
+                int compressionShift = ReferenceAccess.singleton().getCompressionShift();
                 Register computeRegister = asRegister(addressBase);
                 int addressBitSize = addressBase.getPlatformKind().getSizeInBytes() * Byte.SIZE;
                 boolean nextMemoryAccessNeedsDecompress = false;
@@ -324,7 +324,7 @@ public class SubstrateAArch64Backend extends SubstrateBackend implements LIRGene
                              * currently in use: references are relative to the heap base register,
                              * with an optional shift.
                              */
-                            masm.add(64, addressScratch, ReservedRegisters.singleton().getHeapBaseRegister(), computeRegister, ShiftType.LSL, compressEncoding.getShift());
+                            masm.add(64, addressScratch, ReservedRegisters.singleton().getHeapBaseRegister(), computeRegister, ShiftType.LSL, compressionShift);
                             memoryAddress = masm.makeAddress(addressBitSize, addressScratch, field.getOffset(), immediateScratch);
                         } else {
                             memoryAddress = masm.makeAddress(addressBitSize, computeRegister, field.getOffset(), immediateScratch);
@@ -335,7 +335,7 @@ public class SubstrateAArch64Backend extends SubstrateBackend implements LIRGene
                         VMError.guarantee(!nextMemoryAccessNeedsDecompress, "Comparison with compressed null value not implemented");
                         masm.cbnz(addressBitSize, computeRegister, done);
 
-                        SubstrateObjectConstant object = (SubstrateObjectConstant) ((ComputedIndirectCallTargetNode.FieldLoadIfZero) computation).getObject();
+                        JavaConstant object = ((ComputedIndirectCallTargetNode.FieldLoadIfZero) computation).getObject();
                         field = (SharedField) ((ComputedIndirectCallTargetNode.FieldLoadIfZero) computation).getField();
                         addressBitSize = getFieldSize(field);
 
@@ -353,11 +353,11 @@ public class SubstrateAArch64Backend extends SubstrateBackend implements LIRGene
                             } else {
                                 masm.mov(addressScratch, 0xDEADDEADDEADDEADL, true);
                             }
-                            masm.add(64, addressScratch, ReservedRegisters.singleton().getHeapBaseRegister(), addressScratch, ShiftType.LSL, compressEncoding.getShift());
+                            masm.add(64, addressScratch, ReservedRegisters.singleton().getHeapBaseRegister(), addressScratch, ShiftType.LSL, compressionShift);
                             memoryAddress = masm.makeAddress(addressBitSize, addressScratch, field.getOffset(), immediateScratch);
                         } else {
-                            memoryAddress = masm.makeAddress(addressBitSize, ReservedRegisters.singleton().getHeapBaseRegister(), field.getOffset() + constantReflection.getImageHeapOffset(object),
-                                            immediateScratch);
+                            memoryAddress = masm.makeAddress(addressBitSize, ReservedRegisters.singleton().getHeapBaseRegister(), field.getOffset() +
+                                            ((SharedConstantReflectionProvider) constantReflection).getImageHeapOffset(object), immediateScratch);
                         }
 
                     } else {
@@ -424,19 +424,17 @@ public class SubstrateAArch64Backend extends SubstrateBackend implements LIRGene
                             AArch64Address.createImmediateAddress(64, AArch64Address.AddressingMode.IMMEDIATE_UNSIGNED_SCALED, anchor, knownOffsets.getJavaFrameAnchorLastSPOffset()));
         }
 
-        if (SubstrateOptions.MultiThreaded.getValue()) {
-            /*
-             * Change VMThread status from Java to Native. Note a "store release" is needed for this
-             * update to ensure VMThread status is only updated once all prior stores are also
-             * observable.
-             */
-            try (ScratchRegister scratch1 = masm.getScratchRegister(); ScratchRegister scratch2 = masm.getScratchRegister()) {
-                Register statusValueRegister = scratch1.getRegister();
-                Register statusAddressRegister = scratch2.getRegister();
-                masm.mov(statusValueRegister, newThreadStatus);
-                masm.loadAlignedAddress(32, statusAddressRegister, ReservedRegisters.singleton().getThreadRegister(), knownOffsets.getVMThreadStatusOffset());
-                masm.stlr(32, statusValueRegister, statusAddressRegister);
-            }
+        /*
+         * Change VMThread status from Java to Native. Note a "store release" is needed for this
+         * update to ensure VMThread status is only updated once all prior stores are also
+         * observable.
+         */
+        try (ScratchRegister scratch1 = masm.getScratchRegister(); ScratchRegister scratch2 = masm.getScratchRegister()) {
+            Register statusValueRegister = scratch1.getRegister();
+            Register statusAddressRegister = scratch2.getRegister();
+            masm.mov(statusValueRegister, newThreadStatus);
+            masm.loadAlignedAddress(32, statusAddressRegister, ReservedRegisters.singleton().getThreadRegister(), knownOffsets.getVMThreadStatusOffset());
+            masm.stlr(32, statusValueRegister, statusAddressRegister);
         }
     }
 
@@ -533,8 +531,8 @@ public class SubstrateAArch64Backend extends SubstrateBackend implements LIRGene
             SharedMethod targetMethod = (SharedMethod) callTarget.getMethod();
 
             LIRKind wordKind = getLIRKindTool().getWordKind();
-            Value codeOffsetInImage = emitConstant(wordKind, JavaConstant.forLong(targetMethod.getCodeOffsetInImage()));
-            Value codeInfo = emitJavaConstant(SubstrateObjectConstant.forObject(CodeInfoTable.getImageCodeCache()));
+            Value codeOffsetInImage = emitConstant(wordKind, JavaConstant.forLong(targetMethod.getImageCodeOffset()));
+            Value codeInfo = emitJavaConstant(SubstrateObjectConstant.forObject(targetMethod.getImageCodeInfo()));
             int size = wordKind.getPlatformKind().getSizeInBytes() * Byte.SIZE;
             int codeStartFieldOffset = KnownOffsets.singleton().getImageCodeInfoCodeStartOffset();
             Value codeStartField = AArch64AddressValue.makeAddress(wordKind, size, asAllocatable(codeInfo), codeStartFieldOffset);
@@ -693,7 +691,7 @@ public class SubstrateAArch64Backend extends SubstrateBackend implements LIRGene
 
         @Override
         protected DebugInfoBuilder createDebugInfoBuilder(StructuredGraph graph, NodeValueMap nodeValueMap) {
-            return new SubstrateDebugInfoBuilder(graph, getProviders().getSnippetReflection(), gen.getProviders().getMetaAccessExtensionProvider(), nodeValueMap);
+            return new SubstrateDebugInfoBuilder(graph, gen.getProviders().getMetaAccessExtensionProvider(), nodeValueMap);
         }
 
         private boolean getDestroysCallerSavedRegisters(ResolvedJavaMethod targetMethod) {
@@ -778,8 +776,7 @@ public class SubstrateAArch64Backend extends SubstrateBackend implements LIRGene
             gen.emitMove(addressBase, operand(callTarget.getAddressBase()));
             ResolvedJavaMethod targetMethod = callTarget.targetMethod();
             append(new SubstrateAArch64ComputedIndirectCallOp(targetMethod, result, parameters, temps, addressBase, callTarget.getAddressComputation(),
-                            callState,
-                            getExceptionTemp(callTarget), gen.getLIRKindTool(), (SharedConstantReflectionProvider) getConstantReflection()));
+                            callState, getExceptionTemp(callTarget), gen.getLIRKindTool(), getConstantReflection()));
         }
 
         private AllocatableValue setupJavaFrameAnchor(CallTargetNode callTarget) {
@@ -828,7 +825,7 @@ public class SubstrateAArch64Backend extends SubstrateBackend implements LIRGene
         }
     }
 
-    protected static class SubstrateAArch64FrameContext implements FrameContext {
+    public static class SubstrateAArch64FrameContext implements FrameContext {
 
         protected final SharedMethod method;
 
@@ -1209,14 +1206,7 @@ public class SubstrateAArch64Backend extends SubstrateBackend implements LIRGene
         Deoptimizer.StubType stubType = method.getDeoptStubType();
         DataBuilder dataBuilder = new SubstrateDataBuilder();
         CallingConvention callingConvention = lirGenResult.getCallingConvention();
-        final FrameContext frameContext;
-        if (stubType == Deoptimizer.StubType.EntryStub) {
-            frameContext = new DeoptEntryStubContext(method, callingConvention);
-        } else if (stubType == Deoptimizer.StubType.ExitStub) {
-            frameContext = new DeoptExitStubContext(method, callingConvention);
-        } else {
-            frameContext = createFrameContext(method);
-        }
+        FrameContext frameContext = createFrameContext(method, stubType, callingConvention);
         LIR lir = lirGenResult.getLIR();
         OptionValues options = lir.getOptions();
         DebugContext debug = lir.getDebug();
@@ -1227,7 +1217,12 @@ public class SubstrateAArch64Backend extends SubstrateBackend implements LIRGene
         return crb;
     }
 
-    protected FrameContext createFrameContext(SharedMethod method) {
+    protected FrameContext createFrameContext(SharedMethod method, Deoptimizer.StubType stubType, CallingConvention callingConvention) {
+        if (stubType == Deoptimizer.StubType.EntryStub) {
+            return new DeoptEntryStubContext(method, callingConvention);
+        } else if (stubType == Deoptimizer.StubType.ExitStub) {
+            return new DeoptExitStubContext(method, callingConvention);
+        }
         return new SubstrateAArch64FrameContext(method);
     }
 
@@ -1279,7 +1274,7 @@ public class SubstrateAArch64Backend extends SubstrateBackend implements LIRGene
     }
 
     @Override
-    public RegisterAllocationConfig newRegisterAllocationConfig(RegisterConfig registerConfig, String[] allocationRestrictedTo) {
+    public RegisterAllocationConfig newRegisterAllocationConfig(RegisterConfig registerConfig, String[] allocationRestrictedTo, Object stub) {
         RegisterConfig registerConfigNonNull = registerConfig == null ? getCodeCache().getRegisterConfig() : registerConfig;
         return new RegisterAllocationConfig(registerConfigNonNull, allocationRestrictedTo);
     }
@@ -1311,7 +1306,7 @@ public class SubstrateAArch64Backend extends SubstrateBackend implements LIRGene
         result.recordMark(asm.position(), PROLOGUE_END);
         byte[] instructions = asm.close(true);
         result.setTargetCode(instructions, instructions.length);
-        result.setTotalFrameSize(getTarget().wordSize * 2); // not really, but 0 not allowed
+        result.setTotalFrameSize(getTarget().stackAlignment); // not really, but 0 not allowed
         return result;
     }
 
@@ -1325,14 +1320,21 @@ public class SubstrateAArch64Backend extends SubstrateBackend implements LIRGene
         try {
             crb.buildLabelOffsets();
             crb.emitLIR();
+            finalizeCode(crb);
         } catch (BranchTargetOutOfBoundsException e) {
             // A branch estimation was wrong, now retry with conservative label ranges, this
             // should always work
             resetForEmittingCode(crb);
-            crb.setConservativeLabelRanges();
             crb.resetForEmittingCode();
+            crb.setConservativeLabelRanges();
             crb.emitLIR();
+            finalizeCode(crb);
         }
+    }
+
+    @SuppressWarnings("unused")
+    protected void finalizeCode(CompilationResultBuilder crb) {
+
     }
 
     @SuppressWarnings("unused")

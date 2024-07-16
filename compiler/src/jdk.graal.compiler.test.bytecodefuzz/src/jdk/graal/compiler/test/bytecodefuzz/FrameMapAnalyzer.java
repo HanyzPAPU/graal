@@ -10,6 +10,8 @@ import org.objectweb.asm.commons.AnalyzerAdapter;
 
 public class FrameMapAnalyzer extends MethodVisitor  {
 
+    public static final String separator = "{€}";
+
     private FrameTracer frameTracer;
 
     public FrameMapAnalyzer(int api, String owner, int access, String name, String descriptor) {
@@ -29,7 +31,7 @@ public class FrameMapAnalyzer extends MethodVisitor  {
         return this.frameTracer.getMap();
     }
 
-    private class FrameTracer extends InstructionVisitor {
+    private static class FrameTracer extends InstructionVisitor {
 
         public AnalyzerAdapter analyzer = null;
 
@@ -50,7 +52,7 @@ public class FrameMapAnalyzer extends MethodVisitor  {
         private String getCurrentSignature() {
             String stackSignature = analyzer.stack == null ? "NULL" : analyzer.stack.toString();
             String localsSignature = analyzer.locals == null ? "NULL" : analyzer.locals.toString();
-            return stackSignature + "<#$!>" + localsSignature;
+            return stackSignature + FrameMapAnalyzer.separator + localsSignature;
         }
 
         private void updateMap() {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2020, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2020, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -58,7 +58,8 @@ public final class EspressoFrame {
     private static final int VALUES_START = 1;
 
     public static FrameDescriptor createFrameDescriptor(int locals, int stack) {
-        int slotCount = locals + stack;
+        // at least one stack slot for the return / exception value
+        int slotCount = locals + Math.max(stack, 1);
         FrameDescriptor.Builder builder = FrameDescriptor.newBuilder(slotCount + VALUES_START);
         int bciSlot = builder.addSlot(FrameSlotKind.Static, null, null); // BCI
         assert bciSlot == BCI_SLOT;
@@ -310,11 +311,11 @@ public final class EspressoFrame {
     // endregion Local accessors
 
     static void setBCI(Frame frame, int bci) {
-        frame.setIntStatic(BCI_SLOT, bci);
+        frame.setIntStatic(BCI_SLOT, bci + 1);
     }
 
     static int getBCI(Frame frame) {
-        return frame.getIntStatic(BCI_SLOT);
+        return frame.getIntStatic(BCI_SLOT) - 1;
     }
 
     public static int startingStackOffset(int maxLocals) {

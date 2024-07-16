@@ -24,9 +24,10 @@
  */
 package jdk.graal.compiler.truffle.hotspot.aarch64;
 
+import static jdk.graal.compiler.hotspot.meta.HotSpotHostForeignCallsProvider.X_FIELD_BARRIER;
+import static jdk.graal.compiler.hotspot.meta.HotSpotHostForeignCallsProvider.Z_LOAD_BARRIER;
 import static jdk.vm.ci.hotspot.HotSpotCallingConventionType.JavaCall;
 import static jdk.vm.ci.meta.JavaKind.Object;
-import static jdk.graal.compiler.hotspot.meta.HotSpotHostForeignCallsProvider.Z_FIELD_BARRIER;
 
 import jdk.graal.compiler.asm.Label;
 import jdk.graal.compiler.asm.aarch64.AArch64Address;
@@ -38,7 +39,8 @@ import jdk.graal.compiler.hotspot.GraalHotSpotVMConfig;
 import jdk.graal.compiler.hotspot.HotSpotGraalRuntime;
 import jdk.graal.compiler.hotspot.aarch64.AArch64HotSpotBackend;
 import jdk.graal.compiler.hotspot.aarch64.AArch64HotSpotMove;
-import jdk.graal.compiler.hotspot.aarch64.AArch64HotSpotZBarrierSetLIRGenerator;
+import jdk.graal.compiler.hotspot.aarch64.x.AArch64HotSpotXBarrierSetLIRGenerator;
+import jdk.graal.compiler.hotspot.aarch64.z.AArch64HotSpotZBarrierSetLIRGenerator;
 import jdk.graal.compiler.hotspot.meta.HotSpotRegistersProvider;
 import jdk.graal.compiler.lir.aarch64.AArch64FrameMap;
 import jdk.graal.compiler.lir.asm.CompilationResultBuilder;
@@ -47,7 +49,6 @@ import jdk.graal.compiler.serviceprovider.ServiceProvider;
 import jdk.graal.compiler.truffle.TruffleCompilerConfiguration;
 import jdk.graal.compiler.truffle.hotspot.TruffleCallBoundaryInstrumentationFactory;
 import jdk.graal.compiler.truffle.hotspot.TruffleEntryPointDecorator;
-
 import jdk.vm.ci.code.Register;
 
 @ServiceProvider(TruffleCallBoundaryInstrumentationFactory.class)
@@ -62,21 +63,26 @@ public class AArch64TruffleCallBoundaryInstrumentationFactory extends TruffleCal
                 AArch64HotSpotBackend.emitInvalidatePlaceholder(crb, masm);
 
                 try (ScratchRegister scratch = masm.getScratchRegister()) {
-                    Register thisRegister = crb.codeCache.getRegisterConfig().getCallingConventionRegisters(JavaCall, Object).get(0);
+                    Register thisRegister = crb.getCodeCache().getRegisterConfig().getCallingConventionRegisters(JavaCall, Object).get(0);
                     Register spillRegister = scratch.getRegister();
                     Label doProlog = new Label();
                     if (config.useCompressedOops) {
                         CompressEncoding encoding = config.getOopEncoding();
                         masm.ldr(32, spillRegister, AArch64Address.createImmediateAddress(32, AArch64Address.AddressingMode.IMMEDIATE_UNSIGNED_SCALED, thisRegister, installedCodeOffset));
                         Register base = encoding.hasBase() ? registers.getHeapBaseRegister() : null;
-                        AArch64HotSpotMove.UncompressPointer.emitUncompressCode(masm, spillRegister, spillRegister, base, encoding.getShift(), true);
+                        AArch64HotSpotMove.UncompressPointer.emitUncompressCode(masm, spillRegister, spillRegister, base, encoding, true);
                     } else {
                         AArch64Address address = AArch64Address.createImmediateAddress(64, AArch64Address.AddressingMode.IMMEDIATE_UNSIGNED_SCALED, thisRegister, installedCodeOffset);
                         masm.ldr(64, spillRegister, address);
-                        if (config.gc == HotSpotGraalRuntime.HotSpotGC.Z) {
-                            ForeignCallLinkage callTarget = crb.providers.getForeignCalls().lookupForeignCall(Z_FIELD_BARRIER);
+                        if (config.gc == HotSpotGraalRuntime.HotSpotGC.X) {
+                            ForeignCallLinkage callTarget = crb.getForeignCalls().lookupForeignCall(X_FIELD_BARRIER);
                             AArch64FrameMap frameMap = (AArch64FrameMap) crb.frameMap;
-                            AArch64HotSpotZBarrierSetLIRGenerator.emitBarrier(crb, masm, null, spillRegister, config, callTarget, address, null, frameMap);
+                            AArch64HotSpotXBarrierSetLIRGenerator.emitBarrier(crb, masm, null, spillRegister, config, callTarget, address, null, frameMap);
+                        }
+                        if (config.gc == HotSpotGraalRuntime.HotSpotGC.Z) {
+                            ForeignCallLinkage callTarget = crb.getForeignCalls().lookupForeignCall(Z_LOAD_BARRIER);
+                            AArch64FrameMap frameMap = (AArch64FrameMap) crb.frameMap;
+                            AArch64HotSpotZBarrierSetLIRGenerator.emitLoadBarrier(crb, masm, config, spillRegister, callTarget, address, null, frameMap, false, false);
                         }
                     }
                     masm.ldr(64, spillRegister, AArch64Address.createImmediateAddress(64, AArch64Address.AddressingMode.IMMEDIATE_UNSIGNED_SCALED, spillRegister, entryPointOffset));

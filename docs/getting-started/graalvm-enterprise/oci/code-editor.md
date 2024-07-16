@@ -9,7 +9,7 @@ This guide shows you how to get started with Oracle GraalVM in Oracle Cloud Infr
 
 [OCI Code Editor](https://docs.oracle.com/en-us/iaas/Content/API/Concepts/code_editor_intro.htm) provides a rich, in-console editing environment that enables you to edit code without having to switch between the Oracle Cloud Console and your local development environment. The Code Editor enables you to edit and deploy code for OCI services directly from the OCI Console.
 
-Oracle GraalVM JDK 17 with Native Image is preinstalled in Cloud Shell, so you do not have to install and configure a development machine. Code Editor's integration with Cloud Shell gives you direct access to it.
+Oracle GraalVM for JDK 17 is preinstalled in Cloud Shell, so you do not have to install and configure a development machine. Code Editor's integration with Cloud Shell gives you direct access to it.
 
 > Note: Oracle GraalVM license and support are included in the Oracle Cloud Infrastructure subscription at no additional cost.
 
@@ -27,16 +27,17 @@ Oracle GraalVM JDK 17 with Native Image is preinstalled in Cloud Shell, so you d
     ```shell
     csruntimectl java list
     ```
-    The output lists the JDKs preinstalled in Cloud Shell: GraalVM for JDK 17, Oracle JDK 11, and Oracle JDK 8. The JDK marked with an asterisk is the current JDK.
+    The output lists the JDKs preinstalled in Cloud Shell: Oracle GraalVM for JDK 17, Oracle JDK 11, and Oracle JDK 8. The JDK marked with an asterisk is the current JDK.
 
-2. Select GraalVM for JDK 17 as the current JDK:
+2. Select Oracle GraalVM for JDK 17 as the current JDK:
 
     ```shell
-    csruntimectl java set graalvmeejdk-17
+    csruntimectl java set graalvmjdk-17
     ```
-    You will see the confirmation message printed `The current managed java version is set to graalvmeejdk-17`.
+    You will see the confirmation message printed: "The current managed java version is set to graalvmjdk-17".
 
-3. Now confirm the values of the environment variables `PATH` and `JAVA_HOME`, and the version of `java`, the `native-image` generator:
+3. Now confirm the values of the environment variables `PATH` and `JAVA_HOME`, and the versions of `java` and the `native-image` tool:
+
     ```shell
     echo $JAVA_HOME
     ```
@@ -78,15 +79,15 @@ Oracle GraalVM JDK 17 with Native Image is preinstalled in Cloud Shell, so you d
     
     You can now view/edit the sample code in Code Editor.
 
-2. Package the sample application into a runnable JAR:
+2. Package the sample application into a runnable JAR file:
 
     ```shell
     mvn clean package
     ```
-3. Run the JAR:
+3. Run the JAR file:
 
     ```shell
-    java -jar target/my-app-1.0-SNAPSHOT.jar 
+    java -jar target/my-app-1.0-SNAPSHOT.jar
     ```
     It prints out “Hello World!”.
 
@@ -96,14 +97,20 @@ This Java application incorporates the [Maven plugin for GraalVM Native Image](h
 
 ### Quick Build Mode Enabled
 
-1. Build a native executable using the `native` Maven profile. The quick build mode is enabled for this run: notice the `<buildArg>-Ob</buildArg>` option in the plugin's configuration in _pom.xml_.
+1. To enable the quick build mode, uncomment this line in _pom.xml_, as follows:
+ 
+    ```xml
+    <quickBuild>true</quickBuild>
+    ```
+    
+2. Build a native executable using the `native` Maven profile:
 
     ```shell
     mvn clean -Pnative -DskipTests package
     ```
     This will generate a native executable for Linux in the _target_ directory, named _my-app_.
 
-2. Run the app native executable in the background:
+3. Run the app native executable in the background:
 
     ```shell
     ./target/my-app
@@ -114,8 +121,9 @@ This Java application incorporates the [Maven plugin for GraalVM Native Image](h
 1. To disable the quick build mode, comment out this line in _pom.xml_, as follows:
  
     ```xml
-    <!-- <buildArg>-Ob</buildArg> -->
+    <!-- <quickBuild>true</quickBuild> -->
     ```
+    
 2. Build a native executable again:
 
     ```shell

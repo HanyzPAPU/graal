@@ -83,7 +83,7 @@ public final class PythonRegexParser implements RegexParser {
     }
 
     private static RegexFlags createECMAScriptFlags(RegexSource source) {
-        boolean sticky = source.getOptions().getPythonMethod() == PythonMethod.match || source.getOptions().getPythonMethod() == PythonMethod.fullmatch;
+        boolean sticky = source.getOptions().getMatchingMode() == MatchingMode.match || source.getOptions().getMatchingMode() == MatchingMode.fullmatch;
         return RegexFlags.builder().dotAll(true).unicode(true).sticky(sticky).build();
     }
 
@@ -105,14 +105,16 @@ public final class PythonRegexParser implements RegexParser {
     @TruffleBoundary
     public RegexAST parse() throws RegexSyntaxException {
         astBuilder.pushRootGroup(true);
-        if (lexer.source.getOptions().getPythonMethod() == PythonMethod.fullmatch) {
+        if (lexer.source.getOptions().getMatchingMode() == MatchingMode.fullmatch) {
             astBuilder.pushGroup();
         }
         List<Token.BackReference> conditionalBackReferences = new ArrayList<>();
         Token token = null;
+        Token prev;
         Token.Kind prevKind;
         while (lexer.hasNext()) {
-            prevKind = token == null ? null : token.kind;
+            prev = token;
+            prevKind = prev == null ? null : prev.kind;
             token = lexer.next();
             switch (token.kind) {
                 case A:
@@ -211,6 +213,9 @@ public final class PythonRegexParser implements RegexParser {
                 case nonCaptureGroupBegin:
                     astBuilder.pushGroup(token);
                     break;
+                case atomicGroupBegin:
+                    astBuilder.pushAtomicGroup(token);
+                    break;
                 case lookAheadAssertionBegin:
                     astBuilder.pushLookAheadAssertion(token, ((Token.LookAheadAssertionBegin) token).isNegated());
                     break;
@@ -240,7 +245,7 @@ public final class PythonRegexParser implements RegexParser {
                     curCharClass.clear();
                     break;
                 case charClassAtom:
-                    curCharClass.addSet(((Token.CharacterClassAtom) token).getContents());
+                    curCharClass.addSet(((Token.CharacterClassAtom) token).getContents().getCodePointSet());
                     break;
                 case charClassEnd:
                     boolean wasSingleChar = !lexer.isCurCharClassInverted() && curCharClass.matchesSingleChar();
@@ -257,15 +262,22 @@ public final class PythonRegexParser implements RegexParser {
                     astBuilder.pushConditionalBackReferenceGroup(conditionalBackRefToken);
                     break;
                 case inlineFlags:
-                    // flagStack push is handled in the lexer
-                    if (!((Token.InlineFlags) token).isGlobal()) {
-                        astBuilder.pushGroup(token);
+                    Token.InlineFlags inlineFlags = (Token.InlineFlags) token;
+                    if (inlineFlags.isGlobal()) {
+                        boolean first = prev == null || (prevKind == Token.Kind.inlineFlags && ((Token.InlineFlags) prev).isGlobal());
+                        if (!first) {
+                            throw syntaxErrorAtAbs(PyErrorMessages.GLOBAL_FLAGS_NOT_AT_START, inlineFlags.getPosition());
+                        }
+                        lexer.addGlobalFlags((PythonFlags) inlineFlags.getFlags());
+                    } else {
+                        astBuilder.pushGroup(inlineFlags);
                         astBuilder.getCurGroup().setLocalFlags(true);
+                        lexer.pushLocalFlags((PythonFlags) inlineFlags.getFlags());
                     }
                     break;
             }
         }
-        if (lexer.source.getOptions().getPythonMethod() == PythonMethod.fullmatch) {
+        if (lexer.source.getOptions().getMatchingMode() == MatchingMode.fullmatch) {
             astBuilder.popGroup();
             astBuilder.addDollar();
         }
@@ -279,6 +291,7 @@ public final class PythonRegexParser implements RegexParser {
                 throw syntaxErrorAtAbs(PyErrorMessages.invalidGroupReference(Integer.toString(conditionalBackReference.getGroupNumbers()[0])), conditionalBackReference.getPosition() + 3);
             }
         }
+        lexer.fixFlags();
         return ast;
     }
 

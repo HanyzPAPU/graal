@@ -32,6 +32,7 @@ import java.util.Map;
 import org.graalvm.nativeimage.ImageSingletons;
 import org.graalvm.nativeimage.hosted.Feature;
 
+import com.oracle.svm.core.SubstrateGCOptions;
 import com.oracle.svm.core.SubstrateOptions;
 import com.oracle.svm.core.feature.AutomaticallyRegisteredFeature;
 import com.oracle.svm.core.feature.InternalFeature;
@@ -41,9 +42,10 @@ import com.oracle.svm.core.genscavenge.EpsilonGarbageCollectorMXBean;
 import com.oracle.svm.core.genscavenge.GenScavengeMemoryPoolMXBeans;
 import com.oracle.svm.core.genscavenge.HeapImpl;
 import com.oracle.svm.core.genscavenge.HeapImplMemoryMXBean;
+import com.oracle.svm.core.genscavenge.HeapVerifier;
 import com.oracle.svm.core.genscavenge.ImageHeapInfo;
 import com.oracle.svm.core.genscavenge.IncrementalGarbageCollectorMXBean;
-import com.oracle.svm.core.genscavenge.LinearImageHeapLayouter;
+import com.oracle.svm.core.genscavenge.SerialGCOptions;
 import com.oracle.svm.core.genscavenge.jvmstat.EpsilonGCPerfData;
 import com.oracle.svm.core.genscavenge.jvmstat.SerialGCPerfData;
 import com.oracle.svm.core.genscavenge.remset.CardTableBasedRememberedSet;
@@ -91,7 +93,7 @@ class GenScavengeGCFeature implements InternalFeature {
 
     @Override
     public void duringSetup(DuringSetupAccess access) {
-        HeapImpl heap = new HeapImpl(SubstrateOptions.getPageSize());
+        HeapImpl heap = new HeapImpl();
         ImageSingletons.add(Heap.class, heap);
         ImageSingletons.add(GCAllocationSupport.class, new GenScavengeAllocationSupport());
 
@@ -99,7 +101,7 @@ class GenScavengeGCFeature implements InternalFeature {
         ImageSingletons.add(GenScavengeMemoryPoolMXBeans.class, memoryPoolMXBeans);
 
         List<GarbageCollectorMXBean> garbageCollectors;
-        if (SubstrateOptions.UseEpsilonGC.getValue()) {
+        if (SubstrateOptions.useEpsilonGC()) {
             garbageCollectors = Arrays.asList(new EpsilonGarbageCollectorMXBean());
         } else {
             garbageCollectors = Arrays.asList(new IncrementalGarbageCollectorMXBean(), new CompleteGarbageCollectorMXBean());
@@ -115,14 +117,16 @@ class GenScavengeGCFeature implements InternalFeature {
         if (ImageSingletons.contains(PerfManager.class)) {
             ImageSingletons.lookup(PerfManager.class).register(createPerfData());
         }
+
+        if (SubstrateGCOptions.VerifyHeap.getValue()) {
+            ImageSingletons.add(HeapVerifier.class, new HeapVerifier());
+        }
     }
 
     @Override
     public void registerLowerings(RuntimeConfiguration runtimeConfig, OptionValues options, Providers providers,
                     Map<Class<? extends Node>, NodeLoweringProvider<?>> lowerings, boolean hosted) {
-        if (SubstrateOptions.useRememberedSet()) {
-            // Even though I don't hold on to this instance, it is preserved because it becomes the
-            // enclosing instance for the lowerings registered within it.
+        if (SerialGCOptions.useRememberedSet()) {
             BarrierSnippets barrierSnippets = new BarrierSnippets(options, providers);
             barrierSnippets.registerLowerings(providers.getMetaAccess(), lowerings);
         }
@@ -143,19 +147,13 @@ class GenScavengeGCFeature implements InternalFeature {
 
     @Override
     public void afterAnalysis(AfterAnalysisAccess access) {
-        ImageHeapLayouter heapLayouter;
-        int imageHeapNullRegionSize = Heap.getHeap().getImageHeapNullRegionSize();
-        if (HeapImpl.usesImageHeapChunks()) { // needs CommittedMemoryProvider: registered late
-            heapLayouter = new ChunkedImageHeapLayouter(HeapImpl.getImageHeapInfo(), 0, imageHeapNullRegionSize);
-        } else {
-            heapLayouter = new LinearImageHeapLayouter(HeapImpl.getImageHeapInfo(), 0, imageHeapNullRegionSize);
-        }
+        ImageHeapLayouter heapLayouter = new ChunkedImageHeapLayouter(HeapImpl.getFirstImageHeapInfo(), Heap.getHeap().getImageHeapOffsetInAddressSpace());
         ImageSingletons.add(ImageHeapLayouter.class, heapLayouter);
     }
 
     @Override
     public void beforeCompilation(BeforeCompilationAccess access) {
-        ImageHeapInfo imageHeapInfo = HeapImpl.getImageHeapInfo();
+        ImageHeapInfo imageHeapInfo = HeapImpl.getFirstImageHeapInfo();
         access.registerAsImmutable(imageHeapInfo);
     }
 
@@ -165,7 +163,7 @@ class GenScavengeGCFeature implements InternalFeature {
     }
 
     private static RememberedSet createRememberedSet() {
-        if (SubstrateOptions.useRememberedSet()) {
+        if (SerialGCOptions.useRememberedSet()) {
             return new CardTableBasedRememberedSet();
         } else {
             return new NoRememberedSet();
@@ -173,10 +171,10 @@ class GenScavengeGCFeature implements InternalFeature {
     }
 
     private static PerfDataHolder createPerfData() {
-        if (SubstrateOptions.UseSerialGC.getValue()) {
+        if (SubstrateOptions.useSerialGC()) {
             return new SerialGCPerfData();
         } else {
-            assert SubstrateOptions.UseEpsilonGC.getValue();
+            assert SubstrateOptions.useEpsilonGC();
             return new EpsilonGCPerfData();
         }
     }

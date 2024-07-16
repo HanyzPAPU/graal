@@ -31,7 +31,9 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Formatter;
 import java.util.List;
+import java.util.Locale;
 import java.util.ServiceLoader;
+import java.util.regex.Pattern;
 
 import org.graalvm.collections.EconomicMap;
 import org.graalvm.collections.EconomicSet;
@@ -48,8 +50,12 @@ public class OptionsParser {
     /**
      * Gets an iterable of available {@link OptionDescriptors}.
      */
-    @ExcludeFromJacocoGeneratedReport("contains libgraal only path")
     public static Iterable<OptionDescriptors> getOptionsLoader() {
+        return getOptionsLoader(ClassLoader.getSystemClassLoader());
+    }
+
+    @ExcludeFromJacocoGeneratedReport("contains libgraal only path")
+    public static Iterable<OptionDescriptors> getOptionsLoader(ClassLoader loader) {
         if (IS_IN_NATIVE_IMAGE || cachedOptionDescriptors != null) {
             return cachedOptionDescriptors;
         }
@@ -59,7 +65,7 @@ public class OptionsParser {
          * need to start the provider search at the app class loader instead of the platform class
          * loader.
          */
-        return ServiceLoader.load(OptionDescriptors.class, ClassLoader.getSystemClassLoader());
+        return ServiceLoader.load(OptionDescriptors.class, loader);
     }
 
     @ExcludeFromJacocoGeneratedReport("only called when building libgraal")
@@ -86,6 +92,23 @@ public class OptionsParser {
     }
 
     /**
+     * Parses an array of option settings of the form {@code "OptionKey=Value"} in {@code options},
+     * adding parsed options to {@code values}.
+     *
+     * @param options array of option setting strings (i.e., assignments of values to options).
+     * @param values the object in which to store the parsed values
+     * @param loader source of the available {@link OptionDescriptors}
+     * @throws IllegalArgumentException if there's a problem parsing any of {@code options}
+     */
+    public static void parseOptions(String[] options, EconomicMap<OptionKey<?>, Object> values, Iterable<OptionDescriptors> loader) {
+        EconomicMap<String, String> settings = EconomicMap.create();
+        for (String option : options) {
+            parseOptionSettingTo(option, settings);
+        }
+        parseOptions(settings, values, loader);
+    }
+
+    /**
      * Parses a given option setting string and adds the parsed key and value to {@code dst}.
      *
      * @param optionSetting a string matching the pattern {@code <name>=<value>}
@@ -96,6 +119,33 @@ public class OptionsParser {
             throw new IllegalArgumentException("Option setting has does not match the pattern <name>=<value>: " + optionSetting);
         }
         dst.put(optionSetting.substring(0, eqIndex), optionSetting.substring(eqIndex + 1));
+    }
+
+    /**
+     * Splits a list of option settings into an array of options. If {@code options} starts with a
+     * non-letter character, that character is used as the delimiter between options. Otherwise,
+     * whitespace is the delimiter.
+     *
+     * @param options string containing a separated list of option settings.
+     * @return an array of strings containing the individual parsed options.
+     * @throws IllegalArgumentException if a non-whitespace delimiter is used and the delimiter
+     *             appears repeated contiguously in {@code options}.
+     */
+    public static String[] splitOptions(String options) {
+        String sepRegex = "\\s+";
+        String toParse = options;
+        if (!options.isEmpty() && !Character.isLetter(options.charAt(0))) {
+            sepRegex = Pattern.quote(options.substring(0, 1));
+            toParse = options.substring(1);
+        }
+
+        String[] settings = toParse.split(sepRegex);
+        for (String optionSetting : settings) {
+            if (optionSetting.isEmpty()) {
+                throw new IllegalArgumentException(String.format("Delimiter '%s' is repeated contiguously in \"%s\"", options.charAt(0), options));
+            }
+        }
+        return settings;
     }
 
     /**
@@ -138,12 +188,7 @@ public class OptionsParser {
                     msg.format("%n    %s=<value>", match.getName());
                 }
             }
-            IllegalArgumentException iae = new IllegalArgumentException(msg.toString());
-            if (isFromLibGraal(iae)) {
-                msg.format("%nIf %s is a libgraal option, it must be specified with '-Dlibgraal.%s' as opposed to '-Dgraal.%s'.", name, name, name);
-                iae = new IllegalArgumentException(msg.toString());
-            }
-            throw iae;
+            throw new IllegalArgumentException(msg.toString());
         }
 
         Object value = parseOptionValue(desc, uncheckedValue);
@@ -151,16 +196,9 @@ public class OptionsParser {
         desc.getOptionKey().update(values, value);
     }
 
-    private static boolean isFromLibGraal(Throwable t) {
-        for (StackTraceElement frame : t.getStackTrace()) {
-            if ("org.graalvm.libgraal.LibGraal".equals(frame.getClassName())) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /** Parses a given option value with a known descriptor. */
+    /**
+     * Parses a given option value with a known descriptor.
+     */
     public static Object parseOptionValue(OptionDescriptor desc, Object uncheckedValue) {
         Class<?> optionType = desc.getOptionValueType();
         Object value;
@@ -211,7 +249,7 @@ public class OptionsParser {
     }
 
     private static long parseLong(String v) {
-        String valueString = v.toLowerCase();
+        String valueString = v.toLowerCase(Locale.ROOT);
         long scale = 1;
         if (valueString.endsWith("k")) {
             scale = 1024L;
@@ -233,7 +271,7 @@ public class OptionsParser {
 
     /**
      * Compute string similarity based on Dice's coefficient.
-     *
+     * <p>
      * Ported from str_similar() in globals.cpp.
      */
     public static float stringSimilarity(String str1, String str2) {

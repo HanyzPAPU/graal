@@ -30,8 +30,6 @@ import static jdk.vm.ci.services.Services.IS_IN_NATIVE_IMAGE;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -39,11 +37,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
+import java.util.concurrent.atomic.AtomicReference;
 
-import jdk.vm.ci.meta.ConstantPool;
+import jdk.graal.compiler.core.ArchitectureSpecific;
+import jdk.internal.misc.VM;
+import jdk.vm.ci.code.Architecture;
 import jdk.vm.ci.meta.EncodedSpeculationReason;
-import jdk.vm.ci.meta.JavaMethod;
-import jdk.vm.ci.meta.ResolvedJavaMethod;
 import jdk.vm.ci.meta.SpeculationLog.SpeculationReason;
 import jdk.vm.ci.runtime.JVMCI;
 import jdk.vm.ci.services.Services;
@@ -53,37 +52,13 @@ import jdk.vm.ci.services.Services;
  */
 public final class GraalServices {
 
-    // NOTE: The use of reflection to access JVMCI API is to support
-    // compiling on JDKs with varying versions of JVMCI.
-
     private static final Map<Class<?>, List<?>> servicesCache = IS_BUILDING_NATIVE_IMAGE ? new HashMap<>() : null;
-
-    private static final Method constantPoolLookupMethodWithCaller;
-    private static final Method constantPoolLookupConstantWithResolve;
-
-    static {
-        Method lookupMethodWithCaller = null;
-        Method lookupConstantWithResolve = null;
-
-        try {
-            lookupMethodWithCaller = ConstantPool.class.getDeclaredMethod("lookupMethod", Integer.TYPE, Integer.TYPE, ResolvedJavaMethod.class);
-        } catch (NoSuchMethodException e) {
-        }
-
-        try {
-            lookupConstantWithResolve = ConstantPool.class.getDeclaredMethod("lookupConstant", Integer.TYPE, Boolean.TYPE);
-        } catch (NoSuchMethodException e) {
-        }
-
-        constantPoolLookupMethodWithCaller = lookupMethodWithCaller;
-        constantPoolLookupConstantWithResolve = lookupConstantWithResolve;
-    }
 
     private GraalServices() {
     }
 
     /**
-     * Gets an {@link Iterable} of the providers available for a given service.
+     * Gets an {@link Iterable} of the providers available for {@code service}.
      */
     @SuppressWarnings("unchecked")
     public static <S> Iterable<S> load(Class<S> service) {
@@ -103,8 +78,7 @@ public final class GraalServices {
             synchronized (servicesCache) {
                 ArrayList<S> providersList = new ArrayList<>();
                 for (S provider : providers) {
-                    Module module = provider.getClass().getModule();
-                    if (isHotSpotGraalModule(module.getName())) {
+                    if (isLibgraalProvider(provider)) {
                         providersList.add(provider);
                     }
                 }
@@ -118,16 +92,106 @@ public final class GraalServices {
     }
 
     /**
-     * Determines if the module named by {@code name} is part of Graal when it is configured as a
-     * HotSpot JIT compiler.
+     * Determines if {@code provider} is a service provider used in libgraal.
      */
-    private static boolean isHotSpotGraalModule(String name) {
+    private static boolean isLibgraalProvider(Object provider) {
+        LibgraalConfig config = libgraalConfig();
+        if (config != null) {
+            return config.isLibgraalProvider(provider);
+        }
+        Class<?> c = provider.getClass();
+        Module module = c.getModule();
+        String name = module.getName();
         if (name != null) {
             return name.equals("jdk.graal.compiler") ||
                             name.equals("jdk.graal.compiler.management") ||
                             name.equals("com.oracle.graal.graal_enterprise");
         }
         return false;
+    }
+
+    /**
+     * Gets an unmodifiable copy of the system properties in their state at system initialization
+     * time. This method must be used instead of calling {@link Services#getSavedProperties()}
+     * directly for any caller that will end up in libgraal.
+     *
+     * @see VM#getSavedProperties
+     */
+    public static Map<String, String> getSavedProperties() {
+        if (IS_BUILDING_NATIVE_IMAGE && !IS_IN_NATIVE_IMAGE) {
+            return jdk.internal.misc.VM.getSavedProperties();
+        }
+        return Services.getSavedProperties();
+    }
+
+    /**
+     * Helper method equivalent to {@link #getSavedProperties()}{@code .getOrDefault(name, def)}.
+     */
+    public static String getSavedProperty(String name, String def) {
+        if (IS_BUILDING_NATIVE_IMAGE && !IS_IN_NATIVE_IMAGE) {
+            return jdk.internal.misc.VM.getSavedProperties().getOrDefault(name, def);
+        }
+        return Services.getSavedProperties().getOrDefault(name, def);
+    }
+
+    /**
+     * Helper method equivalent to {@link #getSavedProperties()}{@code .get(name)}.
+     */
+    public static String getSavedProperty(String name) {
+        if (IS_BUILDING_NATIVE_IMAGE && !IS_IN_NATIVE_IMAGE) {
+            return jdk.internal.misc.VM.getSavedProperty(name);
+        }
+        return Services.getSavedProperty(name);
+    }
+
+    /**
+     * Configuration relevant for building libgraal.
+     *
+     * @param classLoader the class loader used to load libgraal destined classes
+     * @param arch the {@linkplain Architecture#getName() name} of the architecture on which
+     *            libgraal will be deployed
+     */
+    public record LibgraalConfig(ClassLoader classLoader, String arch) {
+
+        /**
+         * Determines if {@code provider} will be used in libgraal.
+         */
+        boolean isLibgraalProvider(Object provider) {
+            if (provider.getClass().getClassLoader() != classLoader) {
+                return false;
+            }
+            if (provider instanceof ArchitectureSpecific as) {
+                return as.getArchitecture().equals(arch);
+            }
+            return true;
+        }
+    }
+
+    /**
+     * Sentinel value for representing "default" initialization of {@link #libgraalConfig}.
+     */
+    private static final LibgraalConfig LIBGRAAL_CONFIG_DEFAULT = new LibgraalConfig(null, null);
+
+    private static final AtomicReference<LibgraalConfig> libgraalConfig = new AtomicReference<>();
+
+    /**
+     * Sets the config for building libgraal. Can only be called at most once. If called, it must be
+     * before any call to {@link #load(Class)}.
+     */
+    public static void setLibgraalConfig(LibgraalConfig config) {
+        if (!IS_BUILDING_NATIVE_IMAGE) {
+            throw new InternalError("Can only set libgraal config when building libgraal");
+        }
+        LibgraalConfig expectedValue = libgraalConfig.compareAndExchange(null, config);
+        if (expectedValue != null) {
+            throw new InternalError("Libgraal config already initialized: " + expectedValue);
+        }
+    }
+
+    private static LibgraalConfig libgraalConfig() {
+        libgraalConfig.compareAndSet(null, LIBGRAAL_CONFIG_DEFAULT);
+        LibgraalConfig config = libgraalConfig.get();
+        return config == LIBGRAAL_CONFIG_DEFAULT ? null : config;
     }
 
     private static <S> Iterable<S> load0(Class<S> service) {
@@ -138,8 +202,13 @@ public final class GraalServices {
             module.addUses(service);
         }
 
-        ModuleLayer layer = module.getLayer();
-        Iterable<S> iterable = ServiceLoader.load(layer, service);
+        LibgraalConfig config = libgraalConfig();
+        Iterable<S> iterable;
+        if (config != null && config.classLoader != null) {
+            iterable = ServiceLoader.load(service, config.classLoader);
+        } else {
+            iterable = ServiceLoader.load(module.getLayer(), service);
+        }
         return new Iterable<>() {
             @Override
             public Iterator<S> iterator() {
@@ -449,55 +518,21 @@ public final class GraalServices {
     }
 
     /**
-     * Calls {@code ConstantPool#lookupMethod(int, int, ResolvedJavaMethod)}.
+     * Notifies that the compiler is at a point where memory usage is expected to be minimal like
+     * after the completion of compilation.
+     *
+     * @param forceFullGC controls whether to explicitly perform a full GC
      */
-    public static JavaMethod lookupMethodWithCaller(ConstantPool constantPool, int cpi, int opcode, ResolvedJavaMethod caller) {
-        if (constantPoolLookupMethodWithCaller != null) {
-            try {
-                try {
-                    return (JavaMethod) constantPoolLookupMethodWithCaller.invoke(constantPool, cpi, opcode, caller);
-                } catch (InvocationTargetException e) {
-                    throw e.getCause();
-                }
-            } catch (Error e) {
-                throw e;
-            } catch (Throwable throwable) {
-                throw new InternalError(throwable);
-            }
-        }
-        throw new InternalError("This JDK doesn't support ConstantPool.lookupMethod(int, int, ResolvedJavaMethod)");
-    }
-
-    public static Object lookupConstant(ConstantPool constantPool, int cpi, boolean resolve) {
-        if (constantPoolLookupConstantWithResolve != null) {
-            try {
-                try {
-                    return constantPoolLookupConstantWithResolve.invoke(constantPool, cpi, resolve);
-                } catch (InvocationTargetException e) {
-                    throw e.getCause();
-                }
-            } catch (Error e) {
-                throw e;
-            } catch (Throwable throwable) {
-                throw new InternalError(throwable);
-            }
-        }
-        return constantPool.lookupConstant(cpi);
+    public static void notifyLowMemoryPoint(boolean forceFullGC) {
+        notifyLowMemoryPoint(true, forceFullGC);
     }
 
     /**
-     * Returns true if the JDK includes {@code ConstantPool.lookupConstant(int, boolean)}.
+     * Notifies that the compiler is at a point where memory usage is might have dropped
+     * significantly like after some major phase execution.
      */
-    public static boolean supportsNonresolvingLookupConstant() {
-        return constantPoolLookupConstantWithResolve != null;
-    }
-
-    /**
-     * Returns true if the JDK includes
-     * {@code ConstantPool.lookupMethod(int, int, ResolvedJavaMethod)}.
-     */
-    public static boolean hasLookupMethodWithCaller() {
-        return constantPoolLookupMethodWithCaller != null;
+    public static void notifyLowMemoryPoint() {
+        notifyLowMemoryPoint(false, false);
     }
 
     /**
@@ -505,10 +540,10 @@ public final class GraalServices {
      * (e.g., just before/after a compilation). The garbage collector might be able to make use of
      * such a hint to optimize its performance.
      *
-     * @param fullGC controls whether the hinted GC should be a full GC.
+     * @param hintFullGC controls whether the hinted GC should be a full GC.
+     * @param forceFullGC controls whether to explicitly perform a full GC
      */
-    public static void notifyLowMemoryPoint(@SuppressWarnings("unused") boolean fullGC) {
-        // Substituted by
-        // com.oracle.svm.hotspot.libgraal.Target_jdk_graal_compiler_serviceprovider_GraalServices
+    private static void notifyLowMemoryPoint(boolean hintFullGC, boolean forceFullGC) {
+        VMSupport.notifyLowMemoryPoint(hintFullGC, forceFullGC);
     }
 }

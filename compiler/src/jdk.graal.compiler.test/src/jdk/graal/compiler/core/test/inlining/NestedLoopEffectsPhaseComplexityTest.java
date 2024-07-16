@@ -90,7 +90,7 @@ public class NestedLoopEffectsPhaseComplexityTest extends GraalCompilerTest {
     private static int InliningCountLowerBound = 1;
     private static int InliningCountUpperBound = 32;
 
-    @Rule public TestRule timeout = createTimeoutSeconds(120);
+    @Rule public TestRule timeout = createTimeoutSeconds(240);
 
     @Test
     public void inlineDirectRecursiveLoopCallUnsafeLoad() {
@@ -154,7 +154,7 @@ public class NestedLoopEffectsPhaseComplexityTest extends GraalCompilerTest {
 
     private StructuredGraph parseBytecodes(ResolvedJavaMethod method, HighTierContext context, CanonicalizerPhase canonicalizer) {
         OptionValues options = getInitialOptions();
-        StructuredGraph newGraph = new StructuredGraph.Builder(options, getDebugContext(options, null, method), AllowAssumptions.NO).method(method).build();
+        StructuredGraph newGraph = new StructuredGraph.Builder(options, getDebugContext(options, null, method), AllowAssumptions.NO).method(method).speculationLog(getSpeculationLog()).build();
         context.getGraphBuilderSuite().apply(newGraph, context);
         new DeadCodeEliminationPhase(Optional).apply(newGraph);
         canonicalizer.apply(newGraph, context);

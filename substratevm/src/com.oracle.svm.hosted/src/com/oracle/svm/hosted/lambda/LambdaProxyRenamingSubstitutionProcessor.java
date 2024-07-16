@@ -28,29 +28,31 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import com.oracle.graal.pointsto.BigBang;
+import com.oracle.graal.pointsto.infrastructure.SubstitutionProcessor;
+import com.oracle.graal.pointsto.meta.BaseLayerType;
+import com.oracle.graal.pointsto.phases.NoClassInitializationPlugin;
+import com.oracle.graal.pointsto.util.GraalAccess;
+
 import jdk.graal.compiler.debug.DebugContext;
 import jdk.graal.compiler.debug.DebugContext.Builder;
 import jdk.graal.compiler.java.LambdaUtils;
 import jdk.graal.compiler.options.OptionValues;
+import jdk.graal.compiler.phases.OptimisticOptimizations;
 import jdk.graal.compiler.phases.util.Providers;
 import jdk.graal.compiler.printer.GraalDebugHandlersFactory;
-
-import com.oracle.graal.pointsto.BigBang;
-import com.oracle.graal.pointsto.infrastructure.SubstitutionProcessor;
-import com.oracle.graal.pointsto.phases.NoClassInitializationPlugin;
-import com.oracle.graal.pointsto.util.GraalAccess;
-
 import jdk.vm.ci.meta.ResolvedJavaType;
 
 /**
  * This substitution replaces all lambda proxy types with types that have a stable names. The name
  * is formed from the signature of the target method that the lambda is calling.
- *
+ * <p>
  * NOTE: there is a particular case in which names are not stable. If multiple lambda proxies have a
  * same target in a same class they are indistinguishable in bytecode. Then their stable names get
  * appended with a unique number for that class. To make this corner case truly stable, analysis
  * must be run in the single-threaded mode.
  */
+
 public class LambdaProxyRenamingSubstitutionProcessor extends SubstitutionProcessor {
 
     private final BigBang bb;
@@ -66,17 +68,8 @@ public class LambdaProxyRenamingSubstitutionProcessor extends SubstitutionProces
 
     @Override
     public ResolvedJavaType lookup(ResolvedJavaType type) {
-        if (LambdaUtils.isLambdaType(type)) {
+        if (LambdaUtils.isLambdaType(type) && !type.getClass().equals(LambdaSubstitutionType.class) && !(type.getClass().equals(BaseLayerType.class))) {
             return getSubstitution(type);
-        } else {
-            return type;
-        }
-    }
-
-    @Override
-    public ResolvedJavaType resolve(ResolvedJavaType type) {
-        if (type instanceof LambdaSubstitutionType) {
-            return ((LambdaSubstitutionType) type).getOriginal();
         } else {
             return type;
         }
@@ -88,7 +81,8 @@ public class LambdaProxyRenamingSubstitutionProcessor extends SubstitutionProces
             DebugContext debug = new Builder(options, new GraalDebugHandlersFactory(bb.getSnippetReflectionProvider())).build();
 
             Providers providers = GraalAccess.getOriginalProviders();
-            String lambdaTargetName = LambdaUtils.findStableLambdaName(new NoClassInitializationPlugin(), providers, key, options, debug, this);
+            String lambdaTargetName = LambdaUtils.findStableLambdaName(new NoClassInitializationPlugin(), providers, key, options, debug, this,
+                            config -> new LambdaSubstrateGraphBuilderPhase.LambdaSubstrateGraphBuilderInstance(providers, config, OptimisticOptimizations.NONE, null));
             return new LambdaSubstitutionType(key, findUniqueLambdaProxyName(lambdaTargetName));
         });
     }
@@ -100,16 +94,21 @@ public class LambdaProxyRenamingSubstitutionProcessor extends SubstitutionProces
      */
     private String findUniqueLambdaProxyName(String lambdaTargetName) {
         synchronized (uniqueLambdaProxyNames) {
-            String newStableName = lambdaTargetName;
-            CharSequence stableNameBase = lambdaTargetName.subSequence(0, lambdaTargetName.length() - 1);
+            String stableNameBase = lambdaTargetName.substring(0, lambdaTargetName.length() - 1);
+            String newStableName = stableNameBase + "0;";
+
             int i = 1;
             while (uniqueLambdaProxyNames.contains(newStableName)) {
-                newStableName = stableNameBase + "_" + i + ";";
+                newStableName = stableNameBase + i + ";";
                 i += 1;
             }
             uniqueLambdaProxyNames.add(newStableName);
+
             return newStableName;
         }
     }
 
+    public boolean isNameAlwaysStable(String lambdaTargetName) {
+        return !uniqueLambdaProxyNames.contains(lambdaTargetName.substring(0, lambdaTargetName.length() - 1) + "1;");
+    }
 }

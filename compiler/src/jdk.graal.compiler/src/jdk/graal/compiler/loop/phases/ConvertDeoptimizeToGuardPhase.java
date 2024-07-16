@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2011, 2023, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2011, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -30,7 +30,7 @@ import java.util.List;
 import java.util.Optional;
 
 import jdk.graal.compiler.core.common.GraalOptions;
-import jdk.graal.compiler.core.common.cfg.Loop;
+import jdk.graal.compiler.core.common.cfg.CFGLoop;
 import jdk.graal.compiler.core.common.type.Stamp;
 import jdk.graal.compiler.debug.Assertions;
 import jdk.graal.compiler.debug.DebugCloseable;
@@ -64,12 +64,14 @@ import jdk.graal.compiler.nodes.calc.CompareNode;
 import jdk.graal.compiler.nodes.calc.IntegerEqualsNode;
 import jdk.graal.compiler.nodes.cfg.HIRBlock;
 import jdk.graal.compiler.nodes.extended.BranchProbabilityNode;
-import jdk.graal.compiler.nodes.loop.LoopEx;
+import jdk.graal.compiler.nodes.extended.OSRMonitorEnterNode;
+import jdk.graal.compiler.nodes.loop.Loop;
 import jdk.graal.compiler.nodes.loop.LoopsData;
 import jdk.graal.compiler.nodes.spi.CoreProviders;
 import jdk.graal.compiler.nodes.spi.Simplifiable;
 import jdk.graal.compiler.nodes.spi.SimplifierTool;
 import jdk.graal.compiler.nodes.util.GraphUtil;
+import jdk.graal.compiler.phases.RecursivePhase;
 import jdk.graal.compiler.phases.common.CanonicalizerPhase;
 import jdk.graal.compiler.phases.common.DeadCodeEliminationPhase;
 import jdk.graal.compiler.phases.common.LazyValue;
@@ -88,7 +90,7 @@ import jdk.vm.ci.meta.TriState;
  * branch starting at an other kind of {@link ControlSplitNode}, it will only bring the
  * {@link DeoptimizeNode} as close to the {@link ControlSplitNode} as possible.
  */
-public class ConvertDeoptimizeToGuardPhase extends PostRunCanonicalizationPhase<CoreProviders> {
+public class ConvertDeoptimizeToGuardPhase extends PostRunCanonicalizationPhase<CoreProviders> implements RecursivePhase {
 
     public ConvertDeoptimizeToGuardPhase(CanonicalizerPhase canonicalizer) {
         super(canonicalizer);
@@ -110,6 +112,9 @@ public class ConvertDeoptimizeToGuardPhase extends PostRunCanonicalizationPhase<
 
         for (DeoptimizeNode d : graph.getNodes(DeoptimizeNode.TYPE)) {
             assert d.isAlive();
+            if (!d.mayConvertToGuard()) {
+                continue;
+            }
             try (DebugCloseable closable = d.withNodeSourcePosition()) {
                 propagateFixed(d, d, context, lazyLoops);
             }
@@ -268,6 +273,17 @@ public class ConvertDeoptimizeToGuardPhase extends PostRunCanonicalizationPhase<
                     moveAsDeoptAfter((AbstractBeginNode) current, deopt);
                     return;
                 }
+            } else if (current instanceof OSRMonitorEnterNode monitorEnterNode) {
+                /*
+                 * OSR locals (including locks) need to remain in the graph and be lowered to LIR
+                 * even when a deopt floats all the way to OSRStart, so that the actions associated
+                 * with OSRStart and OSRMonitorEnter are performed and the associated FrameState is
+                 * correct. Since OSR lock nodes are only lowered along with the OSRMonitorEnter
+                 * they're used by, we must not float a deopt above a OSRMonitorEnterNode to prevent
+                 * it from being removed from the graph.
+                 */
+                moveAsDeoptAfter(monitorEnterNode, deopt);
+                return;
             }
             current = current.predecessor();
         }
@@ -294,9 +310,9 @@ public class ConvertDeoptimizeToGuardPhase extends PostRunCanonicalizationPhase<
 
     private static boolean isCountedLoopExit(IfNode ifNode, LazyValue<LoopsData> lazyLoops) {
         LoopsData loopsData = lazyLoops.get();
-        Loop<HIRBlock> loop = loopsData.getCFG().getNodeToBlock().get(ifNode).getLoop();
+        CFGLoop<HIRBlock> loop = loopsData.getCFG().getNodeToBlock().get(ifNode).getLoop();
         if (loop != null) {
-            LoopEx loopEx = loopsData.loop(loop);
+            Loop loopEx = loopsData.loop(loop);
             if (loopEx.detectCounted()) {
                 return ifNode == loopEx.counted().getLimitTest();
             }

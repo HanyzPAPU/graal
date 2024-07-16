@@ -1,10 +1,10 @@
 suite = {
-  "mxversion": "6.49.1",
+  "mxversion": "7.27.1",
   "name" : "compiler",
   "sourceinprojectwhitelist" : [],
 
   "groupId" : "org.graalvm.compiler",
-  "version" : "24.0.0",
+  "version" : "24.2.0",
   "release" : False,
   "url" : "http://www.graalvm.org/",
   "developer" : {
@@ -30,7 +30,7 @@ suite = {
         "subdir": True
       },
       {
-        "name" : "java-benchmarks",
+        "name" : "sdk",
         "subdir": True
       }
     ]
@@ -64,9 +64,9 @@ suite = {
       "digest" : "sha512:40c505dd03ca0bb102f1091b89b90672126922f290bd8370eef9a7afc5d9c1e7b5db08c448a0948ef46bf57d850e166813e2d68bf7b1c88a46256d839b6b0201",
       "packedResource": True,
     },
-    "IDEALGRAPHVISUALIZER-0_31-0A82D7A0D60_DIST" : {
-      "urls" : ["https://lafo.ssw.uni-linz.ac.at/pub/idealgraphvisualizer/idealgraphvisualizer-0.31-0a82d7a0d60-all.zip"],
-      "digest" : "sha512:20a3d87927fbecfe9b61dcd6c59f12f4c25e7da1ca926ea6d2571594424782751261e581e1c6e5113aeaeb8f31b8141b1941f7bbef1c6c07c55b9a753812b6db",
+    "IDEALGRAPHVISUALIZER_DIST" : {
+      "urls" : ["https://lafo.ssw.uni-linz.ac.at/pub/idealgraphvisualizer/idealgraphvisualizer-0.31-cb98bbf5fef-all.zip"],
+      "digest" : "sha512:ca30052094ce03a8ab88b4666261cfe66ee369c4e876528efd42facd98e53dea3ee1ae622dda6234cf79fe16698f2418e40f025ee859ca3534308be70a47794a",
       "packedResource": True,
     },
 
@@ -200,6 +200,9 @@ suite = {
         "java.logging",
       ],
       "requiresConcealed" : {
+        "java.base" : [
+          "jdk.internal.misc"
+        ],
         "jdk.internal.vm.ci" : [
           "jdk.vm.ci.meta",
           "jdk.vm.ci.code",
@@ -311,6 +314,7 @@ suite = {
       "checkstyle" : "jdk.graal.compiler",
       "javaCompliance" : "21+",
       "jacoco" : "exclude",
+      "graalCompilerSourceEdition": "ignore",
     },
 
     "jdk.graal.compiler.management" : {
@@ -343,11 +347,40 @@ suite = {
         "java.base" : [
           "jdk.internal.util",
         ],
+        "jdk.internal.vm.ci" : [
+          "jdk.vm.ci.meta",
+        ],
       },
       "checkstyle": "jdk.graal.compiler",
       "javaCompliance" : "21+",
       "javaPreviewNeeded": "21+",
       "workingSets" : "Graal,HotSpot,Test",
+      "graalCompilerSourceEdition": "ignore",
+    },
+
+    "jdk.graal.compiler.hotspot.jdk23.test" : {
+      "testProject" : True,
+      "subDir" : "src",
+      "sourceDirs" : ["src"],
+      "dependencies" : [
+        "jdk.graal.compiler.test",
+      ],
+      "requiresConcealed" : {
+        "java.base" : [
+          "jdk.internal.util",
+          "sun.security.util.math",
+          "sun.security.util.math.intpoly",
+        ],
+        "jdk.internal.vm.ci" : [
+          "jdk.vm.ci.meta",
+        ],
+      },
+      "checkstyle": "jdk.graal.compiler",
+      "javaCompliance" : "23+",
+      # GR-51699
+      "forceJavac": True,
+      "workingSets" : "Graal,HotSpot,Test",
+      "graalCompilerSourceEdition": "ignore",
     },
 
     "jdk.graal.compiler.virtual.bench" : {
@@ -360,6 +393,7 @@ suite = {
       "spotbugsIgnoresGenerated" : True,
       "workingSets" : "Graal,Bench",
       "testProject" : True,
+      "graalCompilerSourceEdition": "ignore",
     },
 
     "jdk.graal.compiler.microbenchmarks" : {
@@ -382,26 +416,7 @@ suite = {
       "spotbugsIgnoresGenerated" : True,
       "workingSets" : "Graal,Bench",
       "testProject" : True,
-    },
-
-    # ------------- GraalTruffle -------------
-
-    "jdk.graal.compiler.truffle.test.jdk21" : {
-      "subDir" : "src",
-      "sourceDirs" : ["src"],
-      "dependencies": [
-        "jdk.graal.compiler.test",
-      ],
-      "annotationProcessors" : [
-        "GRAAL_PROCESSOR",
-      ],
-      "overlayTarget" : "jdk.graal.compiler.test",
-      "multiReleaseJarVersion" : "21",
-      "checkstyle" : "jdk.graal.compiler",
-      "javaCompliance" : "21+",
-      "checkPackagePrefix" : "false",
-      "jacoco": "exclude",
-      "testProject" : True,
+      "graalCompilerSourceEdition": "ignore",
     },
 
     # ------------- blackbox micro benchmarks -------------
@@ -419,6 +434,7 @@ suite = {
       "spotbugsIgnoresGenerated" : True,
       "workingSets" : "Graal,Bench",
       "testProject" : True,
+      "graalCompilerSourceEdition": "ignore",
     },
 
     "org.graalvm.profdiff" : {
@@ -430,6 +446,7 @@ suite = {
       ],
       "checkstyle" : "jdk.graal.compiler",
       "javaCompliance" : "21+",
+      "graalCompilerSourceEdition": "ignore",
     },
 
     "org.graalvm.profdiff.test" : {
@@ -442,6 +459,32 @@ suite = {
       "checkstyle" : "jdk.graal.compiler",
       "javaCompliance" : "21+",
       "workingSets" : "Graal,Test",
+      "graalCompilerSourceEdition": "ignore",
+    },
+
+    "org.graalvm.igvutil" : {
+      "subDir" : "src",
+      "sourceDirs" : ["src"],
+      "dependencies" : [
+        "jdk.graal.compiler",
+        "sdk:COLLECTIONS",
+      ],
+      "checkstyle" : "jdk.graal.compiler",
+      "javaCompliance" : "21+",
+      "graalCompilerSourceEdition": "ignore",
+    },
+
+    "org.graalvm.igvutil.test" : {
+      "subDir" : "src",
+      "sourceDirs" : ["src"],
+      "dependencies" : [
+        "org.graalvm.igvutil",
+        "mx:JUNIT",
+      ],
+      "checkstyle" : "jdk.graal.compiler",
+      "javaCompliance" : "21+",
+      "workingSets" : "Graal,Test",
+      "graalCompilerSourceEdition": "ignore",
     },
     
     # ------------- Bytecode Fuzzing -------------
@@ -523,13 +566,16 @@ suite = {
         "JAVA_ALLOCATION_INSTRUMENTER",
       ],
       "testDistribution" : True,
+      "unittestConfig": "graal",
       "maven": False,
+      "graalCompilerSourceEdition": "ignore",
     },
     
     "GRAAL_TEST_PREVIEW_FEATURE" : {
       "subDir" : "src",
       "dependencies" : [
         "jdk.graal.compiler.hotspot.jdk21.test",
+        "jdk.graal.compiler.hotspot.jdk23.test",
       ],
       "distDependencies" : [
         "GRAAL_TEST",
@@ -537,7 +583,9 @@ suite = {
       "exclude" : [
       ],
       "testDistribution" : True,
+      "unittestConfig": "graal",
       "maven": False,
+      "graalCompilerSourceEdition": "ignore",
     },
 
     "GRAAL_PROCESSOR" : {
@@ -545,6 +593,16 @@ suite = {
       "dependencies" : [
         "jdk.graal.compiler.processor",
        ],
+      "maven": False,
+    },
+
+    "GRAAL_VERSION": {
+      "type": "dir",
+      "platformDependent": False,
+      "layout": {
+        "META-INF/graalvm/jdk.graal.compiler/version": "dependency:sdk:VERSION/version",
+      },
+      "description": "Compiler version.",
       "maven": False,
     },
 
@@ -563,6 +621,7 @@ suite = {
                   org.graalvm.nativeimage.llvm,
                   com.oracle.svm.svm_enterprise,
                   com.oracle.svm_enterprise.ml_dataset,
+                  com.oracle.svm.enterprise.jdwp.resident,
                   org.graalvm.nativeimage.base,
                   org.graalvm.extraimage.builder,
                   org.graalvm.extraimage.librarysupport,
@@ -570,13 +629,14 @@ suite = {
                   org.graalvm.truffle.runtime.svm,
                   com.oracle.truffle.enterprise.svm""",
           "jdk.graal.compiler.java                   to org.graalvm.nativeimage.agent.tracing,org.graalvm.nativeimage.configure",
+          "jdk.graal.compiler.util                   to org.graalvm.nativeimage.agent.tracing,org.graalvm.nativeimage.configure",
           "jdk.graal.compiler.core.common            to org.graalvm.nativeimage.agent.tracing,org.graalvm.nativeimage.objectfile",
           "jdk.graal.compiler.debug                  to org.graalvm.nativeimage.objectfile",
           "jdk.graal.compiler.nodes.graphbuilderconf to org.graalvm.nativeimage.driver,org.graalvm.nativeimage.librarysupport",
           "jdk.graal.compiler.options                to org.graalvm.nativeimage.driver,org.graalvm.nativeimage.junitsupport",
           "jdk.graal.compiler.phases.common          to org.graalvm.nativeimage.agent.tracing,org.graalvm.nativeimage.configure",
           "jdk.graal.compiler.serviceprovider        to jdk.graal.compiler.management,org.graalvm.nativeimage.driver,org.graalvm.nativeimage.agent.jvmtibase,org.graalvm.nativeimage.agent.diagnostics",
-          "jdk.graal.compiler.util.json              to org.graalvm.nativeimage.librarysupport,org.graalvm.nativeimage.agent.tracing,org.graalvm.nativeimage.configure,org.graalvm.nativeimage.driver",
+          "jdk.graal.compiler.util.json",
         ],
         "uses" : [
           "jdk.graal.compiler.code.DisassemblerProvider",
@@ -596,7 +656,8 @@ suite = {
       },
       "subDir" : "src",
       "dependencies" : [
-        "jdk.graal.compiler"
+        "jdk.graal.compiler",
+        "GRAAL_VERSION",
       ],
       "distDependencies" : [
         "sdk:COLLECTIONS",
@@ -642,6 +703,8 @@ suite = {
       ],
       "testDistribution" : True,
       "maven": False,
+      "graalWhiteboxDistribution": True,
+      "graalCompilerSourceEdition": "ignore",
     },
 
     "GRAAL_COMPILER_MICRO_BENCHMARKS" : {
@@ -649,6 +712,7 @@ suite = {
       "dependencies" : ["org.graalvm.micro.benchmarks"],
       "testDistribution" : True,
       "maven": False,
+      "graalCompilerSourceEdition": "ignore",
     },
 
     "HSDIS_GRAALVM_SUPPORT" : {
@@ -690,6 +754,19 @@ suite = {
         "GRAAL",
       ],
       "maven" : False,
+      "graalCompilerSourceEdition": "ignore",
+    },
+
+    "GRAAL_IGVUTIL": {
+      "subDir" : "src",
+      "dependencies" : [
+        "org.graalvm.igvutil",
+      ],
+      "distDependencies" : [
+        "GRAAL",
+      ],
+      "maven" : False,
+      "graalCompilerSourceEdition": "ignore",
     },
 
     "GRAAL_PROFDIFF_TEST" : {
@@ -703,7 +780,25 @@ suite = {
       "exclude" : [
         "mx:JUNIT",
       ],
+      "unittestConfig": "graal",
       "maven": False,
+      "graalCompilerSourceEdition": "ignore",
+    },
+
+    "GRAAL_IGVUTIL_TEST" : {
+      "subDir" : "src",
+      "dependencies" : [
+        "org.graalvm.igvutil.test",
+      ],
+      "distDependencies" : [
+        "GRAAL_IGVUTIL",
+      ],
+      "exclude" : [
+        "mx:JUNIT",
+      ],
+      "unittestConfig": "graal",
+      "maven": False,
+      "graalCompilerSourceEdition": "ignore",
     },
     
     "GRAAL_TEST_BYTECODEFUZZ" : {

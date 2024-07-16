@@ -24,30 +24,26 @@
  */
 package jdk.graal.compiler.java;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
 import java.util.List;
+import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import jdk.graal.compiler.debug.DebugContext;
-import jdk.graal.compiler.nodes.graphbuilderconf.GraphBuilderContext;
 import jdk.graal.compiler.nodes.Invoke;
 import jdk.graal.compiler.nodes.StructuredGraph;
 import jdk.graal.compiler.nodes.graphbuilderconf.ClassInitializationPlugin;
 import jdk.graal.compiler.nodes.graphbuilderconf.GraphBuilderConfiguration;
-import jdk.graal.compiler.nodes.graphbuilderconf.IntrinsicContext;
+import jdk.graal.compiler.nodes.graphbuilderconf.GraphBuilderContext;
 import jdk.graal.compiler.nodes.graphbuilderconf.InvocationPlugins;
-import jdk.graal.compiler.nodes.spi.CoreProviders;
 import jdk.graal.compiler.options.OptionValues;
 import jdk.graal.compiler.phases.OptimisticOptimizations;
 import jdk.graal.compiler.phases.tiers.HighTierContext;
 import jdk.graal.compiler.phases.util.Providers;
-
+import jdk.graal.compiler.util.Digest;
 import jdk.vm.ci.common.JVMCIError;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 import jdk.vm.ci.meta.ResolvedJavaType;
@@ -55,11 +51,11 @@ import jdk.vm.ci.meta.ResolvedJavaType;
 public final class LambdaUtils {
 
     private static final Pattern LAMBDA_PATTERN = Pattern.compile("\\$\\$Lambda[/.][^/]+;");
-    private static final char[] HEX = "0123456789abcdef".toCharArray();
     public static final String LAMBDA_SPLIT_PATTERN = "\\$\\$Lambda";
     public static final String LAMBDA_CLASS_NAME_SUBSTRING = "$$Lambda";
     public static final String SERIALIZATION_TEST_LAMBDA_CLASS_SUBSTRING = "$$Lambda";
     public static final String SERIALIZATION_TEST_LAMBDA_CLASS_SPLIT_PATTERN = "\\$\\$Lambda";
+    public static final String ADDRESS_PREFIX = ".0x";
 
     private static GraphBuilderConfiguration buildLambdaParserConfig(ClassInitializationPlugin cip) {
         GraphBuilderConfiguration.Plugins plugins = new GraphBuilderConfiguration.Plugins(new InvocationPlugins());
@@ -98,7 +94,8 @@ public final class LambdaUtils {
      * @return stable name for the lambda class
      */
     @SuppressWarnings("try")
-    public static String findStableLambdaName(ClassInitializationPlugin cip, Providers providers, ResolvedJavaType lambdaType, OptionValues options, DebugContext debug, Object ctx)
+    public static String findStableLambdaName(ClassInitializationPlugin cip, Providers providers, ResolvedJavaType lambdaType, OptionValues options, DebugContext debug, Object ctx,
+                    Function<GraphBuilderConfiguration, GraphBuilderPhase.Instance> graphBuilderSupplier)
                     throws RuntimeException {
         ResolvedJavaMethod[] lambdaProxyMethods = Arrays.stream(lambdaType.getDeclaredMethods(false)).filter(m -> !m.isBridge() && m.isPublic()).toArray(ResolvedJavaMethod[]::new);
         /*
@@ -107,7 +104,7 @@ public final class LambdaUtils {
          */
         StructuredGraph graph = new StructuredGraph.Builder(options, debug).method(lambdaProxyMethods[0]).build();
         try (DebugContext.Scope ignored = debug.scope("Lambda target method analysis", graph, lambdaType, ctx)) {
-            GraphBuilderPhase lambdaParserPhase = new LambdaGraphBuilder(LambdaUtils.buildLambdaParserConfig(cip));
+            GraphBuilderPhase.Instance lambdaParserPhase = graphBuilderSupplier.apply(buildLambdaParserConfig(cip));
             HighTierContext context = new HighTierContext(providers, null, OptimisticOptimizations.NONE);
             lambdaParserPhase.apply(graph, context);
         } catch (Throwable e) {
@@ -125,13 +122,20 @@ public final class LambdaUtils {
         return createStableLambdaName(lambdaType, invokedMethods);
     }
 
+    /**
+     * Checks if the passed type is lambda class type based on set flags and the type name.
+     *
+     * @param type type to be checked
+     * @return true if the passed type is lambda type, false otherwise
+     */
+
     public static boolean isLambdaType(ResolvedJavaType type) {
         String typeName = type.getName();
         return type.isFinalFlagSet() && isLambdaName(typeName);
     }
 
     public static boolean isLambdaName(String name) {
-        return name.contains(LAMBDA_CLASS_NAME_SUBSTRING) && lambdaMatcher(name).find();
+        return isLambdaClassName(name) && lambdaMatcher(name).find();
     }
 
     private static String createStableLambdaName(ResolvedJavaType lambdaType, List<ResolvedJavaMethod> targetMethods) {
@@ -141,73 +145,44 @@ public final class LambdaUtils {
         Matcher m = lambdaMatcher(lambdaName);
         StringBuilder sb = new StringBuilder();
         targetMethods.forEach((targetMethod) -> sb.append(targetMethod.format("%H.%n(%P)%R")));
-        return m.replaceFirst(Matcher.quoteReplacement("$$Lambda$" + digest(sb.toString()) + ";"));
+        // Take parameter types of constructor into consideration, see GR-52837
+        for (ResolvedJavaMethod ctor : lambdaType.getDeclaredConstructors()) {
+            sb.append(ctor.format("%P"));
+        }
+        return m.replaceFirst(Matcher.quoteReplacement(LAMBDA_CLASS_NAME_SUBSTRING + ADDRESS_PREFIX + Digest.digestAsHex(sb.toString()) + ";"));
     }
 
     private static Matcher lambdaMatcher(String value) {
         return LAMBDA_PATTERN.matcher(value);
     }
 
-    public static String toHex(byte[] data) {
-        StringBuilder r = new StringBuilder(data.length * 2);
-        for (byte b : data) {
-            r.append(HEX[(b >> 4) & 0xf]);
-            r.append(HEX[b & 0xf]);
-        }
-        return r.toString();
-    }
-
-    public static String digest(String value) {
-        try {
-            MessageDigest md = MessageDigest.getInstance("SHA-1");
-            md.update(value.getBytes(StandardCharsets.UTF_8));
-            return toHex(md.digest());
-        } catch (NoSuchAlgorithmException ex) {
-            throw new JVMCIError(ex);
-        }
-    }
-
+    /**
+     * Extracts lambda capturing class name from the lambda class name.
+     *
+     * @param className name of the lambda class
+     * @return name of the lambda capturing class
+     */
     public static String capturingClass(String className) {
         return className.split(LambdaUtils.SERIALIZATION_TEST_LAMBDA_CLASS_SPLIT_PATTERN)[0];
     }
 
-    private static final class LambdaGraphBuilder extends GraphBuilderPhase {
-
-        private LambdaGraphBuilder(GraphBuilderConfiguration config) {
-            super(config);
-        }
-
-        @Override
-        protected GraphBuilderPhase.Instance createInstance(CoreProviders providers, GraphBuilderConfiguration instanceGBConfig, OptimisticOptimizations optimisticOpts,
-                        IntrinsicContext initialIntrinsicContext) {
-            return new Instance(providers, instanceGBConfig, optimisticOpts, initialIntrinsicContext);
-        }
-
-        private static class Instance extends GraphBuilderPhase.Instance {
-            Instance(CoreProviders providers, GraphBuilderConfiguration instanceGBConfig, OptimisticOptimizations optimisticOpts, IntrinsicContext initialIntrinsicContext) {
-                super(providers, instanceGBConfig, optimisticOpts, initialIntrinsicContext);
-            }
-
-            @Override
-            protected BytecodeParser createBytecodeParser(StructuredGraph graph, BytecodeParser parent, ResolvedJavaMethod method, int entryBCI, IntrinsicContext intrinsicContext) {
-                return new LambdaBytecodeParser(this, graph, parent, method, entryBCI, intrinsicContext);
-            }
-        }
+    /**
+     * Checks if the passed class is lambda class.
+     *
+     * @param clazz class to be checked
+     * @return true if the clazz is lambda class, false instead
+     */
+    public static boolean isLambdaClass(Class<?> clazz) {
+        return isLambdaClassName(clazz.getName());
     }
 
-    private static class LambdaBytecodeParser extends BytecodeParser {
-
-        LambdaBytecodeParser(GraphBuilderPhase.Instance instance, StructuredGraph graph, BytecodeParser parent, ResolvedJavaMethod method, int entryBCI, IntrinsicContext intrinsicContext) {
-            super(instance, graph, parent, method, entryBCI, intrinsicContext);
-        }
-
-        @Override
-        protected Object lookupConstant(int cpi, int opcode, boolean allowBootstrapMethodInvocation) {
-            /*
-             * Native Image forces bootstrap method invocation at build time until support has been
-             * added for doing the invocation at runtime (GR-45806)
-             */
-            return super.lookupConstant(cpi, opcode, true);
-        }
+    /**
+     * Checks if the passed class name is lambda class name.
+     *
+     * @param className name of the class
+     * @return true if the className is lambda class name, false instead
+     */
+    public static boolean isLambdaClassName(String className) {
+        return className.contains(LAMBDA_CLASS_NAME_SUBSTRING);
     }
 }

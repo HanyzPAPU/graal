@@ -240,11 +240,11 @@ public abstract class BasicBlock<T extends BasicBlock<T>> {
     }
 
     public void setIndirectBranchTarget() {
-        this.indirectBranchTarget = true;
+        indirectBranchTarget = true;
     }
 
     public boolean isIndirectBranchTarget() {
-        return this.indirectBranchTarget;
+        return indirectBranchTarget;
     }
 
     @Override
@@ -262,7 +262,7 @@ public abstract class BasicBlock<T extends BasicBlock<T>> {
 
     public abstract boolean isExceptionEntry();
 
-    public abstract Loop<T> getLoop();
+    public abstract CFGLoop<T> getLoop();
 
     public abstract int getLoopDepth();
 
