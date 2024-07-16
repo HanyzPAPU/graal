@@ -21,8 +21,8 @@ public class InstructionVisitor extends MethodVisitor {
     }   
 
     protected final void visitInstructionInternal() {
-        iindex++;
         visitInstruction();
+        iindex++;
     }
 
     public void visitInstruction() { }

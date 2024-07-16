@@ -44,15 +44,15 @@ public class MutateAndPrint {
         //dumpBytecode(data);
         //run(data);
 
-        // ClassReader reader = new ClassReader(data);
-        // ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
-        // FreeSpace freeSpace = new FreeSpace(extraSize);
-        // System.out.println(freeSpace.amount());
-        // PseudoRandom prng = new SeededPseudoRandom(seed);
+        ClassReader reader = new ClassReader(data);
+        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
+        FreeSpace freeSpace = new FreeSpace(extraSize);
+        //System.out.println(freeSpace.amount());
+        PseudoRandom prng = new SeededPseudoRandom(seed);
 
-        // Mutation mut = new ConstantMutation();
+        Mutation mut = new InsertNeutralArithmeticMutation();
 
-        // mut.mutate(reader, writer, freeSpace, prng);
+        mut.mutate(reader, writer, freeSpace, prng);
 
         // byte[] result = writer.toByteArray();
 
@@ -62,7 +62,7 @@ public class MutateAndPrint {
         // System.out.println(result.length - data.length);
         // System.out.println(freeSpace.amount());
 
-        run(data);
+        // run(data);
         // run(result);
     }
 
