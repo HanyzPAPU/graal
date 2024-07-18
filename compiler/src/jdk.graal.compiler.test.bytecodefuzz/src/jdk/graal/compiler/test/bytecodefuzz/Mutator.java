@@ -28,7 +28,8 @@ public final class Mutator {
         return Arrays.asList(
             new InsertJumpMutation(),
             new ConstantMutation(),
-            new InsertNeutralArithmeticMutation()
+            new InsertNeutralArithmeticMutation(),
+            new SplitConstantMutation()
         );
     }
 

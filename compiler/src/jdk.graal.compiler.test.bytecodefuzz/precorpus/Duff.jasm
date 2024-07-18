@@ -9,11 +9,11 @@ public class Duff {
         dup
         invokespecial java/lang/Object.<init>()V
 
-        ldc 100
+        sipush 100
         newarray I
         putfield Duff.data [I
 
-        ldc 0
+        iconst 0
         istore 1
 
         getfield Duff.data [I
@@ -27,7 +27,7 @@ public class Duff {
         arraylength 
 
         iload 1
-        ldc 1
+        iconst 1
         iadd
         dup
         istore 1
