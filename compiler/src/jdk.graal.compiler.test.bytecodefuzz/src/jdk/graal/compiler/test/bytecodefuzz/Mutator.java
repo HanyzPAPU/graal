@@ -20,6 +20,7 @@ import org.objectweb.asm.util.TraceClassVisitor;
 import com.code_intelligence.jazzer.mutation.api.PseudoRandom;
 import com.code_intelligence.jazzer.mutation.engine.SeededPseudoRandom;
 
+import jdk.graal.compiler.test.bytecodefuzz.mutation.*;
 
 public final class Mutator {
 
@@ -42,38 +43,23 @@ public final class Mutator {
 
     public byte[] Mutate(byte[] data, int maxSize, int seed) throws Exception {
 
-        // dumpBytes(data);
-        // dumpBytecode(data);
-
-        // System.out.println(data.length);
-
-        ClassReader reader = new ClassReader(data);
-        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
         FreeSpace freeSpace = new FreeSpace(maxSize - data.length);
         PseudoRandom prng = new SeededPseudoRandom(seed);
-        byte[] result;
-
         Mutation mut = prng.pickIn(mutations);
+        byte[] result = mut.mutate(data, prng, freeSpace);
 
-        mut.mutate(reader, writer, freeSpace, prng);
-
-        if (freeSpace.amount() >= 0) {
-            result = writer.toByteArray();
+        if (result != null) {
             if(result.length > maxSize) {
                 throw new RuntimeException("Freespace computation does not work out!");
             }
-
             return result;
         }
-
+        
         NonGrowingMutation nonGrowingMut = prng.pickIn(nonGrowingMutations);
-        writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
+        result = nonGrowingMut.mutate(data, prng);
 
-        nonGrowingMut.mutate(reader, writer, prng);
-
-        result = writer.toByteArray();
-        if(result.length > maxSize) {
-            throw new RuntimeException("Freespace computation does not work out!");
+        if(result == null || result.length > maxSize) {
+            throw new RuntimeException("Nongrowing mutation grew over size limit!");
         }
         
         return result;

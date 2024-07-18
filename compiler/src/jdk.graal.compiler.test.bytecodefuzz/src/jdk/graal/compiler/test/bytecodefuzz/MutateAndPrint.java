@@ -26,6 +26,7 @@ import org.objectweb.asm.commons.LocalVariablesSorter;
 import com.code_intelligence.jazzer.mutation.api.PseudoRandom;
 import com.code_intelligence.jazzer.mutation.engine.SeededPseudoRandom;
 
+import jdk.graal.compiler.test.bytecodefuzz.mutation.*;
 
 public class MutateAndPrint {
 
@@ -44,17 +45,12 @@ public class MutateAndPrint {
         //dumpBytecode(data);
         //run(data);
 
-        ClassReader reader = new ClassReader(data);
-        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
         FreeSpace freeSpace = new FreeSpace(extraSize);
         //System.out.println(freeSpace.amount());
         PseudoRandom prng = new SeededPseudoRandom(seed);
 
         Mutation mut = new SplitConstantMutation();
-
-        mut.mutate(reader, writer, freeSpace, prng);
-
-        byte[] result = writer.toByteArray();
+        byte[] result = mut.mutate(data, prng);
 
         //dumpBytecode(data);
         dumpBytecode(result);
