@@ -26,15 +26,12 @@ public class Duff {
         dup // Duff.data
         arraylength 
 
+        iinc 1, [1]
         iload 1
-        iconst 1
-        iadd
-        dup
-        istore 1
 
         if_icmpgt L1 // if (Duff.data.length > i) loop again
-        pop
         
+        pop    
         return
     }
 
