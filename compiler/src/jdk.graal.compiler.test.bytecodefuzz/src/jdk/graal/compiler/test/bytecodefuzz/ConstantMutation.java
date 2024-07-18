@@ -73,50 +73,7 @@ public class ConstantMutation implements NonGrowingMutation {
         };
         
         cn.accept(cv);
-    }
-
-    private static class LoadConstantLocator extends InstructionVisitor {
-
-        public LoadConstantLocator(int api) {
-            super(api);
-        }
-
-        List<Integer> loadConstantLocations; 
-
-        public List<Integer> getLocations() {
-            return loadConstantLocations;
-        }
-
-        @Override
-        public void visitCode() {
-            super.visitCode();
-            loadConstantLocations = new ArrayList<>();
-        }
-
-        @Override
-        public void visitLdcInsn(Object value){
-           // Optimistically include all Ldc locations, even if it is possible that the value itself might not be mutatable
-           loadConstantLocations.add(iindex());
-           super.visitLdcInsn(value);
-        }
-
-        //? Should we keep the type or should we allow to make the constants bigger?
-        @Override
-        public void visitIntInsn(int opcode, int operand) {
-            if (opcode == Opcodes.BIPUSH || opcode == Opcodes.SIPUSH) {
-                loadConstantLocations.add(iindex());
-            }
-            super.visitIntInsn(opcode, operand);
-        }
-
-        @Override
-        public void visitInsn(int opcode) {
-            if (MutateConstantsMethodVisitor.isOpcodeXCONST(opcode)) {
-                loadConstantLocations.add(iindex());
-            }
-            super.visitInsn(opcode);
-        }
-    }
+    }    
     
     /**
      * Delegates between the given MethodVisitor mv (in our case the one from ClassWriter) and MutateConstantsMethodVisitor mcmv.
@@ -161,7 +118,7 @@ public class ConstantMutation implements NonGrowingMutation {
        
         @Override
         public void visitInsn(int opcode) {
-            if (MutateConstantsMethodVisitor.isOpcodeXCONST(opcode)) {
+            if (LoadConstantLocator.isOpcodeXCONST(opcode)) {
                 if (location == iindex()) {
                     mcmv.visitInsn(opcode);
                     super.visitInstructionInternal();

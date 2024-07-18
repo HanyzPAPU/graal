@@ -17,11 +17,12 @@ export LD_PRELOAD="$PWD/src/build/libmutator.so"
 mx vm @export-hack \
     -XX:+UseParallelGC -XX:+EnableDynamicAgentLoading -XX:-UseJVMCICompiler \
     -Djava.library.path="$PWD/src/build/" \
-    -Dgraal.MaxDuplicationFactor=1000.0 \
+    -Djdk.graal.MaxDuplicationFactor=1000.0 \
     -cp $CLASSPATH \
     com.code_intelligence.jazzer.Jazzer \
     --instrumentation_excludes=jdk.graal.compiler.core.test.**:jdk.graal.compiler.test.**:org.objectweb.asm.** \
     --instrumentation_includes=jdk.graal.compiler.** \
     --target_class=jdk.graal.compiler.test.bytecodefuzz.FuzzTarget \
     --reproducer_path=./reproducers/ \
+    -max_len=8192 \
     $CORPUSDIR $@

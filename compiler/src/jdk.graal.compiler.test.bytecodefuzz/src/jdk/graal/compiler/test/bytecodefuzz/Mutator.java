@@ -26,7 +26,8 @@ public final class Mutator {
     private static List<Mutation> getMutations() {
         return Arrays.asList(
             new InsertJumpMutation(),
-            new ConstantMutation()
+            new ConstantMutation(),
+            new InsertNeutralArithmeticMutation()
         );
     }
 

@@ -50,7 +50,7 @@ public class MutateAndPrint {
         //System.out.println(freeSpace.amount());
         PseudoRandom prng = new SeededPseudoRandom(seed);
 
-        Mutation mut = new InsertNeutralArithmeticMutation();
+        Mutation mut = new SplitConstantMutation();
 
         mut.mutate(reader, writer, freeSpace, prng);
 

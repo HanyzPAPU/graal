@@ -22,6 +22,7 @@ import com.code_intelligence.jazzer.mutation.api.PseudoRandom;
 
 public class InsertNeutralArithmeticMutation implements Mutation {
 
+    // TODO: what if a class name ended with a 1? -> refactor
     private static final String intOnTosSigEnd = Opcodes.INTEGER + "]";
     
     public void mutate(ClassReader reader, ClassWriter writer, FreeSpace freeSpace, PseudoRandom prng) {
