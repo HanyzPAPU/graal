@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.function.Function;
+import java.util.regex.Pattern;
 
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassWriter;
@@ -22,8 +23,7 @@ import com.code_intelligence.jazzer.mutation.api.PseudoRandom;
 
 public class InsertNeutralArithmeticMutation extends AbstractMutation {
 
-    // TODO: what if a class name ended with a 1? -> refactor
-    private static final String intOnTosSigEnd = Opcodes.INTEGER + "]";
+    private static final Pattern intOnTosPattern = Pattern.compile("\\[(.*, )*" + Opcodes.INTEGER + "\\]");
 
     @Override
     protected Function<MethodVisitor,MethodVisitor> createMethodVisitorFactory(ClassNode cn, MethodNode mn, PseudoRandom prng) {
@@ -31,7 +31,7 @@ public class InsertNeutralArithmeticMutation extends AbstractMutation {
         mn.accept(frameMapAnalyzer);
         
         Integer[] validProgramPoints = frameMapAnalyzer.getMap().keySet().stream()
-            .filter(k -> k.endsWith(intOnTosSigEnd))
+            .filter(intOnTosPattern.asPredicate())
             .flatMap(k -> frameMapAnalyzer.getMap().get(k).stream())
             .toArray(Integer[]::new);
 
