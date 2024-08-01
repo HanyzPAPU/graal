@@ -11,7 +11,7 @@ public class PreciseUnresolvedDeoptTest0 {
     private static boolean condition = true;
 
     public static boolean doNotConvertToGuardSnippet()  {
-        if (GraalDirectives.injectBranchProbability(0.5, condition)) {
+        if (condition) {
             GraalDirectives.preciseDeoptimize();
         }
         return condition;

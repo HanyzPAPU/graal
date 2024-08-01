@@ -1,6 +1,5 @@
 package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import java.util.ArrayList;
-import jdk.graal.compiler.api.directives.GraalDirectives;
 import jdk.graal.compiler.loop.phases.LoopFullUnrollPhase;
 import jdk.graal.compiler.nodes.IfNode;
 import jdk.graal.compiler.nodes.StructuredGraph;

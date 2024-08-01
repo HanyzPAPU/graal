@@ -1,7 +1,5 @@
 package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
-import static jdk.graal.compiler.api.directives.GraalDirectives.injectBranchProbability;
 import org.junit.Test;
-import jdk.graal.compiler.api.directives.GraalDirectives;
 import jdk.graal.compiler.core.test.GraalCompilerTest;
 import jdk.graal.compiler.graph.iterators.NodeIterable;
 import jdk.graal.compiler.loop.phases.LoopPartialUnrollPhase;
@@ -25,7 +23,7 @@ public class LoopFragmentTest1 {
 
     public static int testUnswitchPattern2()  {
         Integer sum = 0;
-        for (int i = 0; injectBranchProbability(0.99, i < iterations); i++) {
+        for (int i = 0; i < iterations; i++) {
             if (sum == null) {
                 sum = null;
             } else {

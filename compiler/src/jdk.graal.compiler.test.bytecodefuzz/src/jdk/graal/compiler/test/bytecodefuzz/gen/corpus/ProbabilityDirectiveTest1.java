@@ -14,7 +14,7 @@ public class ProbabilityDirectiveTest1 {
     private static int arg = 5;
 
     public static int branchProbabilitySnippet2()  {
-        if (!GraalDirectives.injectBranchProbability(0.125, arg <= 0)) {
+        if (arg > 0) {
             GraalDirectives.controlFlowAnchor(); // prevent removal of the if
             return 2;
         } else {

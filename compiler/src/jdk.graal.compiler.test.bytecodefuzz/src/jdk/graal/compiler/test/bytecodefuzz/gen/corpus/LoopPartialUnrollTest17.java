@@ -1,10 +1,7 @@
 package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
-import static jdk.graal.compiler.api.directives.GraalDirectives.injectBranchProbability;
-import static jdk.graal.compiler.api.directives.GraalDirectives.injectIterationCount;
 import java.util.ListIterator;
 import org.junit.Ignore;
 import org.junit.Test;
-import jdk.graal.compiler.api.directives.GraalDirectives;
 import jdk.graal.compiler.core.common.CompilationIdentifier;
 import jdk.graal.compiler.core.common.GraalOptions;
 import jdk.graal.compiler.core.test.GraalCompilerTest;
@@ -39,7 +36,7 @@ public class LoopPartialUnrollTest17 {
 
     public static long testSignExtensionSnippet()  {
         long r = 1;
-        for (int i = 0; injectBranchProbability(0.99, i < arg); i++) {
+        for (int i = 0; i < arg; i++) {
             r *= i;
         }
         return r;

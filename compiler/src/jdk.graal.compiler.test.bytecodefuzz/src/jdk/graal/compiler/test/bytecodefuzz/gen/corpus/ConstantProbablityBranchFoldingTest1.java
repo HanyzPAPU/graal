@@ -10,7 +10,7 @@ public class ConstantProbablityBranchFoldingTest1 {
     
 
     public static int branchFoldingSnippet2()  {
-        if (GraalDirectives.injectBranchProbability(0.5, false)) {
+        if (false) {
             return 1;
         } else {
             return 2;

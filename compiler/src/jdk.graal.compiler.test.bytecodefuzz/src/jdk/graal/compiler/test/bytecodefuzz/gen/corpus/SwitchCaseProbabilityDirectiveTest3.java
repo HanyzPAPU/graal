@@ -21,19 +21,14 @@ public class SwitchCaseProbabilityDirectiveTest3 {
          */
         switch (x) {
             case 100:
-                GraalDirectives.injectSwitchCaseProbability(0.25);
                 return 10;
             case 200:
-                GraalDirectives.injectSwitchCaseProbability(0.25);
                 return 20;
             case 300:
-                GraalDirectives.injectSwitchCaseProbability(0.25);
                 return 30;
             case 400:
-                GraalDirectives.injectSwitchCaseProbability(0.25);
                 return 40;
             default: {
-                GraalDirectives.injectSwitchCaseProbability(0);
                 GraalDirectives.deoptimize();
                 throw GraalError.shouldNotReachHere("Deoptimize");
             }

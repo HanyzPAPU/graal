@@ -12,7 +12,7 @@ public class IterationDirectiveTest0 {
 
     public static int loopFrequencySnippet()  {
         int x = arg;
-        while (GraalDirectives.injectIterationCount(128, x > 1)) {
+        while (x > 1) {
             GraalDirectives.controlFlowAnchor(); // prevent loop peeling or unrolling
             if (x % 2 == 0) {
                 x /= 2;

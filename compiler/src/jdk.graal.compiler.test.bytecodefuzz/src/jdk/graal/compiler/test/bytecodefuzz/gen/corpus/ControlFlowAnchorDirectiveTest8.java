@@ -27,8 +27,8 @@ public class ControlFlowAnchorDirectiveTest8 {
 
     public static void preventUnswitchSnippet()  {
         int ret = arg;
-        while (GraalDirectives.injectBranchProbability(0.9999, ret < 1000)) {
-            if (GraalDirectives.injectBranchProbability(0.5, flag)) {
+        while (ret < 1000) {
+            if (flag) {
                 GraalDirectives.controlFlowAnchor();
                 ret++;
             } else {

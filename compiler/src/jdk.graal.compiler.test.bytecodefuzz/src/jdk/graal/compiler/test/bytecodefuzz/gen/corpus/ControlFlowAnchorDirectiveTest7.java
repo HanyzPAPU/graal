@@ -27,9 +27,9 @@ public class ControlFlowAnchorDirectiveTest7 {
 
     public static void verifyUnswitchSnippet()  {
         int ret = arg;
-        while (GraalDirectives.injectBranchProbability(0.9999, ret < 1000)) {
+        while (ret < 1000) {
             GraalDirectives.neverStripMine();
-            if (GraalDirectives.injectBranchProbability(0.5, flag)) {
+            if (flag) {
                 ret = ret * 2 + 1;
             } else {
                 ret = ret * 3 + 1;

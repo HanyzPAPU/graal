@@ -7,7 +7,6 @@ import java.lang.annotation.Target;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import jdk.graal.compiler.api.directives.GraalDirectives;
 import jdk.graal.compiler.core.test.GraalCompilerTest;
 import jdk.graal.compiler.graph.Node;
 import jdk.graal.compiler.graph.iterators.NodeIterable;

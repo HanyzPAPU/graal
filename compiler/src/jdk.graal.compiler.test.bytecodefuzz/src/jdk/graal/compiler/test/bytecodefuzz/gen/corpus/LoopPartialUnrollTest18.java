@@ -1,6 +1,4 @@
 package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
-import static jdk.graal.compiler.api.directives.GraalDirectives.injectBranchProbability;
-import static jdk.graal.compiler.api.directives.GraalDirectives.injectIterationCount;
 import java.util.ListIterator;
 import org.junit.Ignore;
 import org.junit.Test;
@@ -41,7 +39,7 @@ public class LoopPartialUnrollTest18 {
         long r = 1;
         int i = 0;
         while (true) {
-            if (injectBranchProbability(0.99, i >= arg)) {
+            if (i >= arg) {
                 GraalDirectives.deoptimizeAndInvalidate();
                 GraalDirectives.sideEffect(i);
                 if (i == 123) {
