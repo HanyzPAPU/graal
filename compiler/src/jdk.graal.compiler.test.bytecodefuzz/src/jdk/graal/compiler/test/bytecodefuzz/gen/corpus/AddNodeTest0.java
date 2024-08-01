@@ -8,7 +8,7 @@ import jdk.graal.compiler.nodes.calc.AddNode;
 import org.junit.Assert;
 import org.junit.Test;
 public class AddNodeTest0 {
-    private static int x = 42;
+    public static int x = 42;
 
     public int addNotLeftSnippet()  {
         return ~x + x;

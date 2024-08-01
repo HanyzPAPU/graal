@@ -11,10 +11,10 @@ import jdk.graal.compiler.nodes.calc.ZeroExtendNode;
 import org.junit.Assert;
 import org.junit.Test;
 public class IntegerLowerThanCommonArithmeticOptimizationTest2 {
-    private static int x = 2;
-    private static int y = 3;
-    private static int c = 4;
-    private static int d = 5;
+    public static int x = 2;
+    public static int y = 3;
+    public static int c = 4;
+    public static int d = 5;
 
     public static boolean testSnippetZeroExtend()  {
         long xL = Integer.toUnsignedLong(x);

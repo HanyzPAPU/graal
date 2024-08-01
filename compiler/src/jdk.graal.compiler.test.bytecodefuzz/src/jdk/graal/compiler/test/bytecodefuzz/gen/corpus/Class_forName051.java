@@ -4,7 +4,7 @@ import java.net.URLClassLoader;
 import org.junit.Test;
 import jdk.graal.compiler.jtt.JTTTest;
 public class Class_forName051 {
-    private static int i = 1;
+    public static int i = 1;
 
     public static String test()  throws ClassNotFoundException {
         final URLClassLoader classLoader = new URLClassLoader(new URL[0], String.class.getClassLoader());

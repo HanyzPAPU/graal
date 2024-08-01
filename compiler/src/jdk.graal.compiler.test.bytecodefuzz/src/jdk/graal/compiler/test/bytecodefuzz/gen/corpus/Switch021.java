@@ -5,7 +5,7 @@ import java.util.LinkedList;
 import jdk.graal.compiler.jtt.JTTTest;
 import org.junit.Test;
 public class Switch021 {
-    private static int arg = 1;
+    public static int arg = 1;
 
     public static int test()  {
         switch (arg) {

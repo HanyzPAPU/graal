@@ -2,7 +2,7 @@ package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import jdk.graal.compiler.jtt.JTTTest;
 import org.junit.Test;
 public class HP_count0 {
-    private static int count = 40;
+    public static int count = 40;
 
     public static int test()  {
         float unusedFloat = 0;

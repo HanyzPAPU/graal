@@ -8,8 +8,8 @@ import org.junit.Test;
 import com.oracle.truffle.api.ExactMath;
 import jdk.vm.ci.amd64.AMD64;
 public class ExactMathTest31 {
-    private static long a = Long.MAX_VALUE;
-    private static long b = 1L;
+    public static long a = Long.MAX_VALUE;
+    public static long b = 1L;
 
     public static long longMul()  {
         return Math.multiplyExact(a, b);

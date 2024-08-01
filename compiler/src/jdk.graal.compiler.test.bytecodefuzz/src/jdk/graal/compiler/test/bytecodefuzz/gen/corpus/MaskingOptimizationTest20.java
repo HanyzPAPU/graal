@@ -4,7 +4,7 @@ import jdk.graal.compiler.nodes.calc.OrNode;
 import jdk.graal.compiler.nodes.calc.ShiftNode;
 import org.junit.Test;
 public class MaskingOptimizationTest20 {
-    private static long r = 0L;
+    public static long r = 0L;
 
     long addAndMaskCarry()  {
         long r2 = r;

@@ -2,22 +2,22 @@ package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import org.junit.Test;
 import jdk.graal.compiler.jtt.JTTTest;
 public class BigMixedParams025 {
-    private static int choice = 5;
-    private static int i0 = -1;
-    private static int i1 = -1;
-    private static int i2 = -1;
-    private static int i3 = -1;
-    private static float p0 = 1f;
-    private static float p1 = 2f;
-    private static float p2 = 3f;
-    private static float p3 = 4f;
-    private static int i4 = -1;
-    private static int i5 = -1;
-    private static float p4 = 5f;
-    private static float p5 = 6f;
-    private static float p6 = 7f;
-    private static float p7 = 8f;
-    private static float p8 = 9f;
+    public static int choice = 5;
+    public static int i0 = -1;
+    public static int i1 = -1;
+    public static int i2 = -1;
+    public static int i3 = -1;
+    public static float p0 = 1f;
+    public static float p1 = 2f;
+    public static float p2 = 3f;
+    public static float p3 = 4f;
+    public static int i4 = -1;
+    public static int i5 = -1;
+    public static float p4 = 5f;
+    public static float p5 = 6f;
+    public static float p6 = 7f;
+    public static float p7 = 8f;
+    public static float p8 = 9f;
 
     public static float test()  {
         switch (choice) {

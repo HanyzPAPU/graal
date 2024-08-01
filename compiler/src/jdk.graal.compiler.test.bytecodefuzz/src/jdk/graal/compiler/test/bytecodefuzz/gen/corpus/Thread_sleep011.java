@@ -4,7 +4,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TestRule;
 public class Thread_sleep011 {
-    private static int i = 20;
+    public static int i = 20;
 
     public static boolean test()  throws InterruptedException {
         final long before = System.currentTimeMillis();

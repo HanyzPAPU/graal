@@ -3,8 +3,8 @@ import org.junit.Test;
 import jdk.graal.compiler.core.test.GraalCompilerTest;
 import jdk.graal.compiler.nodes.java.InstanceOfDynamicNode;
 public class InstanceOfDynamicTest17 {
-    private static Class<?> c = int.class;
-    private static Object o = Object.class;
+    public static Class<?> c = int.class;
+    public static Object o = Object.class;
 
     public static int isInstanceIntDynamic()  {
         if (c.isInstance(o)) {

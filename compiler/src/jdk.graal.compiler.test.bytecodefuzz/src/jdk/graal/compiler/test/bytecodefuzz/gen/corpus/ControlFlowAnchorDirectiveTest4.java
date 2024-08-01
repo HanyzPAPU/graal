@@ -21,7 +21,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 public class ControlFlowAnchorDirectiveTest4 {
-    private static int arg = 42;
+    public static int arg = 42;
 
     public static int verifyFullUnrollSnippet()  {
         int ret = arg;

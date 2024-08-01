@@ -8,8 +8,8 @@ import jdk.graal.compiler.phases.tiers.Suites;
 import org.junit.Assert;
 import org.junit.Test;
 public class IfNodeCanonicalizationTest23 {
-    private static long m = 1L;
-    private static long n = 2L;
+    public static long m = 1L;
+    public static long n = 2L;
 
     public long maxLong()  {
         return Math.max(m, n);

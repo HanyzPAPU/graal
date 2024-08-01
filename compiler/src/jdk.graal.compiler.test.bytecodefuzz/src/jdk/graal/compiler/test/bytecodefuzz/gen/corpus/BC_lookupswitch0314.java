@@ -2,7 +2,7 @@ package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import jdk.graal.compiler.jtt.JTTTest;
 import org.junit.Test;
 public class BC_lookupswitch0314 {
-    private static int a = 211;
+    public static int a = 211;
 
     public static int test()  {
         final int b = a + 10;

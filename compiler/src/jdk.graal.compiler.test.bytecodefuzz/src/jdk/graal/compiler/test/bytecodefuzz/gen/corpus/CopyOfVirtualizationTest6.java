@@ -4,7 +4,7 @@ import org.junit.Test;
 import jdk.graal.compiler.nodes.StructuredGraph;
 import jdk.graal.compiler.nodes.java.NewArrayNode;
 public class CopyOfVirtualizationTest6 {
-    private static int index = 3;
+    public static int index = 3;
 
     public double doubleCopyOfVirtualization()  {
         double[] array = new double[]{1, 2, 3, 4};

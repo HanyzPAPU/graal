@@ -1,7 +1,7 @@
 package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 
 public class FuzzTest364560 {
-    private static int param4 = 0;
+    public static int param4 = 0;
 
     static boolean method0()  {
         // Checkstyle: stop

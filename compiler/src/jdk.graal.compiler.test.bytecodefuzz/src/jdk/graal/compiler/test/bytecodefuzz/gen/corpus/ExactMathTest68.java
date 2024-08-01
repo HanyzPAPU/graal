@@ -8,7 +8,7 @@ import org.junit.Test;
 import com.oracle.truffle.api.ExactMath;
 import jdk.vm.ci.amd64.AMD64;
 public class ExactMathTest68 {
-    private static float a = Float.NaN;
+    public static float a = Float.NaN;
 
     public static float truncateFloat()  {
         return ExactMath.truncate(a);

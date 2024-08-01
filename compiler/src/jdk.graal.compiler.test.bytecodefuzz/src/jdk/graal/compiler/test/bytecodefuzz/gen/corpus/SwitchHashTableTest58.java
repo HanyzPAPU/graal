@@ -2,7 +2,7 @@ package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import jdk.graal.compiler.jtt.JTTTest;
 import org.junit.Test;
 public class SwitchHashTableTest58 {
-    private static int arg = 15745090;
+    public static int arg = 15745090;
 
     public static int test9()  {
         switch (arg) {

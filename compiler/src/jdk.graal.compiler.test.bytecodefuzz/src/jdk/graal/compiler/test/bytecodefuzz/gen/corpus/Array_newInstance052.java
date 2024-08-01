@@ -3,8 +3,8 @@ import java.lang.reflect.Array;
 import jdk.graal.compiler.jtt.JTTTest;
 import org.junit.Test;
 public class Array_newInstance052 {
-    private static int i = 3;
-    private static int j = 4;
+    public static int i = 3;
+    public static int j = 4;
 
     public static boolean test()  {
         final int[] dims = {i, j};

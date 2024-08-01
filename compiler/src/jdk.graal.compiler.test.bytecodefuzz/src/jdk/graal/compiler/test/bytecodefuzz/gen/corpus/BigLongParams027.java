@@ -2,16 +2,16 @@ package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import org.junit.Test;
 import jdk.graal.compiler.jtt.JTTTest;
 public class BigLongParams027 {
-    private static int choice = 7;
-    private static long p0 = 1L;
-    private static long p1 = 2L;
-    private static long p2 = 3L;
-    private static long p3 = 4L;
-    private static long p4 = 5L;
-    private static long p5 = 6L;
-    private static long p6 = 7L;
-    private static long p7 = -8L;
-    private static long p8 = -9L;
+    public static int choice = 7;
+    public static long p0 = 1L;
+    public static long p1 = 2L;
+    public static long p2 = 3L;
+    public static long p3 = 4L;
+    public static long p4 = 5L;
+    public static long p5 = 6L;
+    public static long p6 = 7L;
+    public static long p7 = -8L;
+    public static long p8 = -9L;
 
     public static long test()  {
         switch (choice) {

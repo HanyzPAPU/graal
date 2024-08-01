@@ -3,7 +3,7 @@ import jdk.graal.compiler.jtt.JTTTest;
 import org.junit.Ignore;
 import org.junit.Test;
 public class HP_scope010 {
-    private static int count = 40;
+    public static int count = 40;
 
     public static int test()  {
         int sum = 0;

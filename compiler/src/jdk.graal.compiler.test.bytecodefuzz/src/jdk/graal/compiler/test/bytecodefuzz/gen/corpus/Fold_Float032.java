@@ -2,8 +2,8 @@ package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import jdk.graal.compiler.jtt.JTTTest;
 import org.junit.Test;
 public class Fold_Float032 {
-    private static float x = 0f;
-    private static float y = -0f;
+    public static float x = 0f;
+    public static float y = -0f;
 
     public static boolean test()  {
         if (x == 0) {

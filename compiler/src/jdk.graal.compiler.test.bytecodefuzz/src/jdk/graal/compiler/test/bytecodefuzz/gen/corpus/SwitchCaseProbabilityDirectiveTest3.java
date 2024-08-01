@@ -12,7 +12,7 @@ import jdk.graal.compiler.nodes.extended.SwitchCaseProbabilityNode;
 import jdk.graal.compiler.options.OptionValues;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 public class SwitchCaseProbabilityDirectiveTest3 {
-    private static int x = 99;
+    public static int x = 99;
 
     public static int zeroProbabilityDeoptimize()  {
         /*

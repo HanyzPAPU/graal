@@ -9,7 +9,7 @@ import jdk.graal.compiler.nodes.calc.ReinterpretNode;
 import org.junit.Assert;
 import org.junit.Test;
 public class CanonicalizedConversionTest5 {
-    private static double value = Double.NaN;
+    public static double value = Double.NaN;
 
     public static long snippet5()  {
         return Double.doubleToLongBits(value) + Double.doubleToLongBits(value) + Double.doubleToLongBits(value);

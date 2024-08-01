@@ -19,7 +19,7 @@ import jdk.graal.compiler.phases.common.RemoveValueProxyPhase;
 import jdk.graal.compiler.phases.util.GraphOrder;
 import jdk.graal.compiler.virtual.phases.ea.PartialEscapePhase;
 public class LoopFragmentTest1 {
-    private static int iterations = 100;
+    public static int iterations = 100;
 
     public static int testUnswitchPattern2()  {
         Integer sum = 0;

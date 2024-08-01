@@ -8,7 +8,7 @@ import org.junit.Test;
 import com.oracle.truffle.api.ExactMath;
 import jdk.vm.ci.amd64.AMD64;
 public class ExactMathTest52 {
-    private static long a = Long.MIN_VALUE;
+    public static long a = Long.MIN_VALUE;
 
     public static long longMulHighUnsigned1()  {
         return ExactMath.multiplyHighUnsigned(a, 1L);

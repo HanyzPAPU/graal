@@ -2,8 +2,8 @@ package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import jdk.graal.compiler.core.test.GraalCompilerTest;
 import org.junit.Test;
 public class CompareZeroExtendWithConstantTest1 {
-    private static boolean p0 = true;
-    private static long p1 = 53069L;
+    public static boolean p0 = true;
+    public static long p1 = 53069L;
 
     public static boolean snippet02()  {
         boolean var0 = p0;

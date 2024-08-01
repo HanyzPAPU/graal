@@ -3,9 +3,9 @@ import jdk.graal.compiler.jtt.JTTTest;
 import org.junit.Test;
 import jdk.graal.compiler.api.directives.GraalDirectives;
 public class BC_iadd_const10 {
-    private static byte a = (byte) 42;
-    private static byte b = (byte) 1;
-    private static boolean neg = false;
+    public static byte a = (byte) 42;
+    public static byte b = (byte) 1;
+    public static boolean neg = false;
 
     public static int test()  {
         byte x = GraalDirectives.opaque(a);

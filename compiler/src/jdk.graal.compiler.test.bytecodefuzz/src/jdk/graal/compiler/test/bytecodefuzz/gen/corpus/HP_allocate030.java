@@ -2,7 +2,7 @@ package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import org.junit.Test;
 import jdk.graal.compiler.jtt.JTTTest;
 public class HP_allocate030 {
-    private static int count = 100;
+    public static int count = 100;
 
     public static int test()  {
         @SuppressWarnings("unused")

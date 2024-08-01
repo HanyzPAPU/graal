@@ -2,7 +2,7 @@ package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import org.junit.Test;
 import jdk.graal.compiler.jtt.JTTTest;
 public class Loop052 {
-    private static int a = 25;
+    public static int a = 25;
 
     public static String test()  {
         int arg = a;

@@ -9,7 +9,7 @@ import jdk.graal.compiler.nodes.calc.ReinterpretNode;
 import org.junit.Assert;
 import org.junit.Test;
 public class CanonicalizedConversionTest4 {
-    private static double value = -567.890D;
+    public static double value = -567.890D;
 
     public static long snippet5()  {
         return Double.doubleToLongBits(value) + Double.doubleToLongBits(value) + Double.doubleToLongBits(value);

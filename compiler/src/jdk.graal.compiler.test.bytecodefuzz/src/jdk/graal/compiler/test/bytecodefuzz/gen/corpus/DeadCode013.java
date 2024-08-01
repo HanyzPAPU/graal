@@ -2,7 +2,7 @@ package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import jdk.graal.compiler.jtt.JTTTest;
 import org.junit.Test;
 public class DeadCode013 {
-    private static int a = 3;
+    public static int a = 3;
 
     public static int test()  {
         int arg = a;

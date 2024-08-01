@@ -11,7 +11,7 @@ import jdk.graal.compiler.nodes.extended.SwitchCaseProbabilityNode;
 import jdk.graal.compiler.options.OptionValues;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 public class SwitchCaseProbabilityDirectiveTest0 {
-    private static int x = 1;
+    public static int x = 1;
 
     public static int switchProbabilitySnippet1()  {
         switch (x) {

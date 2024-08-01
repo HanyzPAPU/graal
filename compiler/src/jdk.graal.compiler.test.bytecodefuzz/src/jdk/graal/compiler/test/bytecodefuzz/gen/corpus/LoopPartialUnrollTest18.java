@@ -33,7 +33,7 @@ import jdk.graal.compiler.phases.tiers.MidTierContext;
 import jdk.graal.compiler.phases.tiers.Suites;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 public class LoopPartialUnrollTest18 {
-    private static long arg = 9L;
+    public static long arg = 9L;
 
     public static long deoptExitSnippet()  {
         long r = 1;

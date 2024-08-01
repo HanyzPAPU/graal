@@ -2,8 +2,8 @@ package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import org.junit.Test;
 import jdk.graal.compiler.jtt.JTTTest;
 public class LoopParseLong2 {
-    private static String s = "7";
-    private static int radix = 10;
+    public static String s = "7";
+    public static int radix = 10;
 
     public static long test()  throws NumberFormatException {
         if (s == null) {

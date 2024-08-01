@@ -12,7 +12,7 @@ import org.graalvm.word.WordBase;
 import org.graalvm.word.WordFactory;
 import org.junit.Test;
 public class WordTest30 {
-    private static long input = 1234L;
+    public static long input = 1234L;
 
     public static long cast()  {
         WordBase base = WordFactory.signed(input);

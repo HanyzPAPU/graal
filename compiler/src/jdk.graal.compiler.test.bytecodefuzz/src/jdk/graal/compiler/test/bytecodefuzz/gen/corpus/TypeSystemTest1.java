@@ -22,7 +22,7 @@ import jdk.graal.compiler.phases.common.CanonicalizerPhase;
 import jdk.graal.compiler.phases.common.ConditionalEliminationPhase;
 import jdk.graal.compiler.phases.schedule.SchedulePhase;
 public class TypeSystemTest1 {
-    private static Object o = "referenceSnippet3";
+    public static Object o = "referenceSnippet3";
 
     public static int test4Snippet()  {
         if (o == null) {

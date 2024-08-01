@@ -22,7 +22,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 public class ControlFlowAnchorDirectiveTest3 {
-    private static int arg = 42;
+    public static int arg = 42;
 
     public static int preventDuplicateSnippet()  {
         int ret;

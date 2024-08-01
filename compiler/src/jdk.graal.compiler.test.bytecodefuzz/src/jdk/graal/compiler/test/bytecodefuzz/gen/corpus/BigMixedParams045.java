@@ -3,19 +3,19 @@ import org.junit.Assert;
 import org.junit.Test;
 import jdk.graal.compiler.jtt.JTTTest;
 public class BigMixedParams045 {
-    private static int choice = 5;
-    private static int i0 = -1;
-    private static int i1 = -1;
-    private static int i2 = -1;
-    private static int i3 = -1;
-    private static double d1 = 1d;
-    private static double d2 = 2d;
-    private static boolean bo1 = true;
-    private static boolean bo2 = false;
-    private static byte by = (byte) -128;
-    private static short sh = (short) -0x7FFF;
-    private static char ch = (char) 0xFFFF;
-    private static int in = -0x7FFFFFF;
+    public static int choice = 5;
+    public static int i0 = -1;
+    public static int i1 = -1;
+    public static int i2 = -1;
+    public static int i3 = -1;
+    public static double d1 = 1d;
+    public static double d2 = 2d;
+    public static boolean bo1 = true;
+    public static boolean bo2 = false;
+    public static byte by = (byte) -128;
+    public static short sh = (short) -0x7FFF;
+    public static char ch = (char) 0xFFFF;
+    public static int in = -0x7FFFFFF;
 
     public static long test()  {
         switch (choice) {

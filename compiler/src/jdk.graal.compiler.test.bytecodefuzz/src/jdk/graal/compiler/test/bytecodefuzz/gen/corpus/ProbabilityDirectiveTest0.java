@@ -11,7 +11,7 @@ import jdk.graal.compiler.nodes.debug.ControlFlowAnchorNode;
 import org.junit.Assert;
 import org.junit.Test;
 public class ProbabilityDirectiveTest0 {
-    private static int arg = 5;
+    public static int arg = 5;
 
     public static int branchProbabilitySnippet()  {
         if (arg > 0) {

@@ -17,7 +17,7 @@ import jdk.graal.compiler.phases.common.MidTierLoweringPhase;
 import jdk.graal.compiler.phases.tiers.MidTierContext;
 import org.junit.Test;
 public class IfCanonicalizerTest7 {
-    private static int v = -1;
+    public static int v = -1;
 
     public static int test8Snippet()  {
         if (v >= 0 && v <= 1024) {

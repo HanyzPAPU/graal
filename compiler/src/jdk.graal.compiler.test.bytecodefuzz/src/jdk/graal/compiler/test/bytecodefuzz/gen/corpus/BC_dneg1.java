@@ -2,9 +2,9 @@ package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import jdk.graal.compiler.jtt.JTTTest;
 import org.junit.Test;
 public class BC_dneg1 {
-    private static double a = -1.01d;
-    private static double b = -2.01d;
-    private static int which = 0;
+    public static double a = -1.01d;
+    public static double b = -2.01d;
+    public static int which = 0;
 
     public static double test()  {
         double result1 = -a;

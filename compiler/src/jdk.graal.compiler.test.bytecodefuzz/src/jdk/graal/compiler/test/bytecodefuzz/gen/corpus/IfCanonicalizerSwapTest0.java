@@ -1,7 +1,7 @@
 package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import org.junit.Test;
 public class IfCanonicalizerSwapTest0 {
-    private static long value = -1L;
+    public static long value = -1L;
 
     public static String testSnippet1()  {
         if (value >= 0L && value <= 35L) {

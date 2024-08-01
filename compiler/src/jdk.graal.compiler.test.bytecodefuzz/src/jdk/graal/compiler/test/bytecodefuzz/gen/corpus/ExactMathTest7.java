@@ -8,8 +8,8 @@ import org.junit.Test;
 import com.oracle.truffle.api.ExactMath;
 import jdk.vm.ci.amd64.AMD64;
 public class ExactMathTest7 {
-    private static int a = Integer.MIN_VALUE;
-    private static int b = 2;
+    public static int a = Integer.MIN_VALUE;
+    public static int b = 2;
 
     public static int mul()  {
         return Math.multiplyExact(a, b);

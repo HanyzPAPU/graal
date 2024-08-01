@@ -5,7 +5,7 @@ import jdk.graal.compiler.lir.aarch64.AArch64ControlFlow;
 import org.junit.Test;
 import java.util.function.Predicate;
 public class AArch64ConditionalSetTest15 {
-    private static Object obj = Integer.valueOf(1);
+    public static Object obj = Integer.valueOf(1);
 
     public static int conditionalSetIsNull()  {
         if (obj == null) {

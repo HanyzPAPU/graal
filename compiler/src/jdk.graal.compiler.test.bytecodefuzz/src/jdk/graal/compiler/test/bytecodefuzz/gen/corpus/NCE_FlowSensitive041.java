@@ -2,7 +2,7 @@ package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import org.junit.Test;
 import jdk.graal.compiler.jtt.JTTTest;
 public class NCE_FlowSensitive041 {
-    private static String arg2 = "x";
+    public static String arg2 = "x";
 
     public static String test()  {
         String arg = arg2;

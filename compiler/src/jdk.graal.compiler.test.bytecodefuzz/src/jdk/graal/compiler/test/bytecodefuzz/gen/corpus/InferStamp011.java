@@ -2,7 +2,7 @@ package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import jdk.graal.compiler.jtt.JTTTest;
 import org.junit.Test;
 public class InferStamp011 {
-    private static int arg = 0xf788_99aa;
+    public static int arg = 0xf788_99aa;
 
     public static int testi0()  {
         int a = arg;

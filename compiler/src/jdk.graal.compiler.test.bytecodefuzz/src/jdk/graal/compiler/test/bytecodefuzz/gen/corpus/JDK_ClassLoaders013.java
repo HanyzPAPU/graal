@@ -2,7 +2,7 @@ package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import org.junit.Test;
 import jdk.graal.compiler.jtt.JTTTest;
 public class JDK_ClassLoaders013 {
-    private static int i = 3;
+    public static int i = 3;
 
     public static boolean test()  {
         if (i == 0) {

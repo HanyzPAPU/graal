@@ -8,9 +8,9 @@ import jdk.graal.compiler.phases.tiers.Suites;
 import org.junit.Assert;
 import org.junit.Test;
 public class IfNodeCanonicalizationTest27 {
-    private static Object obj = new Object();
-    private static int m = 1;
-    private static int n = 2;
+    public static Object obj = new Object();
+    public static int m = 1;
+    public static int n = 2;
 
     public int isNullCondMove()  {
         if (obj == null) {

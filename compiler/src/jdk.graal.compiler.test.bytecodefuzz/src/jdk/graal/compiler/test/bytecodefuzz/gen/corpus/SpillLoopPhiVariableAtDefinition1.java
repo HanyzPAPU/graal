@@ -3,7 +3,7 @@ import org.junit.Test;
 import jdk.graal.compiler.api.directives.GraalDirectives;
 import jdk.graal.compiler.jtt.JTTTest;
 public class SpillLoopPhiVariableAtDefinition1 {
-    private static int arg = 10;
+    public static int arg = 10;
 
     public static int test()  {
         int count = arg;

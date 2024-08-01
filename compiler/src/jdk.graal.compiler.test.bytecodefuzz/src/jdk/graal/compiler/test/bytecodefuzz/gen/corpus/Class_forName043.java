@@ -2,7 +2,7 @@ package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import org.junit.Test;
 import jdk.graal.compiler.jtt.JTTTest;
 public class Class_forName043 {
-    private static int i = 3;
+    public static int i = 3;
 
     public static String test()  throws ClassNotFoundException {
         String clname = null;

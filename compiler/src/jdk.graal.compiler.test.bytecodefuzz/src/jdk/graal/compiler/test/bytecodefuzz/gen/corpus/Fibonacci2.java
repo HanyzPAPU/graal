@@ -2,7 +2,7 @@ package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import org.junit.Test;
 import jdk.graal.compiler.jtt.JTTTest;
 public class Fibonacci2 {
-    private static int num = 2;
+    public static int num = 2;
 
     public static int test()  {
         if (num <= 0) {

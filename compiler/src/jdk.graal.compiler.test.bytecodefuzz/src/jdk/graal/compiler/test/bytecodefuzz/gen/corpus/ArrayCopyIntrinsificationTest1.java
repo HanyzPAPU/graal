@@ -16,11 +16,11 @@ import jdk.vm.ci.code.InstalledCode;
 import jdk.vm.ci.meta.JavaMethod;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 public class ArrayCopyIntrinsificationTest1 {
-    private static Object src = new Object[0];
-    private static int srcPos = 0;
-    private static Object dst = new Object();
-    private static int dstPos = 0;
-    private static int length = 0;
+    public static Object src = new Object[0];
+    public static int srcPos = 0;
+    public static Object dst = new Object();
+    public static int dstPos = 0;
+    public static int length = 0;
 
     public static Object genericArraycopy()  {
         System.arraycopy(src, srcPos, dst, dstPos, length);

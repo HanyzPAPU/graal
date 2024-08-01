@@ -4,8 +4,8 @@ import jdk.graal.compiler.lir.aarch64.AArch64ControlFlow;
 import org.junit.Test;
 import java.util.function.Predicate;
 public class AArch64CbzTest9 {
-    private static String s1 = "abc";
-    private static String s2 = "abc";
+    public static String s1 = "abc";
+    public static String s2 = "abc";
 
     public static String objectEquals()  {
         if (s1.equals(s2)) {

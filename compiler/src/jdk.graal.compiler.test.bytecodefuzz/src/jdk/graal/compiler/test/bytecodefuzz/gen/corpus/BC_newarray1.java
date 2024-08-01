@@ -2,7 +2,7 @@ package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import jdk.graal.compiler.jtt.JTTTest;
 import org.junit.Test;
 public class BC_newarray1 {
-    private static int a = 1;
+    public static int a = 1;
 
     public static int test()  {
         if (new boolean[3] == null) {

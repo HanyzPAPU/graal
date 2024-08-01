@@ -22,8 +22,8 @@ import org.junit.Assert;
 import org.junit.Test;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 public class ControlFlowAnchorDirectiveTest7 {
-    private static int arg = 0;
-    private static boolean flag = false;
+    public static int arg = 0;
+    public static boolean flag = false;
 
     public static void verifyUnswitchSnippet()  {
         int ret = arg;

@@ -8,8 +8,8 @@ import org.junit.Test;
 import com.oracle.truffle.api.ExactMath;
 import jdk.vm.ci.amd64.AMD64;
 public class ExactMathTest1 {
-    private static int a = Integer.MAX_VALUE;
-    private static int b = 2;
+    public static int a = Integer.MAX_VALUE;
+    public static int b = 2;
 
     public static int add()  {
         return Math.addExact(a, b);

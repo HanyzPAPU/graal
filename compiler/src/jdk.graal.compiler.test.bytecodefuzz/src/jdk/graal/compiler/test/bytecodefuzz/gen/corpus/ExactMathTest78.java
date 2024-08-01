@@ -8,7 +8,7 @@ import org.junit.Test;
 import com.oracle.truffle.api.ExactMath;
 import jdk.vm.ci.amd64.AMD64;
 public class ExactMathTest78 {
-    private static double a = 1.0;
+    public static double a = 1.0;
 
     public static double truncateDouble()  {
         return ExactMath.truncate(a);

@@ -2,7 +2,7 @@ package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import org.junit.Test;
 import jdk.graal.compiler.jtt.JTTTest;
 public class Catch_NPE_100 {
-    private static int a = 0;
+    public static int a = 0;
 
     public static int test()  {
         int r = 0;

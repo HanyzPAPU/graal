@@ -8,9 +8,9 @@ import org.junit.Test;
 import com.oracle.truffle.api.ExactMath;
 import jdk.vm.ci.amd64.AMD64;
 public class ExactMathTest54 {
-    private static long a = -1L;
-    private static long b = Long.MAX_VALUE;
-    private static long c = 4L;
+    public static long a = -1L;
+    public static long b = Long.MAX_VALUE;
+    public static long c = 4L;
 
     public static long longMulHighUnsignedRightAssociative()  {
         return ExactMath.multiplyHighUnsigned(a, ExactMath.multiplyHighUnsigned(b, c));

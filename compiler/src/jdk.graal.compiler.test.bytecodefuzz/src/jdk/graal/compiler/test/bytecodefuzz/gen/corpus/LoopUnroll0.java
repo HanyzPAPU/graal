@@ -2,7 +2,7 @@ package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import org.junit.Test;
 import jdk.graal.compiler.jtt.JTTTest;
 public class LoopUnroll0 {
-    private static int input = 42;
+    public static int input = 42;
 
     public static int test()  {
         int ret = 2;

@@ -2,8 +2,8 @@ package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import org.junit.Test;
 import jdk.graal.compiler.jtt.JTTTest;
 public class Except_Locals0 {
-    private static String a = null;
-    private static String b = null;
+    public static String a = null;
+    public static String b = null;
 
     public static int test()  {
         int x = 0;

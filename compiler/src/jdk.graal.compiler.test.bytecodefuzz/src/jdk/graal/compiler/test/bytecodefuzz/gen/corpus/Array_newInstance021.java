@@ -3,7 +3,7 @@ import java.lang.reflect.Array;
 import jdk.graal.compiler.jtt.JTTTest;
 import org.junit.Test;
 public class Array_newInstance021 {
-    private static int i = 2;
+    public static int i = 2;
 
     public static boolean test()  {
         Class<?> javaClass;

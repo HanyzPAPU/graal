@@ -8,7 +8,7 @@ import org.junit.Test;
 import com.oracle.truffle.api.ExactMath;
 import jdk.vm.ci.amd64.AMD64;
 public class ExactMathTest66 {
-    private static float a = Float.MAX_VALUE;
+    public static float a = Float.MAX_VALUE;
 
     public static float truncateFloat()  {
         return ExactMath.truncate(a);

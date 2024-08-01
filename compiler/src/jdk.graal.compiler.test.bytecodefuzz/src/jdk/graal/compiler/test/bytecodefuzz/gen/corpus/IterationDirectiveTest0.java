@@ -8,7 +8,7 @@ import jdk.graal.compiler.nodes.cfg.ControlFlowGraph;
 import org.junit.Assert;
 import org.junit.Test;
 public class IterationDirectiveTest0 {
-    private static int arg = 7;
+    public static int arg = 7;
 
     public static int loopFrequencySnippet()  {
         int x = arg;

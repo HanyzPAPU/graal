@@ -21,7 +21,7 @@ import org.junit.Assert;
 import org.junit.Test;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 public class ControlFlowAnchorDirectiveTest0 {
-    private static int arg = 42;
+    public static int arg = 42;
 
     public static int verifyMergeSnippet()  {
         if (arg > 5) {

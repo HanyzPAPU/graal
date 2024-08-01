@@ -2,16 +2,16 @@ package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import org.junit.Test;
 import jdk.graal.compiler.jtt.JTTTest;
 public class BigIntParams025 {
-    private static int choice = 5;
-    private static int p0 = 1;
-    private static int p1 = 2;
-    private static int p2 = 3;
-    private static int p3 = 4;
-    private static int p4 = 5;
-    private static int p5 = 6;
-    private static int p6 = 7;
-    private static int p7 = -8;
-    private static int p8 = -9;
+    public static int choice = 5;
+    public static int p0 = 1;
+    public static int p1 = 2;
+    public static int p2 = 3;
+    public static int p3 = 4;
+    public static int p4 = 5;
+    public static int p5 = 6;
+    public static int p6 = 7;
+    public static int p7 = -8;
+    public static int p8 = -9;
 
     public static int test()  {
         switch (choice) {

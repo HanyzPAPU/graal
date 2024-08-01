@@ -2,7 +2,7 @@ package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import org.junit.Test;
 import jdk.graal.compiler.jtt.JTTTest;
 public class Boxed_TYPE_015 {
-    private static int i = 5;
+    public static int i = 5;
 
     public static String test()  {
         if (i == 0) {

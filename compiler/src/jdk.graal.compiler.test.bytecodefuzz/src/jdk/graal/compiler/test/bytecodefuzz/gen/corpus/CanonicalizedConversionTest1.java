@@ -9,7 +9,7 @@ import jdk.graal.compiler.nodes.calc.ReinterpretNode;
 import org.junit.Assert;
 import org.junit.Test;
 public class CanonicalizedConversionTest1 {
-    private static float value = -567.890F;
+    public static float value = -567.890F;
 
     public static int snippet4()  {
         return Float.floatToIntBits(value) + Float.floatToIntBits(value) + Float.floatToIntBits(value);

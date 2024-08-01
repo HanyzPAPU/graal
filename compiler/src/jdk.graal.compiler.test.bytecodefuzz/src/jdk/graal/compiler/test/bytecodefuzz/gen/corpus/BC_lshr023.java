@@ -2,7 +2,7 @@ package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import jdk.graal.compiler.jtt.JTTTest;
 import org.junit.Test;
 public class BC_lshr023 {
-    private static long arg = Long.MAX_VALUE;
+    public static long arg = Long.MAX_VALUE;
 
     public static long test0()  {
         long a = arg >> 32;

@@ -8,10 +8,10 @@ import jdk.graal.compiler.phases.tiers.Suites;
 import org.junit.Assert;
 import org.junit.Test;
 public class IfNodeCanonicalizationTest26 {
-    private static int m = 1;
-    private static int n = 2;
-    private static int a = 2;
-    private static int b = 4;
+    public static int m = 1;
+    public static int n = 2;
+    public static int a = 2;
+    public static int b = 4;
 
     public int integerEqualsCondMove()  {
         if (m == n) {

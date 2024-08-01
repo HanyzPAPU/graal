@@ -14,7 +14,7 @@ import org.junit.Assert;
 import org.junit.Ignore;
 import org.junit.Test;
 public class BoxingEliminationTest0 {
-    private static int a = 1;
+    public static int a = 1;
 
     public static Integer materializeTest1Snippet()  {
         Integer v = a;

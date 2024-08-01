@@ -8,7 +8,7 @@ import org.junit.Test;
 import com.oracle.truffle.api.ExactMath;
 import jdk.vm.ci.amd64.AMD64;
 public class ExactMathTest37 {
-    private static long a = (long) Integer.MIN_VALUE;
+    public static long a = (long) Integer.MIN_VALUE;
 
     public static long longNeg()  {
         return Math.negateExact(a);

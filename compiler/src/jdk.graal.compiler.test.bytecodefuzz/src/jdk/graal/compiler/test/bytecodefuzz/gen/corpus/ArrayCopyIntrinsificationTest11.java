@@ -16,11 +16,11 @@ import jdk.vm.ci.code.InstalledCode;
 import jdk.vm.ci.meta.JavaMethod;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 public class ArrayCopyIntrinsificationTest11 {
-    private static Object[] src = new Byte[128];
-    private static int srcPos = 4;
-    private static Object[] dst = null;
-    private static int dstPos = 2;
-    private static int length = 3;
+    public static Object[] src = new Byte[128];
+    public static int srcPos = 4;
+    public static Object[] dst = null;
+    public static int dstPos = 2;
+    public static int length = 3;
 
     public static Object objectArraycopyCatchNullException()  {
         boolean caught = false;

@@ -16,11 +16,11 @@ import jdk.vm.ci.code.InstalledCode;
 import jdk.vm.ci.meta.JavaMethod;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 public class ArrayCopyIntrinsificationTest13 {
-    private static Object[] src = new Integer[128];
-    private static int srcPos = 0;
-    private static Object[] dst = new Integer[128];
-    private static int dstPos = Integer.MAX_VALUE;
-    private static int length = 1;
+    public static Object[] src = new Integer[128];
+    public static int srcPos = 0;
+    public static Object[] dst = new Integer[128];
+    public static int dstPos = Integer.MAX_VALUE;
+    public static int length = 1;
 
     public static Object objectArraycopyCatchArrayIndexException()  {
         boolean caught = false;

@@ -1,8 +1,8 @@
 package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import org.junit.Test;
 public class OptimizeExtendsTest0 {
-    private static byte[] value = new byte[]{1};
-    private static int sumKind = 2;
+    public static byte[] value = new byte[]{1};
+    public static int sumKind = 2;
 
     long testSnippet1()  {
         long result = 0;

@@ -2,7 +2,7 @@ package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import org.junit.Test;
 import jdk.graal.compiler.jtt.JTTTest;
 public class Bubblesort0 {
-    private static int num = 0;
+    public static int num = 0;
 
     public static int test()  {
         final int[] array = {23, 8, -9, 5, 882, 0, 0, 1};

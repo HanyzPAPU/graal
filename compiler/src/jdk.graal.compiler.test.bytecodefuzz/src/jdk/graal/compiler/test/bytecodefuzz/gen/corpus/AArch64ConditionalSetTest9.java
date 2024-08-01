@@ -5,8 +5,8 @@ import jdk.graal.compiler.lir.aarch64.AArch64ControlFlow;
 import org.junit.Test;
 import java.util.function.Predicate;
 public class AArch64ConditionalSetTest9 {
-    private static float m = 2.0f;
-    private static float n = 2.0f;
+    public static float m = 2.0f;
+    public static float n = 2.0f;
 
     public static int conditionalSetFPEQ()  {
         if (m == n) {

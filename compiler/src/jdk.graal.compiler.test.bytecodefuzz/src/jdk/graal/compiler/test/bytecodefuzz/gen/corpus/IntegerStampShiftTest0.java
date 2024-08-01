@@ -1,7 +1,7 @@
 package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import org.junit.Test;
 public class IntegerStampShiftTest0 {
-    private static boolean f = false;
+    public static boolean f = false;
 
     public static int unsignedShiftPositiveInt()  {
         int h = f ? 0x7FFFFFF0 : 0x7FFFFF00;

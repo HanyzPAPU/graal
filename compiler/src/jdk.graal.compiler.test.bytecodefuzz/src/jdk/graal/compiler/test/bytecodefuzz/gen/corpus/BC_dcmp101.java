@@ -2,7 +2,7 @@ package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import jdk.graal.compiler.jtt.JTTTest;
 import org.junit.Test;
 public class BC_dcmp101 {
-    private static int x = 1;
+    public static int x = 1;
 
     public static boolean test()  {
         double a = 0;

@@ -15,8 +15,8 @@ import org.junit.Test;
 import jdk.vm.ci.code.InstalledCode;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 public class StandardMethodSubstitutionsTest26 {
-    private static boolean cond = false;
-    private static Object object = new HashMap<>();
+    public static boolean cond = false;
+    public static Object object = new HashMap<>();
 
     public static boolean isInstance2()  {
         Class<?> clazz;

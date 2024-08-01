@@ -3,7 +3,7 @@ import jdk.graal.compiler.api.directives.GraalDirectives;
 import jdk.graal.compiler.core.test.GraalCompilerTest;
 import org.junit.Test;
 public class ExpandLogicTest0 {
-    private static int bar = 12;
+    public static int bar = 12;
 
     public static int snippet01()  {
 

@@ -2,7 +2,7 @@ package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import jdk.graal.compiler.jtt.JTTTest;
 import org.junit.Test;
 public class Thread_new013 {
-    private static int i = 3;
+    public static int i = 3;
 
     public static boolean test()  {
         if (i == 0) {

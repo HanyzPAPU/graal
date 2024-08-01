@@ -8,8 +8,8 @@ import org.junit.Test;
 import com.oracle.truffle.api.ExactMath;
 import jdk.vm.ci.amd64.AMD64;
 public class ExactMathTest21 {
-    private static int a = 15;
-    private static int b = Integer.MAX_VALUE;
+    public static int a = 15;
+    public static int b = Integer.MAX_VALUE;
 
     public static int mulHighUnsigned()  {
         return ExactMath.multiplyHighUnsigned(a, b);

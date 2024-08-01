@@ -17,7 +17,7 @@ import jdk.graal.compiler.phases.common.MidTierLoweringPhase;
 import jdk.graal.compiler.phases.tiers.MidTierContext;
 import org.junit.Test;
 public class IfCanonicalizerTest5 {
-    private static int[] a = new int[]{0};
+    public static int[] a = new int[]{0};
 
     public static int test6Snippet()  {
         int i = a[0];

@@ -2,7 +2,7 @@ package jdk.graal.compiler.test.bytecodefuzz.gen.corpus;
 import org.junit.Test;
 import jdk.graal.compiler.jtt.JTTTest;
 public class Catch_NASE_11 {
-    private static int a = -34;
+    public static int a = -34;
 
     public static int test()  {
         try {

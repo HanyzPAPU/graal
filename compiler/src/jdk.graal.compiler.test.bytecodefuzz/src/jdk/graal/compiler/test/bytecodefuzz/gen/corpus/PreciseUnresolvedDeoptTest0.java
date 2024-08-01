@@ -8,7 +8,7 @@ import jdk.graal.compiler.nodes.IfNode;
 import jdk.graal.compiler.nodes.StructuredGraph;
 import jdk.graal.compiler.nodes.extended.StateSplitProxyNode;
 public class PreciseUnresolvedDeoptTest0 {
-    private static boolean condition = true;
+    public static boolean condition = true;
 
     public static boolean doNotConvertToGuardSnippet()  {
         if (condition) {

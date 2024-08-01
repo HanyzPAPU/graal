@@ -9,8 +9,8 @@ import jdk.graal.compiler.nodes.ValuePhiNode;
 import org.junit.Test;
 import java.util.Random;
 public class BciBlockMappingTest1 {
-    private static int n = 4;
-    private static int increment = 1;
+    public static int n = 4;
+    public static int increment = 1;
 
     static int async2()  {
         int x = 42;

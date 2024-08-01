@@ -5,8 +5,8 @@ import jdk.graal.compiler.lir.aarch64.AArch64ControlFlow;
 import org.junit.Test;
 import java.util.function.Predicate;
 public class AArch64ConditionalSetTest5 {
-    private static int m = 3;
-    private static int n = 2;
+    public static int m = 3;
+    public static int n = 2;
 
     public static int conditionalSetLT()  {
         if (m < n) {
