@@ -13,12 +13,8 @@ public class MutatorHarness {
         // TODO: libFuzzer sends '\n' as a special signal when there are no corpus entries -> do we want to consider this case?
 
         assert(data != null);
-        
         var res = mutator.Mutate(data, maxSize, seed);
-
-        assert(res != null);
-        assert(res.length <= maxSize);
-
+        assert(res == null || res.length <= maxSize);
         return res;
     }
 

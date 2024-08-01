@@ -1,10 +1,14 @@
 package jdk.graal.compiler.test.bytecodefuzz;
 
+import jdk.graal.compiler.api.directives.GraalDirectives;
 import jdk.graal.compiler.core.test.GraalCompilerTest;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 
+import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.lang.reflect.Modifier;
 import java.util.Arrays;
+import java.util.Optional;
 
 public class FuzzTarget extends GraalCompilerTest {
 
@@ -18,6 +22,8 @@ public class FuzzTarget extends GraalCompilerTest {
 
         try {
             Class<?> clazz = loader.LoadFromBytes(null, bytes);
+
+            System.out.print(clazz.getName());
 
             Method[] methods = clazz.getMethods();
             if (methods.length == 0) {
@@ -37,17 +43,21 @@ public class FuzzTarget extends GraalCompilerTest {
             reciever = method.isStatic() ? null : clazz.getConstructor().newInstance();
         }
         // Don't crash on reflection/loading errors
-        catch (Exception ingored) {
-            return;
-        }
-        catch (java.lang.ClassFormatError ignored){
-            return;
-        }
-        catch (java.lang.NoClassDefFoundError ignored){
+        catch (Throwable ignored) {
+            System.out.println(" [Error]");
             return;
         }
 
-        test(method, reciever);
+        try {
+            test(method, reciever);
+        }
+        // Don't crash on errors in <clinit>
+        catch(java.lang.ExceptionInInitializerError ignored) {
+            System.out.println(" [Error in initializer!]");
+            return;
+        }
+        
+        System.out.println(" [Done]");
     }
 
     static FuzzTarget instance;

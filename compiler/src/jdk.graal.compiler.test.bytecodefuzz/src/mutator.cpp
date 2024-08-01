@@ -34,6 +34,11 @@ extern "C" size_t LLVMFuzzerCustomMutator(uint8_t *Data, size_t Size, size_t Max
         _Exit(1);
     }
 
+    if (gEnv->IsSameObject(output, NULL)) {
+        gEnv->DeleteLocalRef(input);
+        return 0;
+    }
+
     // TODO: assert no overflow or truncate?
     jsize newSize = gEnv->GetArrayLength(output);
 

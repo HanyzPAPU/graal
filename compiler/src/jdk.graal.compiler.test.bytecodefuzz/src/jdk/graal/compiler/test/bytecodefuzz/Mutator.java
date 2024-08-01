@@ -28,6 +28,7 @@ public final class Mutator {
         return Arrays.asList(
             new InsertJumpMutation(),
             new ConstantMutation(),
+            // TODO: work with longs, floats and doubles!
             new InsertNeutralArithmeticMutation(),
             new SplitConstantMutation()
         );
@@ -51,7 +52,8 @@ public final class Mutator {
 
         if (result != null) {
             if(result.length > maxSize) {
-                throw new RuntimeException("Freespace computation does not work out!");
+                System.err.println("Freespace computation does not work out!");
+                return null;
             }
             return result;
         }
@@ -59,8 +61,13 @@ public final class Mutator {
         NonGrowingMutation nonGrowingMut = prng.pickIn(nonGrowingMutations);
         result = nonGrowingMut.mutate(data, prng);
 
-        if(result == null || result.length > maxSize) {
-            throw new RuntimeException("Nongrowing mutation grew over size limit!");
+        if (result == null) {
+            System.err.println("None of the mutations worked!");
+            return null;
+        }
+        if(result.length > maxSize) {
+            System.err.println("Nongrowing mutation grew over size limit!");
+            return null;
         }
         
         return result;

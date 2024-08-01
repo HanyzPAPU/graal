@@ -26,3 +26,6 @@
 --add-exports jdk.graal.compiler/jdk.graal.compiler.java=ALL-UNNAMED
 --add-exports jdk.graal.compiler/jdk.graal.compiler.hotspot=ALL-UNNAMED
 --add-exports jdk.graal.compiler/jdk.graal.compiler.code=ALL-UNNAMED
+--add-exports jdk.graal.compiler/jdk.graal.compiler.api.directives=ALL-UNNAMED
+--add-exports jdk.graal.compiler/jdk.graal.compiler.core.common.calc=ALL-UNNAMED
+--add-exports jdk.graal.compiler/jdk.graal.compiler.word=ALL-UNNAMED

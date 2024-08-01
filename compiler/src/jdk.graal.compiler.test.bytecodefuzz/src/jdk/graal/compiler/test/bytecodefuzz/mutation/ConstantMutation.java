@@ -27,7 +27,7 @@ public class ConstantMutation implements NonGrowingMutation {
     private MethodNode selectMethod(ClassNode cn, PseudoRandom prng) {
         if (ctorOnly) {
             return cn.methods.stream()
-                .filter(m -> m.name.equals("<init>") && m.desc.equals("()V"))
+                .filter(m -> m.name.equals("<clinit>") || (m.name.equals("<init>") && m.desc.equals("()V")))
                 .findAny()
                 .get();
         }
@@ -36,26 +36,48 @@ public class ConstantMutation implements NonGrowingMutation {
         }
     }
 
+    private MethodNode selectFallback(ClassNode cn, MethodNode original) {
+        return cn.methods.stream()
+                .filter(m -> m.name.equals("<clinit>") || (m.name.equals("<init>") && m.desc.equals("()V")))
+                .filter(m -> !m.name.equals(original.name))
+                .findAny()
+                .orElse(null);
+    }
+
     public byte[] mutate(byte[] data, PseudoRandom prng, FreeSpace freeSpace) {
         
         ClassReader reader = new ClassReader(data);
         ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
         ClassNode cn = new ClassNode(Opcodes.ASM9);
         reader.accept(cn, 0);
-        
-        MethodNode mn = selectMethod(cn, prng);
 
-        // find all constant loading -> custom analyzer
+        MethodNode selectedMethodNode = selectMethod(cn, prng);
+
         LoadConstantLocator locator = new LoadConstantLocator(Opcodes.ASM9);
-        mn.accept(locator);
+        selectedMethodNode.accept(locator);
 
         List<Integer> locations = locator.getLocations(); 
         
         if (locations.isEmpty()) {
-            System.err.println("Constant mutator selected a method without constants!");
-            return null;
+            selectedMethodNode = selectFallback(cn, selectedMethodNode);
+
+            if (selectedMethodNode == null) {
+                System.err.println("Constant mutator cannot find a method with constants!");
+                return null;
+            }
+
+            locator = new LoadConstantLocator(Opcodes.ASM9);
+            selectedMethodNode.accept(locator);
+
+            locations = locator.getLocations(); 
+
+            if (locations.isEmpty()) {
+                System.err.println("Constant mutator cannot find a method with constants!");
+                return null;
+            }
         }
 
+        MethodNode mn = selectedMethodNode;
         int location = prng.pickIn(locations);
 
         ClassVisitor cv = new ClassVisitor(Opcodes.ASM9, writer) {

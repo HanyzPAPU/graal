@@ -32,7 +32,7 @@ import jdk.graal.compiler.phases.tiers.MidTierContext;
 import jdk.graal.compiler.phases.tiers.Suites;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 public class LoopPartialUnrollTest17 {
-    public static long arg = 9L;
+    public static short arg = 9;
 
     public static long testSignExtensionSnippet()  {
         long r = 1;

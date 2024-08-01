@@ -14,7 +14,6 @@ public interface Mutation {
             result = mutate(data, prng);
         }
         catch(Throwable e) {
-            // TODO: better exception type!!
             System.err.println(e.getMessage());
             return null;
         }

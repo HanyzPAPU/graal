@@ -13,9 +13,13 @@ export LD_PRELOAD="$PWD/src/build/libmutator.so"
 # -Dgraal.MaxDuplicationFactor=1000.0 to make Graal compile even very convoluted irreducible code
 
 # TODO: still instruments unwanted classes with custom hooks
+# TODO: make timeout longer of real test? also ignore_timeouts should probably be True for real run
+# TODO: should the real run ignore crashes?
+# TODO: fork mode
 
 mx vm @export-hack \
     -XX:+UseParallelGC -XX:+EnableDynamicAgentLoading -XX:-UseJVMCICompiler \
+    -Xmx6g \
     -Djava.library.path="$PWD/src/build/" \
     -Djdk.graal.MaxDuplicationFactor=1000.0 \
     -cp $CLASSPATH \
@@ -24,5 +28,5 @@ mx vm @export-hack \
     --instrumentation_includes=jdk.graal.compiler.** \
     --target_class=jdk.graal.compiler.test.bytecodefuzz.FuzzTarget \
     --reproducer_path=./reproducers/ \
-    -max_len=8192 \
+    -max_len=8192 -ignore_timeouts=False -timeout=60 \
     $CORPUSDIR $@
