@@ -30,7 +30,8 @@ public final class Mutator {
             new ConstantMutation(),
             // TODO: work with longs, floats and doubles!
             new InsertNeutralArithmeticMutation(),
-            new SplitConstantMutation()
+            new SplitConstantMutation(),
+            new InsertDeadCodeMutation()
         );
     }
 
@@ -45,6 +46,11 @@ public final class Mutator {
 
     public byte[] Mutate(byte[] data, int maxSize, int seed) throws Exception {
 
+        if (data == null || data.length == 0) {
+            System.err.println("Corrupted Input in Mutation!");
+            return null;
+        }
+
         FreeSpace freeSpace = new FreeSpace(maxSize - data.length);
         PseudoRandom prng = new SeededPseudoRandom(seed);
         Mutation mut = prng.pickIn(mutations);
@@ -57,6 +63,8 @@ public final class Mutator {
             }
             return result;
         }
+
+        System.out.println("First mutation attempt failed!");
         
         NonGrowingMutation nonGrowingMut = prng.pickIn(nonGrowingMutations);
         result = nonGrowingMut.mutate(data, prng);
