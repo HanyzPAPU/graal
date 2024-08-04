@@ -13,7 +13,6 @@ public interface Mutation {
         }
         catch(Throwable e) {
             System.err.println("Error during mutation: " + e);
-            e.printStackTrace();
             return null;
         }
         int grownBy = result.length - data.length;

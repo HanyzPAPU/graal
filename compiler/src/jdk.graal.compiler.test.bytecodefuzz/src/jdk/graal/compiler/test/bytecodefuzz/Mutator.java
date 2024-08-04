@@ -17,12 +17,13 @@ public final class Mutator {
 
     private static List<Mutation> getMutations() {
         return Arrays.asList(
-            new InsertJumpMutation(),
-            new ConstantMutation(),
+            // new InsertJumpMutation(),
+            // new ConstantMutation(),
+            
+            new InsertNeutralArithmeticMutation()
             // TODO: work with longs, floats and doubles!
-            new InsertNeutralArithmeticMutation(),
-            new SplitConstantMutation(),
-            new InsertDeadCodeMutation()
+            // new SplitConstantMutation(),
+            // new InsertDeadCodeMutation()
         );
     }
 
@@ -37,7 +38,8 @@ public final class Mutator {
 
     public byte[] Mutate(byte[] data, int maxSize, int seed) throws Exception {
 
-        if (data == null || data.length == 0) {
+        if (data == null || data.length < 10) {
+            // The required classfile header has 10 B, so don't even bother opening anything smaller
             System.err.println("Corrupted Input in Mutation!");
             return null;
         }
