@@ -2,13 +2,9 @@ package jdk.graal.compiler.test.bytecodefuzz.mutation;
 
 import java.util.Map;
 import java.util.List;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.function.Function;
 
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.Label;

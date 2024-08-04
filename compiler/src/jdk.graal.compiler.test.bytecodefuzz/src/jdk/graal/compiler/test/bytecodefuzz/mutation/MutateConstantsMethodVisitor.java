@@ -2,12 +2,9 @@ package jdk.graal.compiler.test.bytecodefuzz.mutation;
 
 import jdk.graal.compiler.test.bytecodefuzz.FreeSpace;
 
-import java.util.Optional;
 import java.lang.reflect.AnnotatedType;
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 
-import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 
@@ -16,9 +13,6 @@ import com.code_intelligence.jazzer.mutation.api.PseudoRandom;
 import com.code_intelligence.jazzer.mutation.api.SerializingMutator;
 import com.code_intelligence.jazzer.mutation.mutator.lang.LangMutators;
 import com.code_intelligence.jazzer.mutation.support.TypeSupport;
-
-import com.code_intelligence.jazzer.mutation.annotation.WithUtf8Length;
-import com.code_intelligence.jazzer.mutation.support.TypeHolder;
 
 class MutateConstantsMethodVisitor extends MethodVisitor {
 

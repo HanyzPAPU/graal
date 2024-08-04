@@ -8,7 +8,6 @@ import com.code_intelligence.jazzer.mutation.annotation.FloatInRange;
 import com.code_intelligence.jazzer.mutation.annotation.DoubleInRange;
 import com.code_intelligence.jazzer.mutation.annotation.WithUtf8Length;
 import com.code_intelligence.jazzer.mutation.support.TypeSupport;
-import com.code_intelligence.jazzer.mutation.support.TypeHolder;
 
 public final class JazzerTypeSupport {
     public static AnnotatedType InRange(AnnotatedType type, long min, long max) {

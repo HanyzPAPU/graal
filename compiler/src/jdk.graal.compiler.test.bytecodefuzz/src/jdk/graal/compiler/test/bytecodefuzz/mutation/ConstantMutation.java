@@ -10,7 +10,6 @@ import com.code_intelligence.jazzer.mutation.api.PseudoRandom;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 import java.util.List;
-import java.util.ArrayList;
 
 public class ConstantMutation implements NonGrowingMutation {
 

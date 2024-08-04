@@ -1,21 +1,10 @@
 package jdk.graal.compiler.test.bytecodefuzz.mutation;
 
-import java.util.Map;
-import java.util.concurrent.Callable;
-import java.util.List;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.function.Function;
 import java.util.regex.Pattern;
 
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
-import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.commons.LocalVariablesSorter;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 
@@ -23,7 +12,7 @@ import com.code_intelligence.jazzer.mutation.api.PseudoRandom;
 
 public class InsertNeutralArithmeticMutation extends AbstractMutation {
 
-    private static final Pattern intOnTosPattern = Pattern.compile("\\[(.*, )*" + Opcodes.INTEGER + "\\]");
+    private static final Pattern numberOnTosPattern = Pattern.compile("\\[(.*, )*(" + Opcodes.INTEGER + "|" + Opcodes.LONG + "|" + Opcodes.FLOAT + "|" + Opcodes.DOUBLE + ")\\]");
 
     @Override
     protected Function<MethodVisitor,MethodVisitor> createMethodVisitorFactory(ClassNode cn, MethodNode mn, PseudoRandom prng) {
@@ -31,7 +20,7 @@ public class InsertNeutralArithmeticMutation extends AbstractMutation {
         mn.accept(frameMapAnalyzer);
         
         Integer[] validProgramPoints = frameMapAnalyzer.getMap().keySet().stream()
-            .filter(intOnTosPattern.asPredicate())
+            .filter(numberOnTosPattern.asPredicate())
             .flatMap(k -> frameMapAnalyzer.getMap().get(k).stream())
             .toArray(Integer[]::new);
 

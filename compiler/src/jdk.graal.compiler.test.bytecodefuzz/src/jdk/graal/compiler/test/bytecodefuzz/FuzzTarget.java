@@ -1,14 +1,10 @@
 package jdk.graal.compiler.test.bytecodefuzz;
 
-import jdk.graal.compiler.api.directives.GraalDirectives;
 import jdk.graal.compiler.core.test.GraalCompilerTest;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.lang.reflect.Modifier;
 import java.util.Arrays;
-import java.util.Optional;
 
 public class FuzzTarget extends GraalCompilerTest {
 

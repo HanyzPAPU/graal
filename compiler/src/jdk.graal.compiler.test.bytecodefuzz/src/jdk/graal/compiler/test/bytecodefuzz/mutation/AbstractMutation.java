@@ -1,11 +1,5 @@
 package jdk.graal.compiler.test.bytecodefuzz.mutation;
 
-import jdk.graal.compiler.test.bytecodefuzz.FreeSpace;
-
-import java.util.Map;
-import java.util.List;
-import java.util.HashMap;
-import java.util.Iterator;
 import java.util.function.Function;
 
 import org.objectweb.asm.ClassReader;

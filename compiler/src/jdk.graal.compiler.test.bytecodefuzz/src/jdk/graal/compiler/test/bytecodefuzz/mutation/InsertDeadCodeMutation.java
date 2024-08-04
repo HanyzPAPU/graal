@@ -1,25 +1,17 @@
 package jdk.graal.compiler.test.bytecodefuzz.mutation;
 
-import java.util.Map;
-import java.util.concurrent.Callable;
 import java.util.List;
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.function.Function;
-import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
-import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.commons.AnalyzerAdapter;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.FieldNode;
+import org.objectweb.asm.Type;
 
 import com.code_intelligence.jazzer.mutation.api.PseudoRandom;
 

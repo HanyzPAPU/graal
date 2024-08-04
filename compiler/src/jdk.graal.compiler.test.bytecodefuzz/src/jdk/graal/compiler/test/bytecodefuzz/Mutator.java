@@ -1,20 +1,11 @@
 package jdk.graal.compiler.test.bytecodefuzz;
 
-import java.lang.Exception;
 import java.util.Arrays;
 import java.util.List;
 import java.io.StringWriter;
 import java.io.PrintWriter;
 
 import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.MethodNode;
-import org.objectweb.asm.tree.LdcInsnNode;
-import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.util.Printer;
-import org.objectweb.asm.util.Textifier;
-import org.objectweb.asm.util.TraceMethodVisitor;
 import org.objectweb.asm.util.TraceClassVisitor;
 
 import com.code_intelligence.jazzer.mutation.api.PseudoRandom;
