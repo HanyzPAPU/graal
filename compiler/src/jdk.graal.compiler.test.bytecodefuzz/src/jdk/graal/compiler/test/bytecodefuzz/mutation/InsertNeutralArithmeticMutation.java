@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
@@ -17,8 +18,10 @@ import org.objectweb.asm.tree.MethodNode;
 import com.code_intelligence.jazzer.mutation.api.PseudoRandom;
 
 public class InsertNeutralArithmeticMutation extends AbstractMutation {
-    //                                                                               Simple type represented by 1 entry                      Complex type with 2 entries, type + top
-    private static final Pattern numberOnTosPattern = Pattern.compile("\\[(.*, )*((?<type1>" + Opcodes.INTEGER + "|" + Opcodes.FLOAT + ")|((?<type2>"+ Opcodes.LONG + "|" + Opcodes.DOUBLE + "), " + Opcodes.TOP +"))\\]");
+    //                                                                               Simple type represented by 1 entry                      Complex type with 2 entries, type + top                                   String
+    private static final Pattern numberOnTosPattern = Pattern.compile("\\[(.*, )*((?<type1>" + Opcodes.INTEGER + "|" + Opcodes.FLOAT + ")|((?<type2>"+ Opcodes.LONG + "|" + Opcodes.DOUBLE + "), " + Opcodes.TOP +")|(?<string>"+ Type.getInternalName(String.class) +"))\\]");
+
+    private static final int STRING_TYPE = -1;
 
     private static class Pair <T1, T2> {
         public final T1 first;
@@ -40,8 +43,15 @@ public class InsertNeutralArithmeticMutation extends AbstractMutation {
                 if (matcher.matches()) {
                     String type1 = matcher.group("type1");
                     String type2 = matcher.group("type2");
-                    int type = Integer.parseInt(type1 != null ? type1 : type2);
-                    return e.getValue().stream().map(iindex -> new Pair<Integer, Integer>(type, iindex));
+                    String stringType = matcher.group("string");
+
+                    if (stringType == null) {
+                        int type = Integer.parseInt(type1 != null ? type1 : type2);
+                        return e.getValue().stream().map(iindex -> new Pair<Integer, Integer>(type, iindex));
+                    }
+                    else {
+                        return e.getValue().stream().map(iindex -> new Pair<Integer, Integer>(STRING_TYPE, iindex));
+                    }
                 }
                 else {
                     return Stream.empty();
@@ -65,6 +75,8 @@ public class InsertNeutralArithmeticMutation extends AbstractMutation {
         private final int opIindex;
         private final int type;
         PseudoRandom prng;
+
+        // TODO: support string concat with "" ?
 
         public InsertNeutralOpMethodVisitor(int api, MethodVisitor mv, int opIindex, int type, PseudoRandom prng) {
             super(api, mv);
@@ -119,11 +131,29 @@ public class InsertNeutralArithmeticMutation extends AbstractMutation {
             () -> {mv.visitInsn(Opcodes.DNEG); mv.visitInsn(Opcodes.DNEG);},        // -(-tos)
         };
 
+        private final Runnable[] stringVariants = new Runnable[] {
+            () -> {mv.visitLdcInsn(""); visitStringConcatCall(); },                 // tos + ""
+        };
+
+        private void visitStringConcatCall() {
+            String owner =  Type.getInternalName(String.class);
+            String name = "concat";
+            String descriptor;
+            try {
+                descriptor = Type.getMethodDescriptor(String.class.getMethod(name, String.class));
+            }
+            catch(Throwable e) {
+                throw new RuntimeException("String concat method not found!");
+            }
+            mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, owner, name, descriptor, false);
+        }
+
         private final Map<Integer, Runnable[]> variants = Map.of(
             Opcodes.INTEGER, intVariants,
             Opcodes.FLOAT, floatVariants,
             Opcodes.LONG, longVariants,
-            Opcodes.DOUBLE, doubleVariants
+            Opcodes.DOUBLE, doubleVariants,
+            STRING_TYPE, stringVariants
         );
 
         private void insertOp() {
