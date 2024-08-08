@@ -3,6 +3,6 @@ public class AddLong {
     long y = 2L;
 
     public long add() {
-        return x + y;
+        return x + y + 1;
     }
 }

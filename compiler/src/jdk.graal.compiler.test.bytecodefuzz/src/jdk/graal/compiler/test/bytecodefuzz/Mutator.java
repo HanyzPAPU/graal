@@ -19,10 +19,8 @@ public final class Mutator {
         return Arrays.asList(
             // new InsertJumpMutation(),
             // new ConstantMutation(),
-            
-            new InsertNeutralArithmeticMutation()
-            // TODO: work with longs, floats and doubles!
-            // new SplitConstantMutation(),
+            //new InsertNeutralArithmeticMutation(),
+             new SplitConstantMutation()
             // new InsertDeadCodeMutation()
         );
     }

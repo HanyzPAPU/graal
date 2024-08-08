@@ -17,6 +17,10 @@ public class LoadConstantLocator extends InstructionVisitor {
             opcode == Opcodes.ICONST_5;
     }
 
+    public static boolean isOpcodeLCONST(int opcode) {
+        return opcode == Opcodes.LCONST_0 || opcode == Opcodes.LCONST_1;
+    }
+
     public static boolean isOpcodeXCONST(int opcode) {
         return 
             opcode == Opcodes.ICONST_M1 ||
@@ -34,16 +38,17 @@ public class LoadConstantLocator extends InstructionVisitor {
             opcode == Opcodes.FCONST_1 ||
             opcode == Opcodes.FCONST_2 ;
     }
-
-    private final boolean intOnly;
+    
+    // Only ints, longs and strings
+    private final boolean reducedSearch;
 
     public LoadConstantLocator(int api) {
         this(api, false);
     }
 
-    public LoadConstantLocator(int api, boolean intOnly) {
+    public LoadConstantLocator(int api, boolean reducedSearch) {
         super(api);
-        this.intOnly = intOnly;
+        this.reducedSearch = reducedSearch;
     }
 
     List<Integer> loadConstantLocations; 
@@ -61,7 +66,7 @@ public class LoadConstantLocator extends InstructionVisitor {
     @Override
     public void visitLdcInsn(Object value){
         // Optimistically include all Ldc locations, even if it is possible that the value itself might not be mutatable
-        if ((intOnly && value instanceof Integer) || (!intOnly)) {
+        if ((reducedSearch && (value instanceof Integer || value instanceof Long || value instanceof String)) || (!reducedSearch)) {
             loadConstantLocations.add(iindex());
         }
         super.visitLdcInsn(value);
@@ -77,7 +82,7 @@ public class LoadConstantLocator extends InstructionVisitor {
 
     @Override
     public void visitInsn(int opcode) {
-        if ((intOnly && isOpcodeICONST(opcode)) || (!intOnly && isOpcodeXCONST(opcode))) {
+        if ((reducedSearch && (isOpcodeICONST(opcode) || isOpcodeLCONST(opcode))) || (!reducedSearch && isOpcodeXCONST(opcode))) {
             loadConstantLocations.add(iindex());
         }
         super.visitInsn(opcode);
