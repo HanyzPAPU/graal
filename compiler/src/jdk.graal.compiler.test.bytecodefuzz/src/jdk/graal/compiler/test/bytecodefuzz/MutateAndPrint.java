@@ -49,7 +49,7 @@ public class MutateAndPrint {
         //System.out.println(freeSpace.amount());
         PseudoRandom prng = new SeededPseudoRandom(seed);
 
-        Mutation mut = new InsertNeutralArithmeticMutation();
+        Mutation mut = new InsertSwapMutation();
         byte[] result = mut.mutate(data, prng);
 
         //dumpBytecode(data);

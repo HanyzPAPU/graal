@@ -16,21 +16,13 @@ import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 
 import com.code_intelligence.jazzer.mutation.api.PseudoRandom;
+import jdk.graal.compiler.test.bytecodefuzz.Pair;
 
 public class InsertNeutralArithmeticMutation extends AbstractMutation {
     //                                                                               Simple type represented by 1 entry                      Complex type with 2 entries, type + top                                   String
     private static final Pattern numberOnTosPattern = Pattern.compile("\\[(.*, )*((?<type1>" + Opcodes.INTEGER + "|" + Opcodes.FLOAT + ")|((?<type2>"+ Opcodes.LONG + "|" + Opcodes.DOUBLE + "), " + Opcodes.TOP +")|(?<string>"+ Type.getInternalName(String.class) +"))\\]");
 
     private static final int STRING_TYPE = -1;
-
-    private static class Pair <T1, T2> {
-        public final T1 first;
-        public final T2 second;
-        public Pair(T1 first, T2 second){
-            this.first = first;
-            this.second = second;
-        }
-    }
 
     @Override
     protected Function<MethodVisitor,MethodVisitor> createMethodVisitorFactory(ClassNode cn, MethodNode mn, PseudoRandom prng) {

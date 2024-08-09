@@ -19,9 +19,10 @@ public final class Mutator {
         return Arrays.asList(
             // new InsertJumpMutation(),
             // new ConstantMutation(),
-            //new InsertNeutralArithmeticMutation(),
-             new SplitConstantMutation()
-            // new InsertDeadCodeMutation()
+            // new InsertNeutralArithmeticMutation(),
+            // new SplitConstantMutation(),
+            // new InsertDeadCodeMutation(),
+            new InsertSwapMutation()
         );
     }
 
