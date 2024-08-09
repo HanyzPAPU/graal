@@ -1,0 +1,14 @@
+public class Blackhole {
+    public <init>()V {
+        aload 0
+        invokespecial java/lang/Object.<init>()V
+        return
+    }
+
+    public static foo()I {
+        bipush 8
+        dup
+        invokestatic jdk/graal/compiler/api/directives/GraalDirectives.blackhole(I)V
+        ireturn
+    }
+}

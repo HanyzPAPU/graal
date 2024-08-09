@@ -29,7 +29,8 @@ public final class Mutator {
 
     private static List<NonGrowingMutation> getNonGrowingMutations() {
         return Arrays.asList(
-            new ConstantMutation()
+            //new ConstantMutation(),
+            new RemoveEscapeMutation()
         );
     }
 
