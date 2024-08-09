@@ -22,7 +22,8 @@ public final class Mutator {
             // new InsertNeutralArithmeticMutation(),
             // new SplitConstantMutation(),
             // new InsertDeadCodeMutation(),
-            new InsertSwapMutation()
+            // new InsertSwapMutation(),
+            new InsertEscapeMutation()
         );
     }
 
