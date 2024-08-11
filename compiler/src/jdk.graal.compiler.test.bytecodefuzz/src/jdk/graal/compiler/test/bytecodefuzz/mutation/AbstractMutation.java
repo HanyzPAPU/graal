@@ -15,7 +15,7 @@ import com.code_intelligence.jazzer.mutation.api.PseudoRandom;
 public abstract class AbstractMutation implements Mutation {
     public final byte[] mutate(byte[] data, PseudoRandom prng) {
         ClassReader reader = new ClassReader(data);
-        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES);
+        ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_FRAMES | ClassWriter.COMPUTE_MAXS);
         ClassNode cn = new ClassNode(Opcodes.ASM9);
         reader.accept(cn, ClassReader.EXPAND_FRAMES);
 

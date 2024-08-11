@@ -21,16 +21,17 @@ public final class Mutator {
             // new ConstantMutation(),
             // new InsertNeutralArithmeticMutation(),
             // new SplitConstantMutation(),
-            // new InsertDeadCodeMutation(),
+            new InsertDeadCodeMutation(),
+            new InsertLocalVariableMutation()
             // new InsertSwapMutation(),
-            new InsertEscapeMutation()
+            // new InsertEscapeMutation()
         );
     }
 
     private static List<NonGrowingMutation> getNonGrowingMutations() {
         return Arrays.asList(
-            //new ConstantMutation(),
-            new RemoveEscapeMutation()
+            new ConstantMutation()
+            //new RemoveEscapeMutation()
         );
     }
 
