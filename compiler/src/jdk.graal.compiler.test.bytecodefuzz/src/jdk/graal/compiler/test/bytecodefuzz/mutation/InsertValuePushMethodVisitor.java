@@ -14,6 +14,7 @@ import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.Type;
 
 import com.code_intelligence.jazzer.mutation.api.PseudoRandom;
+import jdk.graal.compiler.test.bytecodefuzz.FieldHolder;
 
 public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
 
@@ -23,6 +24,9 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
     private final MethodNode mn;
     private final AnalyzerAdapter analyzer;
     private final Runnable[] constantInserters;
+
+    public final static int MIN_ARRAY_SIZE = 10;
+    public final static int MAX_ARRAY_SIZE = 100;
 
     public InsertValuePushMethodVisitor(int api, AnalyzerAdapter analyzer, int targetIindex, PseudoRandom prng, ClassNode cn, MethodNode mn) {
         super(api, analyzer);
@@ -43,9 +47,33 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
     // called after the Push, with the type of the pushed value
     protected abstract void afterPush(Type type);
 
+    private Type tryInsertFieldHolderDeref() {
+        if (prng.choice()) return Type.getType(FieldHolder.class); // 50 % chance to not deref
+        
+        Field field = prng.pickIn(FieldHolder.class.getFields());
+        mv.visitFieldInsn(Opcodes.GETFIELD, Type.getInternalName(FieldHodler.class), field.getName(), Type.getDescriptor(field.getType()));
+        return tryInsertDeref(Type.getType(field.getType()));
+    }
+
+    private Type tryInsertArrayDeref(Type type) {
+        if (prng.choice()) return type; // 50 % chance to not deref
+
+        // Try to minimize null deref by always dereferencing indices valid in inserted arrays
+        int index = prng.indexIn(MIN_ARRAY_SIZE);
+        mv.visitIntInsn(Opcodes.BIPUSH, index);
+        mv.visitInsn(type.getOpcode(Opcodes.IALOAD));
+        return tryInsertDeref(type.getElementType());
+    }
+
     private Type tryInsertDeref(Type type) {
         // TODO: FieldHolder and arrays -> possible to add load/getfield from them (which we can, but do not have to do)
         // We can even try to do recursion here XD
+        if(type.equals(Type.getType(FieldHolder.class))) {
+            return tryInsertFieldHolderDeref();
+        }
+        if (type.getSort() == Type.ARRAY) {
+            return tryInsertArrayDeref(type);
+        }
         return type;
     }
 

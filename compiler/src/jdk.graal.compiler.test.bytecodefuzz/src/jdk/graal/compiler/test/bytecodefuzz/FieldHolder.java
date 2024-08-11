@@ -8,4 +8,6 @@ public class FieldHolder {
     public String s;
     public Object o;
     public FieldHolder fh;
+    public int[] ia;
+    public Object[] oa;
 }
