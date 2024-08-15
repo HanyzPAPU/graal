@@ -8,6 +8,7 @@ import java.util.function.Function;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
+import java.util.stream.StreamSupport;
 import java.lang.reflect.Field;
 
 import org.objectweb.asm.Opcodes;
@@ -86,33 +87,78 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
     // called after the Push, with the type of the pushed value
     protected abstract void afterPush(Type type);
 
-    private Type tryInsertFieldHolderDeref() {
-        if (prng.choice()) return AsmTypeSupport.fieldHolderType; // 50 % chance to not deref
+    private Type tryInsertFieldHolderDeref(Type targetType) {
+        Field field;
 
-        Field field = prng.pickIn(FieldHolder.class.getFields());
-        mv.visitFieldInsn(Opcodes.GETFIELD, Type.getInternalName(FieldHolder.class), field.getName(), Type.getDescriptor(field.getType()));
-        return tryInsertDeref(Type.getType(field.getType()));
+        if (targetType != null) {
+            List<Field> fields = new ArrayList<>(FieldHolder.class.getFields()).stream()
+                .filter(f -> targetType.equals(Type.getType(f.getType())))
+                .collect(Collectors.toList());
+            
+            field = prng.pickIn(fields);
+
+            if (fieldType.equals(AsmTypeSupport.fieldHolderType) && prng.choice()) {
+                // If the target type is FieldHolder, 50 % chance to not deref
+                return targetType; // == fieldType == AsmTypeSupport.fieldHolderType
+            }
+            // Else: always deref to the correct field
+        }
+        // targetType == null
+        else if (prng.choice()) {
+            return AsmTypeSupport.fieldHolderType; // 50 % chance to not deref
+        }
+        else {
+            field = prng.pickIn(FieldHolder.class.getFields());
+        }
+        
+        Type fieldType = Type.getType(field.getType());
+        assert(targetType == null || targetType.equals(fieldType));
+
+        mv.visitFieldInsn(Opcodes.GETFIELD, AsmTypeSupport.fieldHolderType.getInternalName(), field.getName(), fieldType.getDescriptor());
+        return tryInsertDeref(fieldType, targetType);
     }
 
-    private Type tryInsertArrayDeref(Type type) {
-        if (prng.choice()) return type; // 50 % chance to not deref
+    private Type tryInsertArrayDeref(Type currentType, Type targetType) {
 
-        // Try to minimize null deref by always dereferencing indices valid in inserted arrays
-        int index = prng.indexIn(MIN_ARRAY_SIZE);
-        mv.visitIntInsn(Opcodes.BIPUSH, index);
-        Type elementType = type.getElementType();
-        mv.visitInsn(elementType.getOpcode(Opcodes.IALOAD));
-        return tryInsertDeref(elementType);
+        if (currentType.equals(targetType)) {
+            assert (targetType.getSort() == Type.ARRAY);
+            return currentType;
+        }
+        
+        if ((targetType != null && targetType.getSort() != Type.ARRAY) || prng.choice()) {
+
+            assert(target == null || currentType.getElementType().equals(targetType));
+            // Try to minimize null deref by always dereferencing indices valid in freshly inserted arrays
+            int index = prng.indexIn(MIN_ARRAY_SIZE);
+            mv.visitIntInsn(Opcodes.BIPUSH, index);
+            Type elementType = type.getElementType();
+            mv.visitInsn(elementType.getOpcode(Opcodes.IALOAD));
+            return tryInsertDeref(elementType);
+        }
+        
+        assert(targetType == null);
+        return type; // 50 % chance to not deref
     }
 
-    private Type tryInsertDeref(Type type) {
-        if(type.equals(AsmTypeSupport.fieldHolderType)) {
-            return tryInsertFieldHolderDeref();
+    // TODO: what about target type?
+    private Type tryInsertDeref(Type currentType, Type targetType) {
+
+        if (currentType.equals(targetType)) {
+            if(currentType.equals(AsmTypeSupport.fieldHolderType)) {
+                return tryInsertFieldHolderDeref(targetType);
+            }
         }
-        if (type.getSort() == Type.ARRAY) {
-            return tryInsertArrayDeref(type);
+        else {
+            assert(targetType == null || currentType.equals(AsmTypeSupport.fieldHolderType) || currentType.getElementType().equals(targetType)); 
+            if(currentType.equals(AsmTypeSupport.fieldHolderType)) {
+                return tryInsertFieldHolderDeref(targetType);
+            }
+            if (currentType.getSort() == Type.ARRAY) {
+                return tryInsertArrayDeref(currentType, targetType);
+            }
         }
-        return type;
+        assert(targetType == null || currentType.equals(targetType));
+        return currentType;
     }
 
     /** Fresh is either a constant for primitive types or a new value for reference types */
@@ -175,6 +221,13 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
         afterPush(tryInsertDeref(Type.getType(fn.desc)));
     }
 
+    private void insertUseTos(Type type) {
+        int stackSize = analyzer.stack.size();
+        Object stackLastTypeObj = analyzer.stack.get(stackSize - 1);
+        this.mv.visitInsn(stackLastTypeObj.equals(Opcodes.TOP) ? Opcodes.DUP2 : Opcodes.DUP);
+        afterPush(tryInsertDeref(getStackTosType()));
+    }
+
     private boolean canGenerateFresh(Type type) {
         return type == null || getFreshValueInserters().containsKey(type);
     }
@@ -191,16 +244,31 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
         return (type == null && hasAnyFields) || hasTypedFields;
     }
 
+    private Type getStackTosType() {
+        int stackSize = analyzer.stack.size();
+        Object stackLastTypeObj = analyzer.stack.get(stackSize - 1);
+        return AsmTypeSupport.getType(stackLastTypeObj.equals(Opcodes.TOP) ? analyzer.stack.get(stackSize - 2) : stackLastTypeObj);
+    }
+
+    private boolean canUseTOS(Type type) {
+        boolean stackNotEmpty = analyzer.stack.size() > 0;
+        boolean hasTypedTos = type != null && type.equals(getStackTosType());
+        return (type == null && stackNotEmpty) || hasTypedTos;
+    }
+
     private List<Consumer<Type>> gatherVariants(Type type) {
         List<Consumer<Type>> res = new ArrayList<>();
-        if (canGenerateFresh(type)) {
-            res.add(this::insertFresh);
-        }
-        if (canLoad(type)) {
-            res.add(this::insertLoad);
-        }
-        if (canGetField(type)) {
-            res.add(this::insertGetField);
+        // if (canGenerateFresh(type)) {
+        //     res.add(this::insertFresh);
+        // }
+        // if (canLoad(type)) {
+        //     res.add(this::insertLoad);
+        // }
+        // if (canGetField(type)) {
+        //     res.add(this::insertGetField);
+        // }
+        if (canUseTOS(type)) {
+            res.add(this::insertUseTos);
         }
         assert(!res.isEmpty());
         return res;
@@ -208,6 +276,7 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
 
     /** Pushes a random value on TOS - either a fresh value, a loaded local variable or field */
     protected final void pushValue(Type type) {
+        // TODO: strict type equivalence is not necessary, subclass can also work?
         prng.pickIn(gatherVariants(type)).accept(type);
     }
 
