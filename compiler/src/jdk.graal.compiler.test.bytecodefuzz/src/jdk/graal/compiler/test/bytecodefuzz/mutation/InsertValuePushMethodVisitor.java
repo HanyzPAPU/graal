@@ -258,15 +258,15 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
 
     private List<Consumer<Type>> gatherVariants(Type type) {
         List<Consumer<Type>> res = new ArrayList<>();
-        // if (canGenerateFresh(type)) {
-        //     res.add(this::insertFresh);
-        // }
-        // if (canLoad(type)) {
-        //     res.add(this::insertLoad);
-        // }
-        // if (canGetField(type)) {
-        //     res.add(this::insertGetField);
-        // }
+        if (canGenerateFresh(type)) {
+            res.add(this::insertFresh);
+        }
+        if (canLoad(type)) {
+            res.add(this::insertLoad);
+        }
+        if (canGetField(type)) {
+            res.add(this::insertGetField);
+        }
         if (canUseTOS(type)) {
             res.add(this::insertUseTos);
         }
