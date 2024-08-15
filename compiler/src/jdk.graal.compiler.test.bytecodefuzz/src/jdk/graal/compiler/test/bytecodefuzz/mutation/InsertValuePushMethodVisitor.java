@@ -1,5 +1,6 @@
 package jdk.graal.compiler.test.bytecodefuzz.mutation;
 
+import java.util.Arrays;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
@@ -12,6 +13,7 @@ import java.util.stream.StreamSupport;
 import java.lang.reflect.Field;
 
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.commons.AnalyzerAdapter;
 import org.objectweb.asm.tree.ClassNode;
@@ -91,13 +93,13 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
         Field field;
 
         if (targetType != null) {
-            List<Field> fields = new ArrayList<>(FieldHolder.class.getFields()).stream()
+            List<Field> fields = Arrays.stream(FieldHolder.class.getFields())
                 .filter(f -> targetType.equals(Type.getType(f.getType())))
                 .collect(Collectors.toList());
             
             field = prng.pickIn(fields);
 
-            if (fieldType.equals(AsmTypeSupport.fieldHolderType) && prng.choice()) {
+            if ( Type.getType(field.getType()).equals(AsmTypeSupport.fieldHolderType) && prng.choice()) {
                 // If the target type is FieldHolder, 50 % chance to not deref
                 return targetType; // == fieldType == AsmTypeSupport.fieldHolderType
             }
@@ -118,29 +120,50 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
         return tryInsertDeref(fieldType, targetType);
     }
 
+    // TODO: currentType.equals -> null deref
+    // TODO: array [[I -> we try to IALOAD, which does not work
+
+    private boolean isElementTypeOf(Type arrayType, Type elementType) {
+        return arrayType.getElementType().equals(elementType);
+    }
+
+    private boolean isSubarrayTypeOf(Type superArrayType, Type subArrayType) {
+        return superArrayType.getElementType().equals(subArrayType.getElementType()) && superArrayType.getDimensions() > subArrayType.getDimensions();
+    }
+
+    private int getArayDerefOpcode(Type arrayType) {
+        return arrayType.getDimensions() > 1 ? Opcodes.AALOAD : arrayType.getElementType().getOpcode(Opcodes.IALOAD);
+    }
+
     private Type tryInsertArrayDeref(Type currentType, Type targetType) {
+        assert(currentType.getSort() == Type.ARRAY);
 
         if (currentType.equals(targetType)) {
-            assert (targetType.getSort() == Type.ARRAY);
             return currentType;
         }
-        
-        if ((targetType != null && targetType.getSort() != Type.ARRAY) || prng.choice()) {
 
-            assert(target == null || currentType.getElementType().equals(targetType));
+        assert(
+            targetType == null ||
+            (targetType.getSort() == Type.ARRAY && isSubarrayTypeOf(currentType, targetType) ) ||
+            isElementTypeOf(currentType, targetType)
+        );
+
+        // If target != null, it must be of a subArray type or of element type, so we must dereference
+
+        if (targetType != null || prng.choice()) {
             // Try to minimize null deref by always dereferencing indices valid in freshly inserted arrays
             int index = prng.indexIn(MIN_ARRAY_SIZE);
             mv.visitIntInsn(Opcodes.BIPUSH, index);
-            Type elementType = type.getElementType();
-            mv.visitInsn(elementType.getOpcode(Opcodes.IALOAD));
-            return tryInsertDeref(elementType);
+            Type elementType = currentType.getElementType();
+            mv.visitInsn(getArayDerefOpcode(currentType));
+            // getStackTosType() works because the analyzer already visited ^this just added instruction
+            return tryInsertDeref(getStackTosType(), targetType);
         }
         
         assert(targetType == null);
-        return type; // 50 % chance to not deref
+        return currentType; // 50 % chance to not deref
     }
 
-    // TODO: what about target type?
     private Type tryInsertDeref(Type currentType, Type targetType) {
 
         if (currentType.equals(targetType)) {
@@ -195,7 +218,7 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
         }
 
         this.mv.visitVarInsn(selectedType.getOpcode(Opcodes.ILOAD), localIdx);
-        afterPush(selectedType);
+        afterPush(tryInsertDeref(selectedType, type));
     }
 
     private void insertGetField(Type type) {
@@ -218,21 +241,25 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
             this.mv.visitVarInsn(Opcodes.ALOAD, 0); // this
             this.mv.visitFieldInsn(Opcodes.GETFIELD, cn.name, fn.name, fn.desc);
         }
-        afterPush(tryInsertDeref(Type.getType(fn.desc)));
+        afterPush(tryInsertDeref(Type.getType(fn.desc), type));
     }
 
     private void insertUseTos(Type type) {
         int stackSize = analyzer.stack.size();
         Object stackLastTypeObj = analyzer.stack.get(stackSize - 1);
         this.mv.visitInsn(stackLastTypeObj.equals(Opcodes.TOP) ? Opcodes.DUP2 : Opcodes.DUP);
-        afterPush(tryInsertDeref(getStackTosType()));
+        afterPush(tryInsertDeref(getStackTosType(), type));
     }
+
+    // TODO: can* and insert* -> take deref into account
+    // Probably something like canBe, and is for the final assignment (for subtyping)
 
     private boolean canGenerateFresh(Type type) {
         return type == null || getFreshValueInserters().containsKey(type);
     }
 
     private boolean canLoad(Type type) {
+        if (analyzer.locals == null) return false;
         boolean hasAnyLocals = analyzer.locals.stream().map(AsmTypeSupport::getType).filter(x -> x != null).count() > 0;
         boolean hasTypedLocals = (type != null) && (analyzer.locals.stream().filter(l -> type.equals(AsmTypeSupport.getType(l))).count() > 0);
         return (type == null && hasAnyLocals) || hasTypedLocals;
@@ -245,15 +272,27 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
     }
 
     private Type getStackTosType() {
+        if (analyzer.stack == null) return null;
         int stackSize = analyzer.stack.size();
+        if (stackSize == 0) return null;
+
         Object stackLastTypeObj = analyzer.stack.get(stackSize - 1);
-        return AsmTypeSupport.getType(stackLastTypeObj.equals(Opcodes.TOP) ? analyzer.stack.get(stackSize - 2) : stackLastTypeObj);
+        if (stackLastTypeObj.equals(Opcodes.TOP)) {
+            stackLastTypeObj = analyzer.stack.get(stackSize - 2);
+        }
+        // TOS is uninitialized
+        if (stackLastTypeObj instanceof Label) {
+            return null;
+        }
+        return AsmTypeSupport.getType(stackLastTypeObj);
     }
 
     private boolean canUseTOS(Type type) {
+        // getStackTosType returns null on unknown and uninitialized types, empty or null stack and such
+        boolean canUseTOS = getStackTosType() != null;
         boolean stackNotEmpty = analyzer.stack.size() > 0;
         boolean hasTypedTos = type != null && type.equals(getStackTosType());
-        return (type == null && stackNotEmpty) || hasTypedTos;
+        return canUseTOS && ((type == null && stackNotEmpty) || hasTypedTos);
     }
 
     private List<Consumer<Type>> gatherVariants(Type type) {
@@ -274,7 +313,7 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
         return res;
     }
 
-    /** Pushes a random value on TOS - either a fresh value, a loaded local variable or field */
+    /** Pushes a random value on TOS - either a fresh value, duplicate of TOS, a loaded local variable or field (+- dereferecing arrays) */
     protected final void pushValue(Type type) {
         // TODO: strict type equivalence is not necessary, subclass can also work?
         prng.pickIn(gatherVariants(type)).accept(type);

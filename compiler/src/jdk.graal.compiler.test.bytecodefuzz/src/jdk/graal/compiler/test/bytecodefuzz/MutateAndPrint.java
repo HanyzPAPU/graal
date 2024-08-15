@@ -90,6 +90,8 @@ public class MutateAndPrint {
             
             // For now select the first method
             method = methods[0];
+
+            System.err.println(method.getName());
             
             reciever = (method.getModifiers() & Modifier.STATIC) != 0 ? null : clazz.getConstructor().newInstance();
         }
@@ -104,7 +106,12 @@ public class MutateAndPrint {
             return;
         }
 
-        Object res = method.invoke(reciever);
-        System.out.println(res);
+        try {
+            Object res = method.invoke(reciever);
+            System.out.println(res);
+        }
+        catch(Throwable t) {
+            System.err.println(t.getMessage());
+        }
     }
 }
