@@ -46,34 +46,10 @@ public class InsertEscapeMutation extends AbstractMutation {
             this.prng = prng;
         }
 
-        private static Type getType(Object type) {
-            if (type instanceof Integer simple) {
-                if (simple == Opcodes.INTEGER) {
-                    return Type.INT_TYPE;
-                }
-                if (simple == Opcodes.LONG) {
-                    return Type.LONG_TYPE;
-                }
-                if (simple == Opcodes.FLOAT) {
-                    return Type.FLOAT_TYPE;
-                }
-                if (simple == Opcodes.DOUBLE) {
-                    return Type.DOUBLE_TYPE;
-                }
-                if (simple == Opcodes.NULL) {
-                    return Type.getType(Object.class);
-                }
-            }
-            if (type instanceof String typeString) {
-                return Type.getObjectType(typeString);
-            }
-            throw new RuntimeException("Unexpected type! " + type);
-        }
-
         private static String getBlackholeDesc(Object type) {
             Type argType;
             if (type instanceof Integer i) {
-                argType = getType(type);
+                argType = AsmTypeSupport.getType(type);
             }
             else {
                 argType = Type.getType(Object.class);
@@ -105,7 +81,7 @@ public class InsertEscapeMutation extends AbstractMutation {
                 wide = true;
             }
 
-            Type localType =  getType(analyzer.locals.get(localIdx));
+            Type localType = AsmTypeSupport.getType(analyzer.locals.get(localIdx));
             String blackholeDesc = getBlackholeDesc(analyzer.locals.get(localIdx));
             mv.visitIntInsn(localType.getOpcode(Opcodes.ILOAD), localIdx);
             mv.visitMethodInsn(Opcodes.INVOKESTATIC, graalDirectivesInternalClassName, blackholeMethodName, blackholeDesc, false);

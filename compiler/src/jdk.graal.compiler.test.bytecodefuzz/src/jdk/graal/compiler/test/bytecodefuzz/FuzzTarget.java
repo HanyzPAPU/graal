@@ -40,7 +40,7 @@ public class FuzzTarget extends GraalCompilerTest {
         }
         // Don't crash on reflection/loading errors
         catch (Throwable ignored) {
-            System.out.println(" [Error]");
+            System.out.println(" [Error] " + ignored);
             return;
         }
 

@@ -9,5 +9,8 @@ public class FieldHolder {
     public Object o;
     public FieldHolder fh;
     public int[] ia;
+    public float[] fa;
+    public long[] la;
+    public double[] da;
     public Object[] oa;
 }

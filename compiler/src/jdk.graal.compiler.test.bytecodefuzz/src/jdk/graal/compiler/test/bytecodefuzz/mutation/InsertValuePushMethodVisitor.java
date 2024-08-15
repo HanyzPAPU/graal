@@ -1,9 +1,14 @@
 package jdk.graal.compiler.test.bytecodefuzz.mutation;
 
+import java.util.Map;
+import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.function.Function;
+import java.util.function.Consumer;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
+import java.lang.reflect.Field;
 
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.MethodVisitor;
@@ -18,15 +23,24 @@ import jdk.graal.compiler.test.bytecodefuzz.FieldHolder;
 
 public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
 
+    // TODO: remove the targetting?
     private final int targetIindex;
     private final PseudoRandom prng;
     private final ClassNode cn;
     private final MethodNode mn;
     private final AnalyzerAdapter analyzer;
-    private final Runnable[] constantInserters;
+    private Map<Type, Runnable> freshValueInserters = null;
 
     public final static int MIN_ARRAY_SIZE = 10;
     public final static int MAX_ARRAY_SIZE = 100;
+
+    private static final Type objectType = Type.getType(Object.class);
+    private static final Type intArrayType = Type.getType(int[].class);
+    private static final Type floatArrayType = Type.getType(float[].class);
+    private static final Type longArrayType = Type.getType(long[].class);
+    private static final Type doubleArrayType = Type.getType(double[].class);
+    private static final Type objectArrayType = Type.getType(Object[].class);
+    private static final Type fieldHolderType = Type.getType(FieldHolder.class);
 
     public InsertValuePushMethodVisitor(int api, AnalyzerAdapter analyzer, int targetIindex, PseudoRandom prng, ClassNode cn, MethodNode mn) {
         super(api, analyzer);
@@ -35,23 +49,56 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
         this.cn = cn;
         this.mn = mn;
         this.analyzer = analyzer;
-        this.constantInserters = new Runnable[] {
-            () -> {this.mv.visitLdcInsn(this.prng.closedRange(Integer.MIN_VALUE, Integer.MAX_VALUE)); afterPush(Type.INT_TYPE);}, // INT
-            () -> {this.mv.visitLdcInsn(this.prng.nextLong()); afterPush(Type.LONG_TYPE);}, // LONG
-            () -> {this.mv.visitLdcInsn(this.prng.closedRange(Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY)); afterPush(Type.FLOAT_TYPE);}, // FLOAT
-            () -> {this.mv.visitLdcInsn(this.prng.closedRange(Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY)); afterPush(Type.DOUBLE_TYPE);} // DOUBLE
-            // TODO: generate new object, new array, new String and new FieldHolder!
-        };
+    }
+
+    private void newObj() {
+        this.mv.visitTypeInsn(Opcodes.NEW, objectType.getInternalName());
+        this.mv.visitInsn(Opcodes.DUP);
+        this.mv.visitMethodInsn(Opcodes.INVOKESPECIAL, objectType.getInternalName(), "<init>", Type.getMethodDescriptor(Type.VOID_TYPE), false);
+        afterPush(objectType);
+    }
+
+    private void newArray(Type type) {
+        int length = prng.closedRange(MIN_ARRAY_SIZE, MAX_ARRAY_SIZE);
+        this.mv.visitIntInsn(Opcodes.BIPUSH, length);
+        this.mv.visitTypeInsn(Opcodes.ANEWARRAY, type.getInternalName());
+        afterPush(type);
+    }
+
+    private void newFieldHolder() {
+        this.mv.visitTypeInsn(Opcodes.NEW, fieldHolderType.getInternalName());
+        this.mv.visitInsn(Opcodes.DUP);
+        mv.visitMethodInsn(Opcodes.INVOKESPECIAL, fieldHolderType.getInternalName(), "<init>", Type.getMethodDescriptor(Type.VOID_TYPE), false);
+        afterPush(fieldHolderType);
+    }
+
+    private Map<Type, Runnable> getFreshValueInserters() {
+        if (freshValueInserters == null) {
+            Map<Type, Runnable> map = new HashMap<>();
+            map.put(Type.INT_TYPE, () -> {this.mv.visitLdcInsn(this.prng.closedRange(Integer.MIN_VALUE, Integer.MAX_VALUE)); afterPush(Type.INT_TYPE);});
+            map.put(Type.LONG_TYPE, () -> {this.mv.visitLdcInsn(this.prng.nextLong()); afterPush(Type.LONG_TYPE);});
+            map.put(Type.FLOAT_TYPE, () -> {this.mv.visitLdcInsn(this.prng.closedRange(Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY)); afterPush(Type.FLOAT_TYPE);});
+            map.put(Type.DOUBLE_TYPE, () -> {this.mv.visitLdcInsn(this.prng.closedRange(Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY)); afterPush(Type.DOUBLE_TYPE);});
+            map.put(objectType, this::newObj);
+            map.put(intArrayType, () -> newArray(intArrayType));
+            map.put(floatArrayType, () -> newArray(floatArrayType));
+            map.put(longArrayType, () -> newArray(longArrayType));
+            map.put(doubleArrayType, () -> newArray(doubleArrayType));
+            map.put(objectArrayType, () -> newArray(objectArrayType));
+            map.put(fieldHolderType, this::newFieldHolder);
+            freshValueInserters = map;
+        }
+        return freshValueInserters;
     }
 
     // called after the Push, with the type of the pushed value
     protected abstract void afterPush(Type type);
 
     private Type tryInsertFieldHolderDeref() {
-        if (prng.choice()) return Type.getType(FieldHolder.class); // 50 % chance to not deref
-        
+        if (prng.choice()) return fieldHolderType; // 50 % chance to not deref
+
         Field field = prng.pickIn(FieldHolder.class.getFields());
-        mv.visitFieldInsn(Opcodes.GETFIELD, Type.getInternalName(FieldHodler.class), field.getName(), Type.getDescriptor(field.getType()));
+        mv.visitFieldInsn(Opcodes.GETFIELD, Type.getInternalName(FieldHolder.class), field.getName(), Type.getDescriptor(field.getType()));
         return tryInsertDeref(Type.getType(field.getType()));
     }
 
@@ -61,14 +108,13 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
         // Try to minimize null deref by always dereferencing indices valid in inserted arrays
         int index = prng.indexIn(MIN_ARRAY_SIZE);
         mv.visitIntInsn(Opcodes.BIPUSH, index);
-        mv.visitInsn(type.getOpcode(Opcodes.IALOAD));
-        return tryInsertDeref(type.getElementType());
+        Type elementType = type.getElementType();
+        mv.visitInsn(elementType.getOpcode(Opcodes.IALOAD));
+        return tryInsertDeref(elementType);
     }
 
     private Type tryInsertDeref(Type type) {
-        // TODO: FieldHolder and arrays -> possible to add load/getfield from them (which we can, but do not have to do)
-        // We can even try to do recursion here XD
-        if(type.equals(Type.getType(FieldHolder.class))) {
+        if(type.equals(fieldHolderType)) {
             return tryInsertFieldHolderDeref();
         }
         if (type.getSort() == Type.ARRAY) {
@@ -77,60 +123,54 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
         return type;
     }
 
-    private void insertLDC() {
-        prng.pickIn(constantInserters).run();        
-    }
-
-    private void insertLoad() {
-        int localIdx = prng.indexIn(analyzer.locals);
-        if (analyzer.locals.get(localIdx) == Opcodes.TOP && localIdx > 0) {
-            localIdx--;
-        }
-
-        Object typeObj = analyzer.locals.get(localIdx);
-
-        if (typeObj instanceof String s) {
-            this.mv.visitVarInsn(Opcodes.ALOAD, localIdx);
-            afterPush(tryInsertDeref(Type.getObjectType(s)));
-        }
-        else if (typeObj instanceof Integer type) {
-            if (type == Opcodes.INTEGER) {
-                this.mv.visitVarInsn(Opcodes.ILOAD, localIdx);
-                afterPush(Type.INT_TYPE);
-            }
-            else if (type == Opcodes.FLOAT) {
-                this.mv.visitVarInsn(Opcodes.FLOAD, localIdx);
-                afterPush(Type.FLOAT_TYPE);
-            }
-            else if (type == Opcodes.LONG) {
-                this.mv.visitVarInsn(Opcodes.LLOAD, localIdx);
-                afterPush(Type.LONG_TYPE);
-            }
-            else if (type == Opcodes.DOUBLE) {
-                this.mv.visitVarInsn(Opcodes.DLOAD, localIdx);
-                afterPush(Type.DOUBLE_TYPE);
-            }
-            else if (type == Opcodes.NULL) {
-                this.mv.visitInsn(Opcodes.ACONST_NULL);
-                afterPush(Type.getType(Object.class));
-            }
-            else {
-                // TODO: remove throw
-                System.err.println("Selected local var with unimplemented type! " + analyzer.locals.get(localIdx));
-                throw new RuntimeException("Selected local var with unimplemented type! " + analyzer.locals.get(localIdx));
-            }
+    /** Fresh is either a constant for primitive types or a new value for reference types */
+    private void insertFresh(Type type) {
+        if (type == null) {
+            prng.pickIn(new ArrayList<Runnable>(getFreshValueInserters().values())).run();        
         }
         else {
-            System.err.println("Selected local var with unimplemented type! " + analyzer.locals.get(localIdx));
-            throw new RuntimeException("Selected local var with unimplemented type! " + analyzer.locals.get(localIdx));
+            getFreshValueInserters().get(type).run();
         }
     }
 
-    private void insertGetField() {
+    private void insertLoad(Type type) {
+        int localIdx = -1;
+        Type selectedType = type;
+        if (selectedType == null) {
+            List<Integer> validIndices = IntStream
+                .range(0, analyzer.locals.size())
+                .filter(i -> AsmTypeSupport.getType(analyzer.locals.get(i)) != null)
+                .boxed()
+                .collect(Collectors.toList());
+            localIdx = prng.pickIn(validIndices);
+            selectedType = AsmTypeSupport.getType(analyzer.locals.get(localIdx));
+        }
+        else {
+            List<Integer> validIndices = IntStream
+                .range(0, analyzer.locals.size())
+                .filter(i -> type.equals(AsmTypeSupport.getType(analyzer.locals.get(i))))
+                .boxed()
+                .collect(Collectors.toList());
+            assert(validIndices.size() > 0);
+            localIdx = prng.pickIn(validIndices);
+            assert(type.equals(AsmTypeSupport.getType(analyzer.locals.get(localIdx))));
+        }
+
+        this.mv.visitVarInsn(selectedType.getOpcode(Opcodes.ILOAD), localIdx);
+        afterPush(selectedType);
+    }
+
+    private void insertGetField(Type type) {
         List<FieldNode> fields = cn.fields;
+
         if ((mn.access & Opcodes.ACC_STATIC) != 0) {
             fields = fields.stream().filter(f -> (f.access & Opcodes.ACC_STATIC) != 0).collect(Collectors.toList());
         }
+
+        if (type != null) {
+            fields = fields.stream().filter(f -> Type.getType(f.desc).equals(type)).collect(Collectors.toList());
+        }
+
         FieldNode fn = prng.pickIn(fields);
 
         if ((fn.access & Opcodes.ACC_STATIC) != 0) {
@@ -143,26 +183,50 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
         afterPush(tryInsertDeref(Type.getType(fn.desc)));
     }
 
-    private List<Runnable> gatherVariants() {
-        List<Runnable> res = new ArrayList<>();
-        res.add(this::insertLDC);
-        if (analyzer.locals.size() > 0) {
+    private boolean canGenerateFresh(Type type) {
+        return type == null || getFreshValueInserters().containsKey(type);
+    }
+
+    private boolean canLoad(Type type) {
+        boolean hasAnyLocals = analyzer.locals.stream().map(AsmTypeSupport::getType).filter(x -> x != null).count() > 0;
+        boolean hasTypedLocals = (type != null) && (analyzer.locals.stream().filter(l -> type.equals(AsmTypeSupport.getType(l))).count() > 0);
+        return (type == null && hasAnyLocals) || hasTypedLocals;
+    }
+
+    private boolean canGetField(Type type) {
+        boolean hasAnyFields = cn.fields.size() > 0;
+        boolean hasTypedFields = (type != null) && (cn.fields.stream().filter(f -> type.equals(Type.getType(f.desc))).count() > 0);
+        return (type == null && hasAnyFields) || hasTypedFields;
+    }
+
+    private List<Consumer<Type>> gatherVariants(Type type) {
+        List<Consumer<Type>> res = new ArrayList<>();
+        if (canGenerateFresh(type)) {
+            res.add(this::insertFresh);
+        }
+        if (canLoad(type)) {
             res.add(this::insertLoad);
         }
-        if (cn.fields.size() > 0) {
+        if (canGetField(type)) {
             res.add(this::insertGetField);
         }
+        assert(!res.isEmpty());
         return res;
     }
 
-    private void insertDeadCode() {
-        prng.pickIn(gatherVariants()).run();
+    /** Pushes a random value on TOS - either a fresh value, a loaded local variable or field */
+    protected final void pushValue(Type type) {
+        prng.pickIn(gatherVariants(type)).accept(type);
+    }
+
+    protected final void pushValue() {
+        pushValue(null);
     }
 
     @Override
     public void visitInstruction() {
         if (iindex() == targetIindex) {
-            insertDeadCode();
+            pushValue();
         }
     }
 }
