@@ -23,25 +23,17 @@ import jdk.graal.compiler.test.bytecodefuzz.FieldHolder;
 
 public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
 
-    // TODO: remove the targetting?
-    private final int targetIindex;
-    private final PseudoRandom prng;
-    private final ClassNode cn;
-    private final MethodNode mn;
-    private final AnalyzerAdapter analyzer;
+    protected final int targetIindex;
+    protected final PseudoRandom prng;
+    protected final ClassNode cn;
+    protected final MethodNode mn;
+    protected final AnalyzerAdapter analyzer;
     private Map<Type, Runnable> freshValueInserters = null;
 
     public final static int MIN_ARRAY_SIZE = 10;
     public final static int MAX_ARRAY_SIZE = 100;
 
-    private static final Type objectType = Type.getType(Object.class);
-    private static final Type intArrayType = Type.getType(int[].class);
-    private static final Type floatArrayType = Type.getType(float[].class);
-    private static final Type longArrayType = Type.getType(long[].class);
-    private static final Type doubleArrayType = Type.getType(double[].class);
-    private static final Type objectArrayType = Type.getType(Object[].class);
-    private static final Type fieldHolderType = Type.getType(FieldHolder.class);
-
+    
     public InsertValuePushMethodVisitor(int api, AnalyzerAdapter analyzer, int targetIindex, PseudoRandom prng, ClassNode cn, MethodNode mn) {
         super(api, analyzer);
         this.targetIindex = targetIindex;
@@ -52,10 +44,10 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
     }
 
     private void newObj() {
-        this.mv.visitTypeInsn(Opcodes.NEW, objectType.getInternalName());
+        this.mv.visitTypeInsn(Opcodes.NEW, AsmTypeSupport.objectType.getInternalName());
         this.mv.visitInsn(Opcodes.DUP);
-        this.mv.visitMethodInsn(Opcodes.INVOKESPECIAL, objectType.getInternalName(), "<init>", Type.getMethodDescriptor(Type.VOID_TYPE), false);
-        afterPush(objectType);
+        this.mv.visitMethodInsn(Opcodes.INVOKESPECIAL, AsmTypeSupport.objectType.getInternalName(), "<init>", Type.getMethodDescriptor(Type.VOID_TYPE), false);
+        afterPush(AsmTypeSupport.objectType);
     }
 
     private void newArray(Type type) {
@@ -66,10 +58,10 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
     }
 
     private void newFieldHolder() {
-        this.mv.visitTypeInsn(Opcodes.NEW, fieldHolderType.getInternalName());
+        this.mv.visitTypeInsn(Opcodes.NEW, AsmTypeSupport.fieldHolderType.getInternalName());
         this.mv.visitInsn(Opcodes.DUP);
-        mv.visitMethodInsn(Opcodes.INVOKESPECIAL, fieldHolderType.getInternalName(), "<init>", Type.getMethodDescriptor(Type.VOID_TYPE), false);
-        afterPush(fieldHolderType);
+        mv.visitMethodInsn(Opcodes.INVOKESPECIAL, AsmTypeSupport.fieldHolderType.getInternalName(), "<init>", Type.getMethodDescriptor(Type.VOID_TYPE), false);
+        afterPush(AsmTypeSupport.fieldHolderType);
     }
 
     private Map<Type, Runnable> getFreshValueInserters() {
@@ -79,13 +71,13 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
             map.put(Type.LONG_TYPE, () -> {this.mv.visitLdcInsn(this.prng.nextLong()); afterPush(Type.LONG_TYPE);});
             map.put(Type.FLOAT_TYPE, () -> {this.mv.visitLdcInsn(this.prng.closedRange(Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY)); afterPush(Type.FLOAT_TYPE);});
             map.put(Type.DOUBLE_TYPE, () -> {this.mv.visitLdcInsn(this.prng.closedRange(Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY)); afterPush(Type.DOUBLE_TYPE);});
-            map.put(objectType, this::newObj);
-            map.put(intArrayType, () -> newArray(intArrayType));
-            map.put(floatArrayType, () -> newArray(floatArrayType));
-            map.put(longArrayType, () -> newArray(longArrayType));
-            map.put(doubleArrayType, () -> newArray(doubleArrayType));
-            map.put(objectArrayType, () -> newArray(objectArrayType));
-            map.put(fieldHolderType, this::newFieldHolder);
+            map.put(AsmTypeSupport.objectType, this::newObj);
+            map.put(AsmTypeSupport.intArrayType, () -> newArray(AsmTypeSupport.intArrayType));
+            map.put(AsmTypeSupport.floatArrayType, () -> newArray(AsmTypeSupport.floatArrayType));
+            map.put(AsmTypeSupport.longArrayType, () -> newArray(AsmTypeSupport.longArrayType));
+            map.put(AsmTypeSupport.doubleArrayType, () -> newArray(AsmTypeSupport.doubleArrayType));
+            map.put(AsmTypeSupport.objectArrayType, () -> newArray(AsmTypeSupport.objectArrayType));
+            map.put(AsmTypeSupport.fieldHolderType, this::newFieldHolder);
             freshValueInserters = map;
         }
         return freshValueInserters;
@@ -95,7 +87,7 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
     protected abstract void afterPush(Type type);
 
     private Type tryInsertFieldHolderDeref() {
-        if (prng.choice()) return fieldHolderType; // 50 % chance to not deref
+        if (prng.choice()) return AsmTypeSupport.fieldHolderType; // 50 % chance to not deref
 
         Field field = prng.pickIn(FieldHolder.class.getFields());
         mv.visitFieldInsn(Opcodes.GETFIELD, Type.getInternalName(FieldHolder.class), field.getName(), Type.getDescriptor(field.getType()));
@@ -114,7 +106,7 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
     }
 
     private Type tryInsertDeref(Type type) {
-        if(type.equals(fieldHolderType)) {
+        if(type.equals(AsmTypeSupport.fieldHolderType)) {
             return tryInsertFieldHolderDeref();
         }
         if (type.getSort() == Type.ARRAY) {
