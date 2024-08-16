@@ -56,6 +56,7 @@ public final class AsmTypeSupport {
     }
 
     public static boolean isSubarrayTypeOf(Type superArrayType, Type subArrayType) {
+        if (subArrayType.getSort() != Type.ARRAY) return false;
         return superArrayType.getElementType().equals(subArrayType.getElementType()) && superArrayType.getDimensions() > subArrayType.getDimensions();
     }
 

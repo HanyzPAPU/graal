@@ -21,10 +21,11 @@ public final class Mutator {
             // new ConstantMutation(),
             // new InsertNeutralArithmeticMutation(),
             // new SplitConstantMutation(),
-            new InsertDeadCodeMutation(),
-            new InsertLocalVariableMutation()
+            // new InsertDeadCodeMutation(),
+            // new InsertLocalVariableMutation()
             // new InsertSwapMutation(),
-            // new InsertEscapeMutation()
+            // new InsertEscapeMutation(),
+            new InsertWriteMutation()
         );
     }
 
