@@ -67,14 +67,8 @@ public class InsertWriteMutation extends AbstractMutation {
 
                 private void insertPutField(String owner, String fieldName, boolean staticField) {
                     // precondition: object ref on TOS if not static
-
-                    if (!staticField) {
-                        this.mv.visitVarInsn(Opcodes.ALOAD, 0); // this
-                    }
-
                     assert(selectedType != null);
                     pushValue(selectedType);
-                    
                     this.mv.visitFieldInsn(
                         staticField ? Opcodes.PUTSTATIC : Opcodes.PUTFIELD,
                         owner,
@@ -83,11 +77,24 @@ public class InsertWriteMutation extends AbstractMutation {
                     );
                 }
 
-                private void insertToTos() {
-                    // FieldHolder or array on TOS
-                    // insert XASTORE or a PUT{STATIC|FIELD}
+                private void insertWriteToTosVal() {
+                    // FieldHolder or array on TOS without derefs
 
+                    Type tosType = getStackTosType();
+                    assert(tosType != null);
 
+                    if (tosType.getSort() == Type.ARRAY) {
+                        insertArrayStore(tosType);
+                    }
+                    else if (tosType.equals(AsmTypeSupport.fieldHolderType)) {
+                        Type fieldType = prng.pickIn(AsmTypeSupport.fieldHolderFieldTypes);
+                        String fieldName = AsmTypeSupport.fieldHolderFieldNameByType.get(fieldType);
+                        selectedType = fieldType;
+                        insertPutField(AsmTypeSupport.fieldHolderType.getInternalName(), fieldName, false);
+                    }
+                    else {
+                        throw new RuntimeException("Unsupported type on TOS! " + tosType);
+                    }
                 }
 
                 private boolean canInsertToLocal() {
@@ -96,24 +103,47 @@ public class InsertWriteMutation extends AbstractMutation {
                         .anyMatch(x -> x != null);
                 }
 
+                // Recursively dereferences the value on TOS but leaves a value that can be written to on TOS
                 private void deref(Type type) {
                     // precondition type of TOS == type
-                    
-                    // if array
-                    //     push idx
-                    //     XALOAD
-                    //     if (canDeref())
-                    //        if (choice())
-                    //           deref()
-                    // 
-                    //     
-                    //     
-                    // if fieldHolder
-                    
+
+                    if (type.getSort() == Type.ARRAY) {
+                        assert(type.getDimensions() > 1);
+
+                        int index = prng.indexIn(MIN_ARRAY_SIZE);
+                        mv.visitIntInsn(Opcodes.BIPUSH, index);
+                        mv.visitInsn(Opcodes.AALOAD);
+                    }
+                    else if (type.equals(AsmTypeSupport.fieldHolderType)) {
+                        List<Type> viableFields = AsmTypeSupport.fieldHolderFieldTypes.stream()
+                            .filter(this::canWriteTo)
+                            .collect(Collectors.toList());
+                        Type fieldType = prng.pickIn(viableFields);
+                        this.mv.visitFieldInsn(
+                            Opcodes.GETFIELD,
+                            AsmTypeSupport.fieldHolderType.getInternalName(),
+                            AsmTypeSupport.fieldHolderFieldNameByType.get(fieldType),
+                            fieldType.getDescriptor()
+                        );
+                    }
+
+                    Type tosType = getStackTosType();
+                    assert(tosType != null);
+
+                    if(canDeref(tosType)) {
+                        // TODO: different prob
+                        if (prng.choice()) {
+                            deref(tosType);
+                        }
+                    }
+                }
+
+                private boolean canWriteTo(Type type) {
+                    return type.getSort() == Type.ARRAY || type.equals(AsmTypeSupport.fieldHolderType);
                 }
 
                 private boolean canDeref(Type type) {
-                    if (type.sort() == Type.ARRAY) {
+                    if (type.getSort() == Type.ARRAY) {
                         return type.getDimensions() > 1 || type.getElementType().equals(AsmTypeSupport.fieldHolderType);
                     }
                     return type.equals(AsmTypeSupport.fieldHolderType);
@@ -132,7 +162,8 @@ public class InsertWriteMutation extends AbstractMutation {
                         if (prng.choice()) {
                             this.mv.visitVarInsn(selectedType.getOpcode(Opcodes.ILOAD), locVar);
                             deref(selectedType);
-                            insertToTos();   
+                            insertWriteToTosVal();   
+                            return;
                         }
                     }
                     insertStore(locVar);
@@ -151,7 +182,6 @@ public class InsertWriteMutation extends AbstractMutation {
                 }
 
                 private void insertToField() {
-
                     List<FieldNode> possibleFields = cn.fields.stream()
                         .filter(f -> {
                             if (isStatic) {
@@ -163,48 +193,85 @@ public class InsertWriteMutation extends AbstractMutation {
                         .collect(Collectors.toList());
 
                     FieldNode fn = prng.pickIn(possibleFields);
+                    boolean staticField = (fn.access & Opcodes.ACC_STATIC) != 0;
                     
                     selectedType = Type.getType(fn.desc);
 
                     if (canDeref(selectedType)) {
                         // TODO: different prob
                         if (prng.choice()) {
-                            // TODO: get{static|field}
+                            if (!staticField) {
+                                this.mv.visitVarInsn(Opcodes.ALOAD, 0);        
+                            }
+                            this.mv.visitFieldInsn(
+                                staticField ? Opcodes.GETSTATIC : Opcodes.GETFIELD,
+                                cn.name,
+                                fn.name,
+                                fn.desc
+                            );
                             deref(selectedType);
-                            insertToTos();
+                            insertWriteToTosVal();
+                            return;
                         }
                     }
-                    
-                    insertPutField(cn.name, fn.name, (fn.access & Opcodes.ACC_STATIC) != 0);
+
+                    if (!staticField) {
+                        this.mv.visitVarInsn(Opcodes.ALOAD, 0);
+                    }
+                    insertPutField(cn.name, fn.name, staticField);
+                }
+
+                private boolean canWriteToTos() {
+                    return getStackTosType() != null;                    
+                }
+
+                private void writeToTos() {
+                    Type tosType = getStackTosType();
+                    assert(tosType != null);
+
+                    if (canWriteTo(tosType)) {
+                        // TODO: prob
+                        if (prng.choice()) {
+                            if (canDeref(tosType)) {
+                                // TODO: prob
+                                if (prng.choice()) {
+                                    deref(tosType);
+                                }
+                            }
+                            insertWriteToTosVal();
+                            return;
+                        }
+                    }
+
+                    // POP
+                    if (tosType.equals(Type.LONG_TYPE) || tosType.equals(Type.DOUBLE_TYPE)) {
+                        this.mv.visitInsn(Opcodes.POP2);
+                    }
+                    else {
+                        this.mv.visitInsn(Opcodes.POP);
+                    }
+                    selectedType = tosType;
+                    pushValue(tosType);
+                }
+
+                private List<Runnable> gatherVariants() {
+                    List<Runnable> res = new ArrayList<>();
+                    if (canWriteToTos()) {
+                        res.add(this::writeToTos);
+                    }
+                    if (canInsertToLocal()) {
+                        res.add(this::insertToLocal);
+                    }
+                    if (canInsertToField()) {
+                        res.add(this::insertToField);
+                    }
+                    assert(res.size() > 0);
+                    return res;
                 }
 
                 private void insertWrite() {
-
-                    boolean localPossible = canInsertToLocal();
-                    boolean fieldPossible = canInsertToField();
-
-                    if (localPossible && fieldPossible) {
-                        if (prng.choice()) {
-                            insertToLocal();
-                        }
-                        else {
-                            insertToField();
-                        }
-                        return;
-                    }
-
-                    if (localPossible) {
-                        insertToLocal();
-                    }
-                    else if (fieldPossible) {
-                        insertToField();
-                    }
-                    else {
-                        throw new RuntimeException("No existing locals or fields to write to!");
-                    }
+                    prng.pickIn(gatherVariants()).run();                    
                 }
-
-                // TODO: insert write to TOS with random arithmetic or pop load?
 
                 @Override
                 public void visitInstruction() {

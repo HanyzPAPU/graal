@@ -241,7 +241,7 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
             .count() > 0;
     }
 
-    private Type getStackTosType() {
+    protected Type getStackTosType() {
         if (analyzer.stack == null) return null;
         int stackSize = analyzer.stack.size();
         if (stackSize == 0) return null;
