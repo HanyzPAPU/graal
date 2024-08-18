@@ -223,19 +223,19 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
         afterPush(tryInsertDeref(getStackTosType(), type));
     }
 
-    private boolean canGenerateFresh(Type type) {
+    protected boolean canGenerateFresh(Type type) {
         return getFreshValueInserters().keySet().stream()
             .filter(ft -> AsmTypeSupport.canBeDereferencedTo(ft, type))
             .count() > 0;
     }
 
-    private boolean canLoad(Type type) {
+    protected boolean canLoad(Type type) {
         return analyzer.locals.stream()
             .filter(l -> AsmTypeSupport.canBeDereferencedTo(AsmTypeSupport.getType(l), type))
             .count() > 0;
     }
 
-    private boolean canGetField(Type type) {
+    protected boolean canGetField(Type type) {
         return cn.fields.stream()
             .filter(f -> AsmTypeSupport.canBeDereferencedTo(Type.getType(f.desc), type))
             .count() > 0;

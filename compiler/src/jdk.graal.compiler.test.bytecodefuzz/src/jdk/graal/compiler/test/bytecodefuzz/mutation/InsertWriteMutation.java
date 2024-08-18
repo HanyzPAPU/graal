@@ -82,7 +82,7 @@ public class InsertWriteMutation extends AbstractMutation {
 
                     Type tosType = getStackTosType();
                     assert(tosType != null);
-
+                    
                     if (tosType.getSort() == Type.ARRAY) {
                         insertArrayStore(tosType);
                     }
@@ -222,7 +222,12 @@ public class InsertWriteMutation extends AbstractMutation {
                 }
 
                 private boolean canWriteToTos() {
-                    return getStackTosType() != null;                    
+                    Type tosType = getStackTosType();
+                    if (tosType == null) return false;
+                    // Since tos write can generate a POP, we can lose the only value of the TOS type
+                    // by popping it, so check first if we can find it at any other place.
+                    // TODO: Technically, if the 2nd stack value would be of the same type, this would be fine
+                    return  canGenerateFresh(tosType) || canLoad(tosType) || canGetField(tosType);
                 }
 
                 private void writeToTos() {
@@ -232,6 +237,10 @@ public class InsertWriteMutation extends AbstractMutation {
                     if (canWriteTo(tosType)) {
                         // TODO: prob
                         if (prng.choice()) {
+
+                            // We will use up the value at TOS by the inserted write, so DUP it
+                            mv.visitInsn(Opcodes.DUP);
+
                             if (canDeref(tosType)) {
                                 // TODO: prob
                                 if (prng.choice()) {
