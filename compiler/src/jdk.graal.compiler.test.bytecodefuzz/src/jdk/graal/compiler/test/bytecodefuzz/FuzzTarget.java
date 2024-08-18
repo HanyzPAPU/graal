@@ -8,18 +8,13 @@ import java.util.Arrays;
 
 public class FuzzTarget extends GraalCompilerTest {
 
-    void testBytecode(byte[] bytes) throws Exception {
+    private class TestExecution {
+        String methodName = null;
 
-        // For now, method name is fixed, but it could be easily extracted by reflection
-        
-        ResolvedJavaMethod method;
-        Object reciever;
-        ByteClassLoader loader = new ByteClassLoader();
-
-        try {
-            Class<?> clazz = loader.LoadFromBytes(null, bytes);
-
-            System.out.print(clazz.getName());
+        private ResolvedJavaMethod getMethod(Class<?> clazz) throws Exception {
+            if (methodName != null) {
+                return FuzzTarget.this.asResolvedJavaMethod(clazz.getMethod(methodName));
+            }
 
             Method[] methods = clazz.getMethods();
             if (methods.length == 0) {
@@ -35,25 +30,51 @@ public class FuzzTarget extends GraalCompilerTest {
                 .findFirst()
                 .get();
 
-            method = asResolvedJavaMethod(chosenMethod);
-            reciever = method.isStatic() ? null : clazz.getConstructor().newInstance();
-        }
-        // Don't crash on reflection/loading errors
-        catch (Throwable ignored) {
-            System.out.println(" [Error] " + ignored);
-            return;
+            methodName = chosenMethod.getName();
+            return FuzzTarget.this.asResolvedJavaMethod(chosenMethod);
         }
 
-        try {
-            test(method, reciever);
+        private Object getReceiver(ResolvedJavaMethod method, Class<?> clazz) throws Exception {
+            return method.isStatic() ? null : clazz.getConstructor().newInstance();
         }
-        // Don't crash on errors in <clinit>
-        catch(java.lang.ExceptionInInitializerError ignored) {
-            System.out.println(" [Error in initializer!]");
-            return;
+
+        private Result executeExpected(byte[] bytes) {
+            try {
+                ByteClassLoader loader = new ByteClassLoader();
+                Class<?> clazz = loader.LoadFromBytes(null, bytes);
+                System.err.print(clazz.getName());
+                ResolvedJavaMethod method = getMethod(clazz);
+                Object receiver = getReceiver(method, clazz);
+                return FuzzTarget.this.executeExpected(method, receiver);
+            }
+            catch (Throwable e) {
+                // If class loading or reference interpreter fail, do not continue
+                System.err.println("[ERROR] " + e);
+                return null;
+            }
         }
-        
-        System.out.println(" [Done]");
+
+        private void testAgainstExpected(byte[] bytes, Result expect) throws Exception {
+            ByteClassLoader loader = new ByteClassLoader();
+            Class<?> clazz = loader.LoadFromBytes(null, bytes);
+            loader.ResolveClass(clazz);
+            ResolvedJavaMethod method = getMethod(clazz);
+            Object receiver = getReceiver(method, clazz);
+            FuzzTarget.this.testAgainstExpected(getInitialOptions(), method, expect, receiver);
+            System.err.println("[DONE]");
+        }
+
+        Result test(byte[] bytes) throws Exception {
+            Result expect = executeExpected(bytes);
+            if (expect != null && getCodeCache() != null) {
+                testAgainstExpected(bytes, expect);
+            }
+            return expect;
+        }
+    }
+
+    void testBytecode(byte[] bytes) throws Exception {
+        new TestExecution().test(bytes);
     }
 
     static FuzzTarget instance;
