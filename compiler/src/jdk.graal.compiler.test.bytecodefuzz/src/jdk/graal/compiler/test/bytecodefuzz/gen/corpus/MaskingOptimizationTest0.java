@@ -6,7 +6,7 @@ import org.junit.Test;
 public class MaskingOptimizationTest0 {
     public static int x = 42;
 
-    int shiftAndMask1()  {
+    public int shiftAndMask1()  {
         return (x << 2) & 3; // reduces to return 0
     }
 }

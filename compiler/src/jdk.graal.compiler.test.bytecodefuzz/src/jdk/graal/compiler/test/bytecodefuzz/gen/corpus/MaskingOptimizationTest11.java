@@ -7,7 +7,7 @@ public class MaskingOptimizationTest11 {
     public static int x = 42;
     public static int y = 35;
 
-    boolean shiftAndMaskCompare3()  {
+    public boolean shiftAndMaskCompare3()  {
         return ((y + (x << 2)) & 3) == 0; // reduces to return y & 3 == 0
     }
 }

@@ -6,7 +6,7 @@ import org.junit.Test;
 public class MaskingOptimizationTest20 {
     public static long r = 0L;
 
-    long addAndMaskCarry()  {
+    public long addAndMaskCarry()  {
         long r2 = r;
         for (int x = 3; x > 1; x--) {
             for (int y = 1; 2 > y; y++) {

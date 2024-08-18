@@ -5,7 +5,7 @@ public class SubCanonicalizationTest5 {
     public static long a = 0L;
     public static long b = 0xFFFFFFFFFFFFFFFFL;
 
-    static long snippet1()  {
+    public static long snippet1()  {
         return (a | b) - (a ^ b);
     }
 }

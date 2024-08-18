@@ -20,7 +20,7 @@ import jdk.vm.ci.code.InvalidInstalledCodeException;
 public class OptimizedBoxNodeTest0 {
     
 
-    static int testPEASnippet()  {
+    public static int testPEASnippet()  {
         if (Integer.valueOf(1024) == Integer.valueOf(1024)) {
             return 0;
         }

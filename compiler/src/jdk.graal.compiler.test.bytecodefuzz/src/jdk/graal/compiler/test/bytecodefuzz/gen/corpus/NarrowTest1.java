@@ -5,7 +5,7 @@ import org.junit.Test;
 public class NarrowTest1 {
     public static long l0 = 50400L;
 
-    static boolean snippet1()  {
+    public static boolean snippet1()  {
         if ((char) ((byte) l0) >= Character.MAX_VALUE) {
             return true;
         }

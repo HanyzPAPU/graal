@@ -4,7 +4,7 @@ import org.junit.Test;
 public class NarrowTest0 {
     public static char c0 = (char) 0;
 
-    static boolean snippet0()  {
+    public static boolean snippet0()  {
         return -2 > (byte) ((byte) c0 / (byte) 2134864769);
     }
 }

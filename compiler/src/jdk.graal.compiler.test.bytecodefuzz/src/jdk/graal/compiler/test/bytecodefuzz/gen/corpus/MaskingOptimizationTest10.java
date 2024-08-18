@@ -6,7 +6,7 @@ import org.junit.Test;
 public class MaskingOptimizationTest10 {
     public static long x = 42L;
 
-    boolean shiftAndMaskCompare2()  {
+    public boolean shiftAndMaskCompare2()  {
         return ((x << 2) & 3) == 0; // reduces to return true
     }
 }

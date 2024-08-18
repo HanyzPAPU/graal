@@ -4,7 +4,7 @@ public class OptimizeExtendsTest2 {
     public static short[] value = new short[]{1};
     public static int sumKind = 2;
 
-    long testSnippet3()  {
+    public long testSnippet3()  {
         long result = 0;
         short op = value[0];
         switch (sumKind) {

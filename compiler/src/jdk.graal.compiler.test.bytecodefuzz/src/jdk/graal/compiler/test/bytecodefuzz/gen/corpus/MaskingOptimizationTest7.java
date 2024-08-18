@@ -7,7 +7,7 @@ public class MaskingOptimizationTest7 {
     public static int x = 42;
     public static int y = 35;
 
-    long shiftAndMask8()  {
+    public long shiftAndMask8()  {
         return (y + (x << 2)) & 3; // reduces to y & 3
     }
 }

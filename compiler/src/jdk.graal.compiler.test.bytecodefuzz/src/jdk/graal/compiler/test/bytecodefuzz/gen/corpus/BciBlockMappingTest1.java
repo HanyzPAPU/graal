@@ -12,7 +12,7 @@ public class BciBlockMappingTest1 {
     public static int n = 4;
     public static int increment = 1;
 
-    static int async2()  {
+    public static int async2()  {
         int x = 42;
 
         if (increment == 4) {
