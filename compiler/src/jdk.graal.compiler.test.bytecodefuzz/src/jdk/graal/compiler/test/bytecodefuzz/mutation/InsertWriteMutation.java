@@ -49,15 +49,12 @@ public class InsertWriteMutation extends AbstractMutation {
                 private void insertArrayStore(Type arrayType) {
                     // precondition: array ref on TOS
                     
-                    // TODO support multiDimentionalArrays
-
                     assert(arrayType.getSort() == Type.ARRAY);
-                    assert(arrayType.getDimensions() == 1);
 
                     int index = prng.indexIn(MIN_ARRAY_SIZE);
                     mv.visitIntInsn(Opcodes.BIPUSH, index);
 
-                    selectedType = arrayType.getElementType();
+                    selectedType = AsmTypeSupport.getDirectSubarrayType(arrayType);
                     pushValue(selectedType);
                     mv.visitInsn(selectedType.getOpcode(Opcodes.IASTORE));
                 }
@@ -86,6 +83,13 @@ public class InsertWriteMutation extends AbstractMutation {
                     );
                 }
 
+                private void insertToTos() {
+                    // FieldHolder or array on TOS
+                    // insert XASTORE or a PUT{STATIC|FIELD}
+
+
+                }
+
                 private boolean canInsertToLocal() {
                     return analyzer.locals.stream()
                         .map(AsmTypeSupport::getType)
@@ -95,11 +99,24 @@ public class InsertWriteMutation extends AbstractMutation {
                 private void deref(Type type) {
                     // precondition type of TOS == type
                     
+                    // if array
+                    //     push idx
+                    //     XALOAD
+                    //     if (canDeref())
+                    //        if (choice())
+                    //           deref()
+                    // 
+                    //     
+                    //     
+                    // if fieldHolder
+                    
                 }
 
                 private boolean canDeref(Type type) {
-                    // TODO
-                    return false;
+                    if (type.sort() == Type.ARRAY) {
+                        return type.getDimensions() > 1 || type.getElementType().equals(AsmTypeSupport.fieldHolderType);
+                    }
+                    return type.equals(AsmTypeSupport.fieldHolderType);
                 }
 
                 private void insertToLocal() {
@@ -113,8 +130,9 @@ public class InsertWriteMutation extends AbstractMutation {
                     if (canDeref(selectedType)) {
                         // TODO: different prob?
                         if (prng.choice()) {
-                            // TODO: Xload
+                            this.mv.visitVarInsn(selectedType.getOpcode(Opcodes.ILOAD), locVar);
                             deref(selectedType);
+                            insertToTos();   
                         }
                     }
                     insertStore(locVar);
@@ -153,6 +171,7 @@ public class InsertWriteMutation extends AbstractMutation {
                         if (prng.choice()) {
                             // TODO: get{static|field}
                             deref(selectedType);
+                            insertToTos();
                         }
                     }
                     
@@ -184,6 +203,8 @@ public class InsertWriteMutation extends AbstractMutation {
                         throw new RuntimeException("No existing locals or fields to write to!");
                     }
                 }
+
+                // TODO: insert write to TOS with random arithmetic or pop load?
 
                 @Override
                 public void visitInstruction() {

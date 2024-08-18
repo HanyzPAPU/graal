@@ -138,4 +138,10 @@ public final class AsmTypeSupport {
         throw new RuntimeException("Unsupported primitive array type " + arrayType);
     }
 
+    // Returns an array type with same element type and 1 less dimensions or the element type if arrayType has only 1 dimension
+    public static Type getDirectSubarrayType(Type arrayType) {
+        assert(arrayType.getSort() == Type.ARRAY);
+        // Array type descriptors always start with [
+        return Type.getType(arrayType.getDescriptor().substring(1));
+    }
 }

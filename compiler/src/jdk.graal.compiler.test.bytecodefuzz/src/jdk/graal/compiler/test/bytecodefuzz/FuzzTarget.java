@@ -59,6 +59,7 @@ public class FuzzTarget extends GraalCompilerTest {
     static FuzzTarget instance;
 
     public static void fuzzerInitialize(){
+        // TODO: don't init in reproducer
         MutatorHarness.InitMutator();
         instance = new FuzzTarget();
     }
