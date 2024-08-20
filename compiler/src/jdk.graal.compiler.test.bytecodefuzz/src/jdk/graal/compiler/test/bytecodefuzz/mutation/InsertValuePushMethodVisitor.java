@@ -89,6 +89,7 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
             map.put(AsmTypeSupport.doubleArrayType, t -> newArray(AsmTypeSupport.doubleArrayType, t));
             map.put(AsmTypeSupport.objectArrayType, t -> newArray(AsmTypeSupport.objectArrayType, t));
             map.put(AsmTypeSupport.fieldHolderType, this::newFieldHolder);
+            // TODO: String (perhaps use jazzer mutator for the random value)
             freshValueInserters = map;
         }
         return freshValueInserters;

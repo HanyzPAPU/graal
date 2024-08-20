@@ -50,7 +50,7 @@ public class MutateAndPrint {
         //System.out.println(freeSpace.amount());
         PseudoRandom prng = new SeededPseudoRandom(seed);
 
-        Mutation mut = new InsertWriteMutation();
+        Mutation mut = new InsertNeutralArithmeticMutation();
         byte[] result = mut.mutate(data, prng);
 
         //dumpBytecode(data);
@@ -92,7 +92,7 @@ public class MutateAndPrint {
             // For now select the first method
             method = methods[0];
 
-            System.err.println(method.getName());
+            System.err.println(method.getName() + "()");
             
             reciever = (method.getModifiers() & Modifier.STATIC) != 0 ? null : clazz.getConstructor().newInstance();
         }

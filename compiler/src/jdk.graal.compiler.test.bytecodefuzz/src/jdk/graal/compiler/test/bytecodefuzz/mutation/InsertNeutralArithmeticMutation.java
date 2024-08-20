@@ -97,20 +97,24 @@ public class InsertNeutralArithmeticMutation extends AbstractMutation {
         };
 
         private final Runnable[] stringVariants = new Runnable[] {
-            () -> {mv.visitLdcInsn(""); visitStringConcatCall(); },                 // tos + ""
+            () -> {mv.visitLdcInsn(""); visitStringCall("concat", String.class); }, // tos + ""
+            () -> {visitStringCall("intern"); },                                    // tos.intern()
+            () -> {visitStringCall("toString"); },                                  // tos.toString()
+            () -> {mv.visitInsn(Opcodes.ICONST_0);                                  // tos.substring(0)
+                   visitStringCall("substring", int.class);
+            }
         };
 
-        private void visitStringConcatCall() {
-            String owner =  Type.getInternalName(String.class);
-            String name = "concat";
+        private void visitStringCall(String methodName, Class<?>... args) {
+            String owner = AsmTypeSupport.stringType.getInternalName();
             String descriptor;
             try {
-                descriptor = Type.getMethodDescriptor(String.class.getMethod(name, String.class));
+                descriptor = Type.getMethodDescriptor(String.class.getMethod(methodName, args));
             }
             catch(Throwable e) {
-                throw new RuntimeException("String concat method not found!");
+                throw new RuntimeException("String method " + methodName + " not found!");
             }
-            mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, owner, name, descriptor, false);
+            mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, owner, methodName, descriptor, false);
         }
 
         private final Map<Type, Runnable[]> variants = Map.of(
