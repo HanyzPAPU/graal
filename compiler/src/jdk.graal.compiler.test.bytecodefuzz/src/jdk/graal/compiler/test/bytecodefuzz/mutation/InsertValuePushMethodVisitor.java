@@ -75,6 +75,15 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
         afterPush(tryInsertDeref(AsmTypeSupport.fieldHolderType, type));
     }
 
+    private void newRandomString(Type type) {
+        int length = prng.closedRange(MIN_ARRAY_SIZE, MAX_ARRAY_SIZE);
+        byte[] bytes = new byte[length];
+        prng.bytes(bytes);
+        String randomString = new String(bytes);
+        mv.visitLdcInsn(randomString);
+        afterPush(AsmTypeSupport.stringType);
+    }
+
     private Map<Type, Consumer<Type>> getFreshValueInserters() {
         if (freshValueInserters == null) {
             Map<Type, Consumer<Type>> map = new HashMap<>();
@@ -89,7 +98,7 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
             map.put(AsmTypeSupport.doubleArrayType, t -> newArray(AsmTypeSupport.doubleArrayType, t));
             map.put(AsmTypeSupport.objectArrayType, t -> newArray(AsmTypeSupport.objectArrayType, t));
             map.put(AsmTypeSupport.fieldHolderType, this::newFieldHolder);
-            // TODO: String (perhaps use jazzer mutator for the random value)
+            map.put(AsmTypeSupport.stringType, this::newRandomString);
             freshValueInserters = map;
         }
         return freshValueInserters;
