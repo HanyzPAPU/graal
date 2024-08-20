@@ -19,45 +19,19 @@ import com.code_intelligence.jazzer.mutation.api.PseudoRandom;
 import jdk.graal.compiler.test.bytecodefuzz.Pair;
 
 public class InsertNeutralArithmeticMutation extends AbstractMutation {
-    //                                                                               Simple type represented by 1 entry                      Complex type with 2 entries, type + top                                   String
-    public static final Pattern numberOnTosPattern = Pattern.compile("\\[(.*, )*((?<type1>" + Opcodes.INTEGER + "|" + Opcodes.FLOAT + ")|((?<type2>"+ Opcodes.LONG + "|" + Opcodes.DOUBLE + "), " + Opcodes.TOP +")|(?<string>"+ Type.getInternalName(String.class) +"))\\]");
-
-    private static final int STRING_TYPE = -1;
-
+    
     @Override
     protected Function<MethodVisitor,MethodVisitor> createMethodVisitorFactory(ClassNode cn, MethodNode mn, PseudoRandom prng) {
-        FrameMapAnalyzer frameMapAnalyzer = new FrameMapAnalyzer(Opcodes.ASM9, cn.name, mn.access, mn.name, mn.desc, false);
-        mn.accept(frameMapAnalyzer);
         
-        List<Pair<Integer, Integer>> validProgramPoints = frameMapAnalyzer.getMap().entrySet().stream()
-            .flatMap(e -> {
-                Matcher matcher = numberOnTosPattern.matcher(e.getKey());
-                if (matcher.matches()) {
-                    String type1 = matcher.group("type1");
-                    String type2 = matcher.group("type2");
-                    String stringType = matcher.group("string");
-
-                    if (stringType == null) {
-                        int type = Integer.parseInt(type1 != null ? type1 : type2);
-                        return e.getValue().stream().map(iindex -> new Pair<Integer, Integer>(type, iindex));
-                    }
-                    else {
-                        return e.getValue().stream().map(iindex -> new Pair<Integer, Integer>(STRING_TYPE, iindex));
-                    }
-                }
-                else {
-                    return Stream.empty();
-                }
-            })
-            .collect(Collectors.toList());
+        List<Pair<Integer, Type>> validProgramPoints = PrimitiveOnTosLocator.getLocations(cn, mn);
 
         if (validProgramPoints.isEmpty()) {
             throw new RuntimeException("Insert neutral arithmetic mutator selected a method without number on TOS!");
         }
 
-        Pair<Integer, Integer> typedIndex = prng.pickIn(validProgramPoints);
-        int pickedType = typedIndex.first;
-        int pickedIndex = typedIndex.second;
+        Pair<Integer, Type> typedIndex = prng.pickIn(validProgramPoints);
+        Type pickedType = typedIndex.second;
+        int pickedIndex = typedIndex.first;
 
         return mv -> new InsertNeutralOpMethodVisitor(Opcodes.ASM9, mv, pickedIndex, pickedType, prng);
     }
@@ -65,12 +39,10 @@ public class InsertNeutralArithmeticMutation extends AbstractMutation {
     private static class InsertNeutralOpMethodVisitor extends InstructionVisitor {
         
         private final int opIindex;
-        private final int type;
+        private final Type type;
         PseudoRandom prng;
 
-        // TODO: support string concat with "" ?
-
-        public InsertNeutralOpMethodVisitor(int api, MethodVisitor mv, int opIindex, int type, PseudoRandom prng) {
+        public InsertNeutralOpMethodVisitor(int api, MethodVisitor mv, int opIindex, Type type, PseudoRandom prng) {
             super(api, mv);
             this.opIindex = opIindex;
             this.prng = prng;
@@ -141,12 +113,12 @@ public class InsertNeutralArithmeticMutation extends AbstractMutation {
             mv.visitMethodInsn(Opcodes.INVOKEVIRTUAL, owner, name, descriptor, false);
         }
 
-        private final Map<Integer, Runnable[]> variants = Map.of(
-            Opcodes.INTEGER, intVariants,
-            Opcodes.FLOAT, floatVariants,
-            Opcodes.LONG, longVariants,
-            Opcodes.DOUBLE, doubleVariants,
-            STRING_TYPE, stringVariants
+        private final Map<Type, Runnable[]> variants = Map.of(
+            Type.INT_TYPE, intVariants,
+            Type.FLOAT_TYPE, floatVariants,
+            Type.LONG_TYPE, longVariants,
+            Type.DOUBLE_TYPE, doubleVariants,
+            AsmTypeSupport.stringType, stringVariants
         );
 
         private void insertOp() {

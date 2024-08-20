@@ -12,6 +12,7 @@ import jdk.graal.compiler.test.bytecodefuzz.FieldHolder;
 public final class AsmTypeSupport {
 
     public static final Type objectType = Type.getType(Object.class);
+    public static final Type stringType = Type.getType(String.class);
     
     public static final Type intArrayType = Type.getType(int[].class);
     public static final Type floatArrayType = Type.getType(float[].class);
