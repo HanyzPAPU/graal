@@ -26,7 +26,7 @@ public class InsertNeutralArithmeticMutation extends AbstractMutation {
         List<Pair<Integer, Type>> validProgramPoints = PrimitiveOnTosLocator.getLocations(cn, mn);
 
         if (validProgramPoints.isEmpty()) {
-            throw new RuntimeException("Insert neutral arithmetic mutator selected a method without number on TOS!");
+            throw new RuntimeException("Insert neutral op mutation selected a method without primitive on TOS!");
         }
 
         Pair<Integer, Type> typedIndex = prng.pickIn(validProgramPoints);
@@ -57,7 +57,7 @@ public class InsertNeutralArithmeticMutation extends AbstractMutation {
             () -> {mv.visitInsn(Opcodes.ICONST_M1); mv.visitInsn(Opcodes.IAND);},   // tos & 0xFFFFFFFF
             () -> {mv.visitInsn(Opcodes.ICONST_0); mv.visitInsn(Opcodes.IOR);},     // tos | 0
             () -> {mv.visitInsn(Opcodes.ICONST_0); mv.visitInsn(Opcodes.IXOR);},    // tos ^ 0
-            () -> {mv.visitInsn(Opcodes.INEG); mv.visitInsn(Opcodes.INEG);},        // ~(~tos)
+            () -> {mv.visitInsn(Opcodes.INEG); mv.visitInsn(Opcodes.INEG);},        // -(-tos)
             () -> {mv.visitInsn(Opcodes.ICONST_0); mv.visitInsn(Opcodes.ISHL);},    // tos << 0
             () -> {mv.visitInsn(Opcodes.ICONST_0); mv.visitInsn(Opcodes.ISHR);},    // tos >> 0
             () -> {mv.visitInsn(Opcodes.ICONST_0); mv.visitInsn(Opcodes.IUSHR);},   // tos >>> 0
@@ -81,10 +81,10 @@ public class InsertNeutralArithmeticMutation extends AbstractMutation {
             () -> {mv.visitLdcInsn(-1L); mv.visitInsn(Opcodes.LAND);},              // tos & 0xFFFFFFFFFFFFFFFF
             () -> {mv.visitInsn(Opcodes.LCONST_0); mv.visitInsn(Opcodes.LOR);},     // tos | 0
             () -> {mv.visitInsn(Opcodes.LCONST_0); mv.visitInsn(Opcodes.LXOR);},    // tos ^ 0
-            () -> {mv.visitInsn(Opcodes.LNEG); mv.visitInsn(Opcodes.LNEG);},        // ~(~tos)
-            () -> {mv.visitInsn(Opcodes.LCONST_0); mv.visitInsn(Opcodes.LSHL);},    // tos << 0
-            () -> {mv.visitInsn(Opcodes.LCONST_0); mv.visitInsn(Opcodes.LSHR);},    // tos >> 0
-            () -> {mv.visitInsn(Opcodes.LCONST_0); mv.visitInsn(Opcodes.LUSHR);},   // tos >>> 0
+            () -> {mv.visitInsn(Opcodes.LNEG); mv.visitInsn(Opcodes.LNEG);},        // -(-tos)
+            () -> {mv.visitInsn(Opcodes.ICONST_0); mv.visitInsn(Opcodes.LSHL);},    // tos << 0
+            () -> {mv.visitInsn(Opcodes.ICONST_0); mv.visitInsn(Opcodes.LSHR);},    // tos >> 0
+            () -> {mv.visitInsn(Opcodes.ICONST_0); mv.visitInsn(Opcodes.LUSHR);},   // tos >>> 0
         };
         private final Runnable[] doubleVariants = new Runnable[] {
             () -> {mv.visitInsn(Opcodes.DCONST_0); mv.visitInsn(Opcodes.DADD);},    // tos + 0.0
