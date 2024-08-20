@@ -20,7 +20,7 @@ import jdk.graal.compiler.test.bytecodefuzz.Pair;
 
 public class InsertNeutralArithmeticMutation extends AbstractMutation {
     //                                                                               Simple type represented by 1 entry                      Complex type with 2 entries, type + top                                   String
-    private static final Pattern numberOnTosPattern = Pattern.compile("\\[(.*, )*((?<type1>" + Opcodes.INTEGER + "|" + Opcodes.FLOAT + ")|((?<type2>"+ Opcodes.LONG + "|" + Opcodes.DOUBLE + "), " + Opcodes.TOP +")|(?<string>"+ Type.getInternalName(String.class) +"))\\]");
+    public static final Pattern numberOnTosPattern = Pattern.compile("\\[(.*, )*((?<type1>" + Opcodes.INTEGER + "|" + Opcodes.FLOAT + ")|((?<type2>"+ Opcodes.LONG + "|" + Opcodes.DOUBLE + "), " + Opcodes.TOP +")|(?<string>"+ Type.getInternalName(String.class) +"))\\]");
 
     private static final int STRING_TYPE = -1;
 
@@ -89,6 +89,7 @@ public class InsertNeutralArithmeticMutation extends AbstractMutation {
             () -> {mv.visitInsn(Opcodes.ICONST_0); mv.visitInsn(Opcodes.ISHL);},    // tos << 0
             () -> {mv.visitInsn(Opcodes.ICONST_0); mv.visitInsn(Opcodes.ISHR);},    // tos >> 0
             () -> {mv.visitInsn(Opcodes.ICONST_0); mv.visitInsn(Opcodes.IUSHR);},   // tos >>> 0
+            () -> {mv.visitInsn(Opcodes.I2L); mv.visitInsn(Opcodes.L2I);}           // (int)(long)tos
         };
 
         private final Runnable[] floatVariants = new Runnable[] {
