@@ -25,7 +25,9 @@ public final class Mutator {
             // new InsertLocalVariableMutation()
             // new InsertSwapMutation(),
             // new InsertEscapeMutation(),
-            new InsertWriteMutation()
+            // new InsertWriteMutation(),
+            // new InsertOperationMutation(),
+            new InsertMethodCallMutation()
         );
     }
 
