@@ -18,6 +18,7 @@ import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.TypeInsnNode;
 import org.objectweb.asm.tree.LdcInsnNode;
+import org.objectweb.asm.tree.IntInsnNode;
 import org.objectweb.asm.tree.MultiANewArrayInsnNode;
 
 public final class AsmTypeSupport {
@@ -248,10 +249,13 @@ public final class AsmTypeSupport {
             case Opcodes.LAND:
             case Opcodes.LOR:
             case Opcodes.LXOR:
+                return Type.getMethodType(Type.LONG_TYPE, Type.LONG_TYPE, Type.LONG_TYPE);
+
+            // long(long, int)
             case Opcodes.LSHL:
             case Opcodes.LSHR:
             case Opcodes.LUSHR:
-                return Type.getMethodType(Type.LONG_TYPE, Type.LONG_TYPE, Type.LONG_TYPE);
+                return Type.getMethodType(Type.LONG_TYPE, Type.LONG_TYPE, Type.INT_TYPE);
 
             // int(long, long)
             case Opcodes.LCMP:
@@ -455,10 +459,44 @@ public final class AsmTypeSupport {
             }
 
             // T[](int)
-            case Opcodes.NEWARRAY:
+            case Opcodes.NEWARRAY: {
+                IntInsnNode intNode = (IntInsnNode) insn;
+                Type arrayType;
+                switch(intNode.operand) {
+                    case Opcodes.T_BOOLEAN -> {
+                        arrayType = Type.getType(boolean[].class);
+                    }
+                    case Opcodes.T_CHAR -> {
+                        arrayType = Type.getType(char[].class);
+                    }
+                    case Opcodes.T_FLOAT -> {
+                        arrayType = floatArrayType;
+                    }
+                    case Opcodes.T_DOUBLE -> {
+                        arrayType = doubleArrayType;
+                    }
+                    case Opcodes.T_BYTE -> {
+                        arrayType = Type.getType(byte[].class);
+                    }
+                    case Opcodes.T_SHORT -> {
+                        arrayType = Type.getType(short[].class);
+                    }
+                    case Opcodes.T_INT -> {
+                        arrayType = intArrayType;
+                    }
+                    case Opcodes.T_LONG -> {
+                        arrayType = longArrayType;
+                    }
+                    default -> {
+                        return null;
+                    }
+                }
+                return Type.getMethodType(arrayType, Type.INT_TYPE);
+            }
             case Opcodes.ANEWARRAY: {
                 TypeInsnNode typeNode = (TypeInsnNode) insn;
-                Type arrayType = Type.getObjectType(typeNode.desc);
+                Type elementType = Type.getObjectType(typeNode.desc);
+                Type arrayType = Type.getType("[" + elementType.getDescriptor());
                 assert(arrayType.getSort() == Type.ARRAY);
                 return Type.getMethodType(arrayType, Type.INT_TYPE);
             }
