@@ -30,13 +30,15 @@ public class InsertWriteMutation extends AbstractMutation {
         
         InstructionVisitor iv = new InstructionVisitor(Opcodes.ASM9);
         mn.accept(iv);
-        int iindex = prng.indexIn(iv.iindex());
+
+        // Don't select before first instruction in a class without any fields, as there will be no place to save to
+        int iindex = cn.fields.isEmpty() ? prng.otherIndexIn(iv.iindex(), 0) : prng.indexIn(iv.iindex());
 
         return mv -> {
             AnalyzerAdapter analyzer = new AnalyzerAdapter(cn.name, mn.access, mn.name, mn.desc, mv);
             return new InsertValuePushMethodVisitor(Opcodes.ASM9, analyzer, iindex, prng, cn, mn) {
                 
-                boolean isStatic = (mn.access & Opcodes.ACC_STATIC) != 0;
+                boolean isStatic = AsmTypeSupport.isStatic(mn.access);
 
                 Type selectedType;
                 
@@ -131,8 +133,7 @@ public class InsertWriteMutation extends AbstractMutation {
                     assert(tosType != null);
 
                     if(canDeref(tosType)) {
-                        // TODO: different prob
-                        if (prng.choice()) {
+                        if (prng.trueInOneOutOf(RECURSIVE_DEREF_INVERSE_FREQ)) {
                             deref(tosType);
                         }
                     }
@@ -158,8 +159,7 @@ public class InsertWriteMutation extends AbstractMutation {
                     int locVar = prng.pickIn(possibleLocals);
                     selectedType = AsmTypeSupport.getType(analyzer.locals.get(locVar));
                     if (canDeref(selectedType)) {
-                        // TODO: different prob?
-                        if (prng.choice()) {
+                        if (prng.trueInOneOutOf(RECURSIVE_DEREF_INVERSE_FREQ)) {
                             this.mv.visitVarInsn(selectedType.getOpcode(Opcodes.ILOAD), locVar);
                             deref(selectedType);
                             insertWriteToTosVal();   
@@ -173,7 +173,7 @@ public class InsertWriteMutation extends AbstractMutation {
                     return cn.fields.stream()
                         .filter(f -> {
                             if (isStatic) {
-                                return (f.access & Opcodes.ACC_STATIC) != 0;
+                                return AsmTypeSupport.isStatic(f.access);
                             }
                             return true;
                         })
@@ -185,7 +185,7 @@ public class InsertWriteMutation extends AbstractMutation {
                     List<FieldNode> possibleFields = cn.fields.stream()
                         .filter(f -> {
                             if (isStatic) {
-                                return (f.access & Opcodes.ACC_STATIC) != 0;
+                                return AsmTypeSupport.isStatic(f.access);
                             }
                             return true;
                         })
@@ -193,13 +193,12 @@ public class InsertWriteMutation extends AbstractMutation {
                         .collect(Collectors.toList());
 
                     FieldNode fn = prng.pickIn(possibleFields);
-                    boolean staticField = (fn.access & Opcodes.ACC_STATIC) != 0;
+                    boolean staticField = AsmTypeSupport.isStatic(fn.access);
                     
                     selectedType = Type.getType(fn.desc);
 
                     if (canDeref(selectedType)) {
-                        // TODO: different prob
-                        if (prng.choice()) {
+                        if (prng.trueInOneOutOf(RECURSIVE_DEREF_INVERSE_FREQ)) {
                             if (!staticField) {
                                 this.mv.visitVarInsn(Opcodes.ALOAD, 0);        
                             }
@@ -235,15 +234,13 @@ public class InsertWriteMutation extends AbstractMutation {
                     assert(tosType != null);
 
                     if (canWriteTo(tosType)) {
-                        // TODO: prob
-                        if (prng.choice()) {
+                        if (prng.trueInOneOutOf(RECURSIVE_DEREF_INVERSE_FREQ)) {
 
                             // We will use up the value at TOS by the inserted write, so DUP it
                             mv.visitInsn(Opcodes.DUP);
 
                             if (canDeref(tosType)) {
-                                // TODO: prob
-                                if (prng.choice()) {
+                                if (prng.trueInOneOutOf(RECURSIVE_DEREF_INVERSE_FREQ)) {
                                     deref(tosType);
                                 }
                             }
@@ -274,7 +271,9 @@ public class InsertWriteMutation extends AbstractMutation {
                     if (canInsertToField()) {
                         res.add(this::insertToField);
                     }
-                    assert(res.size() > 0);
+                    if (res.isEmpty()){
+                        throw new MutationFailedException("Insert write selected an instruction without a place to insert to");
+                    }
                     return res;
                 }
 

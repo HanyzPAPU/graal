@@ -19,7 +19,7 @@ export LD_PRELOAD="$PWD/src/build/libmutator.so"
 
 mx vm @export-hack \
     -XX:+UseParallelGC -XX:+EnableDynamicAgentLoading -XX:-UseJVMCICompiler \
-    -Xmx6g \
+    -Xmx2g \
     -Djava.library.path="$PWD/src/build/" \
     -Djdk.graal.MaxDuplicationFactor=1000.0 \
     -cp $CLASSPATH \
@@ -28,5 +28,5 @@ mx vm @export-hack \
     --instrumentation_includes=jdk.graal.compiler.** \
     --target_class=jdk.graal.compiler.test.bytecodefuzz.FuzzTarget \
     --reproducer_path=./reproducers/ \
-    -max_len=8192 -ignore_timeouts=False -timeout=60 \
+    -max_len=8192 -timeout=60 -ignore_timeouts=1 -ignore_crashes=0 -fork=4 \
     $CORPUSDIR $@

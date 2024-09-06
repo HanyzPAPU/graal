@@ -17,16 +17,16 @@ public final class Mutator {
 
     private static List<Mutation> getMutations() {
         return Arrays.asList(
-            // new InsertJumpMutation(),
-            // new ConstantMutation(),
-            // new InsertNeutralArithmeticMutation(),
-            // new SplitConstantMutation(),
-            // new InsertDeadCodeMutation(),
-            // new InsertLocalVariableMutation()
-            // new InsertSwapMutation(),
-            // new InsertEscapeMutation(),
-            // new InsertWriteMutation(),
-            // new InsertOperationMutation(),
+            new InsertJumpMutation(),
+            new ConstantMutation(),
+            new InsertNeutralArithmeticMutation(),
+            new SplitConstantMutation(),
+            new InsertDeadCodeMutation(),
+            new InsertLocalVariableMutation(),
+            new InsertSwapMutation(),
+            new InsertEscapeMutation(),
+            new InsertWriteMutation(),
+            new InsertOperationMutation(),
             new InsertMethodCallMutation()
         );
     }
@@ -62,8 +62,6 @@ public final class Mutator {
             return result;
         }
 
-        System.out.println("First mutation attempt failed!");
-        
         NonGrowingMutation nonGrowingMut = prng.pickIn(nonGrowingMutations);
         result = nonGrowingMut.mutate(data, prng);
 

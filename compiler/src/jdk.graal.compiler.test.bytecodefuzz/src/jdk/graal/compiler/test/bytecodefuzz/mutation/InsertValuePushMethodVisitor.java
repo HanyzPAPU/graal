@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.function.Function;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.stream.StreamSupport;
@@ -161,14 +162,12 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
     }
 
     private Type tryInsertDeref(Type currentType, Type targetType) {
-        
         if (currentType.equals(targetType)) {
             if(currentType.equals(AsmTypeSupport.fieldHolderType)) {
                 return tryInsertFieldHolderDeref(targetType);
             }
         }
         else {
-            assert(targetType == null || currentType.equals(AsmTypeSupport.fieldHolderType) || currentType.getElementType().equals(targetType)); 
             if(currentType.equals(AsmTypeSupport.fieldHolderType)) {
                 return tryInsertFieldHolderDeref(targetType);
             }
@@ -205,18 +204,18 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
         afterPush(tryInsertDeref(selectedType, type));
     }
 
+    private Stream<FieldNode> getWriteableFields(Type type) {
+        return cn.fields.stream()
+            .filter(f -> !AsmTypeSupport.isStatic(mn.access) || AsmTypeSupport.isStatic(f.access))
+            .filter(f -> AsmTypeSupport.canBeDereferencedTo(Type.getType(f.desc), type));
+    }
+
     private void insertGetField(Type type) {
-        List<FieldNode> fields = cn.fields;
-
-        if ((mn.access & Opcodes.ACC_STATIC) != 0) {
-            fields = fields.stream().filter(f -> (f.access & Opcodes.ACC_STATIC) != 0).collect(Collectors.toList());
-        }
-
-        fields = fields.stream().filter(f -> AsmTypeSupport.canBeDereferencedTo(Type.getType(f.desc), type)).collect(Collectors.toList());
+        List<FieldNode> fields = getWriteableFields(type).collect(Collectors.toList());
 
         FieldNode fn = prng.pickIn(fields);
 
-        if ((fn.access & Opcodes.ACC_STATIC) != 0) {
+        if (AsmTypeSupport.isStatic(fn.access)) {
             this.mv.visitFieldInsn(Opcodes.GETSTATIC, cn.name, fn.name, fn.desc);
         }
         else {
@@ -246,9 +245,7 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
     }
 
     protected boolean canGetField(Type type) {
-        return cn.fields.stream()
-            .filter(f -> AsmTypeSupport.canBeDereferencedTo(Type.getType(f.desc), type))
-            .count() > 0;
+        return getWriteableFields(type).findFirst().isPresent();
     }
 
     protected Type getStackTosType() {

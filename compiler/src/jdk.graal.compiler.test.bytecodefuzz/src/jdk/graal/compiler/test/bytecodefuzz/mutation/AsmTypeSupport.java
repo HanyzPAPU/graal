@@ -64,6 +64,10 @@ public final class AsmTypeSupport {
         return null;
     }
 
+    public static boolean isStatic(int access) {
+        return (access & Opcodes.ACC_STATIC) != 0;
+    }
+
     public static boolean isElementTypeOf(Type arrayType, Type elementType) {
         return arrayType.getElementType().equals(elementType);
     }

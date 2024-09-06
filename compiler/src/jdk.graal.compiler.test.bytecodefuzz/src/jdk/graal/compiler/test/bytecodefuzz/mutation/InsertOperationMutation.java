@@ -38,7 +38,7 @@ public class InsertOperationMutation extends AbstractMutation {
         List<Pair<Integer, Type>> validProgramPoints = PrimitiveOnTosLocator.getLocations(cn, mn);
 
         if (validProgramPoints.isEmpty()) {
-            throw new RuntimeException("Insert op mutation selected a method without primitive on TOS!");
+            throw new MutationFailedException("Insert op mutation selected a method without primitive on TOS!");
         }
 
         Pair<Integer, Type> typedIndex = prng.pickIn(validProgramPoints);

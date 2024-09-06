@@ -11,6 +11,10 @@ public interface Mutation {
         try {
             result = mutate(data, prng);
         }
+        catch(MutationFailedException e) {
+            System.err.println(e);
+            return null;
+        }
         catch(Throwable e) {
             System.err.println("Error during mutation: " + e);
             e.printStackTrace();

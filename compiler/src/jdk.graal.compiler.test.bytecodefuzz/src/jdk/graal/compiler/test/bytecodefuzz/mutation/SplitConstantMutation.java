@@ -21,7 +21,7 @@ public class SplitConstantMutation extends AbstractMutation {
         List<Integer> locations = locator.getLocations();
 
         if (locations.isEmpty()) {
-            throw new RuntimeException("Split constant mutation called on method without constants!");
+            throw new MutationFailedException("Split constant mutation called on method without constants!");
         }
 
         int location = prng.pickIn(locations);

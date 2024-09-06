@@ -42,7 +42,7 @@ public class FuzzTarget extends GraalCompilerTest {
             try {
                 ByteClassLoader loader = new ByteClassLoader();
                 Class<?> clazz = loader.LoadFromBytes(null, bytes);
-                System.err.print(clazz.getName());
+                //System.err.print(clazz.getName());
                 ResolvedJavaMethod method = getMethod(clazz);
                 Object receiver = getReceiver(method, clazz);
                 return FuzzTarget.this.executeExpected(method, receiver);
@@ -61,7 +61,7 @@ public class FuzzTarget extends GraalCompilerTest {
             ResolvedJavaMethod method = getMethod(clazz);
             Object receiver = getReceiver(method, clazz);
             FuzzTarget.this.testAgainstExpected(getInitialOptions(), method, expect, receiver);
-            System.err.println("[DONE]");
+            //System.err.println("[DONE]");
         }
 
         Result test(byte[] bytes) throws Exception {

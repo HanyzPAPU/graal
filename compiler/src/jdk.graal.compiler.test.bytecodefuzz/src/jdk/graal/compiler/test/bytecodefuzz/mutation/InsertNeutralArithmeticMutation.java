@@ -26,7 +26,7 @@ public class InsertNeutralArithmeticMutation extends AbstractMutation {
         List<Pair<Integer, Type>> validProgramPoints = PrimitiveOnTosLocator.getLocations(cn, mn);
 
         if (validProgramPoints.isEmpty()) {
-            throw new RuntimeException("Insert neutral op mutation selected a method without primitive on TOS!");
+            throw new MutationFailedException("Insert neutral op mutation selected a method without primitive on TOS!");
         }
 
         Pair<Integer, Type> typedIndex = prng.pickIn(validProgramPoints);

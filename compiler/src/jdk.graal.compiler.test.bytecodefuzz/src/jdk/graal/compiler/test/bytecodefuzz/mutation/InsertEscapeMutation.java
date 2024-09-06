@@ -87,12 +87,39 @@ public class InsertEscapeMutation extends AbstractMutation {
             mv.visitMethodInsn(Opcodes.INVOKESTATIC, graalDirectivesInternalClassName, blackholeMethodName, blackholeDesc, false);
         }
 
+        private boolean canEscapeTos() {
+            if (analyzer.stack == null) return false;
+            if (analyzer.stack.isEmpty()) return false;
+            Object tosType = analyzer.stack.get(analyzer.stack.size() - 1);
+            if (tosType.equals(Opcodes.TOP)) {
+                tosType = analyzer.stack.get(analyzer.stack.size() - 2);
+            }
+            if (tosType instanceof Integer iTosType) {
+                if (iTosType == Opcodes.TOP || iTosType == Opcodes.NULL || iTosType == Opcodes.UNINITIALIZED_THIS) {
+                    return false;
+                }
+                else {
+                    return true;
+                }
+            }
+            if (tosType instanceof String) {
+                return true;
+            }
+            return false;
+        }
+
+        private boolean canEscapeVar() {
+            if (analyzer.locals == null) return false;
+            if (analyzer.locals.isEmpty()) return false;
+            return true;
+        }
+
         private void insertEscape() {
-            if (analyzer.stack == null || analyzer.locals == null || (analyzer.locals.isEmpty() && analyzer.stack.isEmpty())) {
-                throw new RuntimeException("Cannot insert escape on iindex with empty stack and without locals!");
+            if (!canEscapeTos() && !canEscapeVar()) {
+                throw new MutationFailedException("Cannot insert escape on iindex with empty stack and without locals!");
             }
             
-            boolean escapeTos = !analyzer.stack.isEmpty() && (analyzer.locals.isEmpty() || prng.choice());
+            boolean escapeTos = canEscapeTos() && (!canEscapeVar() || prng.choice());
 
             if (escapeTos) {
                 escapeTos();

@@ -50,7 +50,7 @@ public class InsertMethodCallMutation implements Mutation {
         }
 
         if (candidates.isEmpty()) {
-            throw new RuntimeException("No uninlineable instruction found!");
+            throw new MutationFailedException("No uninlineable instruction found!");
         }
 
         UnInlineCandidate target = prng.pickIn(candidates);

@@ -57,7 +57,7 @@ public class InsertSwapMutation extends AbstractMutation {
             .collect(Collectors.toList());
 
         if (validProgramPoints.isEmpty()) {
-            throw new RuntimeException("Insert swap mutation called on a method without two same types on TOS");
+            throw new MutationFailedException("Insert swap mutation called on a method without two same types on TOS");
         }
         
         Pair<Integer, Boolean> target = prng.pickIn(validProgramPoints);

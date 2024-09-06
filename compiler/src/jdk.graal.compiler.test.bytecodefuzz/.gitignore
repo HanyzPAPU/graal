@@ -1,4 +1,5 @@
-crash-*
+crash*
+timeout*
 slow-unit-*
 graal_dumps/
 reproducers/

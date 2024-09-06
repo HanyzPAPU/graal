@@ -53,7 +53,7 @@ public class MethodSelector {
         MethodNode[] methodsSortedByPotential = classNode.methods.stream()
             .filter(m -> includeCtor || (!m.name.equals(ctorName) && !m.name.equals(staticCtorName)))
             .map(m -> new MethodWithPotential(m, getPotential(m, owner)))
-            .sorted((m1, m2) -> Double.compare(m2.potential(), m1.potential())) // TODO: check if this is descending order
+            .sorted((m1, m2) -> Double.compare(m2.potential(), m1.potential()))
             .map(MethodWithPotential::method)
             .toArray(MethodNode[]::new);
 
