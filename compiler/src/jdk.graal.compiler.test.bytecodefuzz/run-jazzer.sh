@@ -15,7 +15,7 @@ export LD_PRELOAD="$PWD/src/build/libmutator.so"
 # TODO: still instruments unwanted classes with custom hooks
 # TODO: make timeout longer of real test? also ignore_timeouts should probably be True for real run
 # TODO: should the real run ignore crashes?
-# TODO: fork mode
+# TODO: fork mode => -ignore_timeouts=1 -ignore_crashes=0 -fork=4 (fuzzes in child processes)
 
 mx vm @export-hack \
     -XX:+UseParallelGC -XX:+EnableDynamicAgentLoading -XX:-UseJVMCICompiler \
@@ -28,5 +28,5 @@ mx vm @export-hack \
     --instrumentation_includes=jdk.graal.compiler.** \
     --target_class=jdk.graal.compiler.test.bytecodefuzz.FuzzTarget \
     --reproducer_path=./reproducers/ \
-    -max_len=8192 -timeout=60 -ignore_timeouts=1 -ignore_crashes=0 -fork=4 \
+    -max_len=8192 -timeout=60 \
     $CORPUSDIR $@
