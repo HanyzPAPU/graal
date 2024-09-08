@@ -2,6 +2,7 @@ package jdk.graal.compiler.test.bytecodefuzz;
 
 import jdk.graal.compiler.core.test.GraalCompilerTest;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
+import jdk.graal.compiler.java.BytecodeParser.BytecodeParserError;
 
 import java.lang.reflect.Method;
 import java.util.Arrays;
@@ -64,6 +65,28 @@ public class FuzzTarget extends GraalCompilerTest {
             //System.err.println("[DONE]");
         }
 
+        public void testCompile(byte[] bytes) throws Exception {
+            ResolvedJavaMethod method;
+            try {
+                ByteClassLoader loader = new ByteClassLoader();
+                Class<?> clazz = loader.LoadFromBytes(null, bytes);
+                method = getMethod(clazz);
+            }
+            catch (Throwable e) {
+                // If class loading fails, do not continue
+                System.err.println("[ERROR] " + e);
+                return;
+            }
+
+            try {
+                getCode(method, getInitialOptions());
+            }
+            catch (BytecodeParserError e) {
+                // Ignore parser errors
+                return;
+            }
+        }
+
         Result test(byte[] bytes) throws Exception {
             Result expect = executeExpected(bytes);
             if (expect != null && getCodeCache() != null) {
@@ -74,7 +97,7 @@ public class FuzzTarget extends GraalCompilerTest {
     }
 
     void testBytecode(byte[] bytes) throws Exception {
-        new TestExecution().test(bytes);
+        new TestExecution().testCompile(bytes);
     }
 
     static FuzzTarget instance;

@@ -36,7 +36,7 @@ extern "C" size_t LLVMFuzzerCustomMutator(uint8_t *Data, size_t Size, size_t Max
 
     if (gEnv->IsSameObject(output, NULL)) {
         gEnv->DeleteLocalRef(input);
-        return -1;
+        return 0;
     }
 
     jsize newSize = gEnv->GetArrayLength(output);
