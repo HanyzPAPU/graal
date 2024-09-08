@@ -36,11 +36,14 @@ extern "C" size_t LLVMFuzzerCustomMutator(uint8_t *Data, size_t Size, size_t Max
 
     if (gEnv->IsSameObject(output, NULL)) {
         gEnv->DeleteLocalRef(input);
-        return 0;
+        return -1;
     }
 
-    // TODO: assert no overflow or truncate?
     jsize newSize = gEnv->GetArrayLength(output);
+
+    if (newSize > jmaxSize) {
+        _Exit(1);
+    }
 
     // Note: Memory copying occurs here
     gEnv->GetByteArrayRegion(output, 0, newSize, (jbyte*)Data);
@@ -49,7 +52,7 @@ extern "C" size_t LLVMFuzzerCustomMutator(uint8_t *Data, size_t Size, size_t Max
     gEnv->DeleteLocalRef(output);
     gEnv->DeleteLocalRef(input);
     
-    return std::min(MaxSize, static_cast<size_t>(newSize));
+    return newSize;
 }
 
 JNIEXPORT void JNICALL Java_jdk_graal_compiler_test_bytecodefuzz_MutatorHarness_initMutator(JNIEnv *env, jclass harness){
