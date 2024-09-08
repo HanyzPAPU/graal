@@ -20,7 +20,7 @@ public class InsertJumpMutation extends AbstractMutation {
     private final int maxJumps;
 
     public InsertJumpMutation() {
-        this.maxJumps = 10;
+        this.maxJumps = 100;
     }
 
     public InsertJumpMutation(int maxJumps) {
