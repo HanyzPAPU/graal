@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CORPUS_SEEDS="Duff FevenSum Automaton"
+CORPUS_SEEDS="Duff FevenSum Automaton Interpreter"
 
 for SEED in $CORPUS_SEEDS; do
     cp precorpus/$SEED.class corpus/

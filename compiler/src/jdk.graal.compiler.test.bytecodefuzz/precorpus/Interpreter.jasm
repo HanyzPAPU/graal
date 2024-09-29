@@ -1,0 +1,707 @@
+/** A very primitive bytecode interpreter which computes the 100th fibonacci number with (as a byte) */
+public class Interpreter {
+    bytecode [B
+
+    private static final PUSH B = 0
+    private static final ADD B = 1
+    private static final SUB B = 2
+    private static final MUL B = 3
+    private static final DIV B = 4
+    private static final REM B = 5
+    private static final JCC B = 6
+    private static final RET B = 7
+    private static final DUP B = 8
+    private static final LOAD B = 9
+    private static final STORE B = 10
+    private static final MAX_STACK I = 256
+    private static final MAX_LOCALS I = 4
+
+    public <init>()V {
+        
+        label0:
+        aload 0
+        invokespecial java/lang/Object.<init>()V
+        
+        label1:
+        aload 0
+        bipush 32
+        newarray B
+        dup
+        iconst 0
+        iconst 0
+        bastore
+        dup
+        iconst 1
+        bipush 100
+        bastore
+        dup
+        iconst 2
+        bipush 10
+        bastore
+        dup
+        iconst 3
+        iconst 0
+        bastore
+        dup
+        iconst 4
+        iconst 0
+        bastore
+        dup
+        iconst 5
+        iconst 1
+        bastore
+        dup
+        bipush 6
+        bipush 10
+        bastore
+        dup
+        bipush 7
+        iconst 2
+        bastore
+        dup
+        bipush 8
+        bipush 9
+        bastore
+        dup
+        bipush 9
+        iconst 1
+        bastore
+        dup
+        bipush 10
+        bipush 9
+        bastore
+        dup
+        bipush 11
+        iconst 2
+        bastore
+        dup
+        bipush 12
+        iconst 1
+        bastore
+        dup
+        bipush 13
+        bipush 9
+        bastore
+        dup
+        bipush 14
+        iconst 2
+        bastore
+        dup
+        bipush 15
+        bipush 10
+        bastore
+        dup
+        bipush 16
+        iconst 1
+        bastore
+        dup
+        bipush 17
+        bipush 10
+        bastore
+        dup
+        bipush 18
+        iconst 2
+        bastore
+        dup
+        bipush 19
+        iconst 0
+        bastore
+        dup
+        bipush 20
+        iconst 1
+        bastore
+        dup
+        bipush 21
+        bipush 9
+        bastore
+        dup
+        bipush 22
+        iconst 0
+        bastore
+        dup
+        bipush 23
+        iconst 2
+        bastore
+        dup
+        bipush 24
+        bipush 8
+        bastore
+        dup
+        bipush 25
+        bipush 10
+        bastore
+        dup
+        bipush 26
+        iconst 0
+        bastore
+        dup
+        bipush 27
+        bipush 6
+        bastore
+        dup
+        bipush 28
+        bipush 8
+        bastore
+        dup
+        bipush 29
+        bipush 9
+        bastore
+        dup
+        bipush 30
+        iconst 1
+        bastore
+        dup
+        bipush 31
+        bipush 7
+        bastore
+        putfield Interpreter.bytecode [B
+        return
+    }
+
+    public execute()B {
+        
+        label0:
+        sipush 256
+        newarray B
+        astore 1
+        
+        label1:
+        iconst 4
+        newarray B
+        astore 2
+        
+        label2:
+        iconst 0
+        istore 3
+        
+        label3:
+        iconst 0
+        istore 4
+        
+        label4:
+        iload 3
+        aload 0
+        getfield Interpreter.bytecode [B
+        arraylength
+        if_icmpge label5
+        
+        label6:
+        aload 0
+        getfield Interpreter.bytecode [B
+        iload 3
+        baload
+        tableswitch label5 {
+            0: label8,
+            1: label9,
+            2: label10,
+            3: label11,
+            4: label12,
+            5: label13,
+            6: label14,
+            7: label15,
+            8: label16,
+            9: label17,
+            10: label18
+        }
+        
+        label8:
+        aload 1
+        iload 4
+        aload 0
+        getfield Interpreter.bytecode [B
+        iload 3
+        iconst 1
+        iadd
+        baload
+        bastore
+        
+        label19:
+        iinc 4, [1]
+        
+        label20:
+        iinc 3, [2]
+        
+        label21:
+        iload 3
+        aload 0
+        getfield Interpreter.bytecode [B
+        arraylength
+        if_icmpge label5
+        
+        aload 0
+        getfield Interpreter.bytecode [B
+        iload 3
+        baload
+        tableswitch label5 {
+            0: label8,
+            1: label9,
+            2: label10,
+            3: label11,
+            4: label12,
+            5: label13,
+            6: label14,
+            7: label15,
+            8: label16,
+            9: label17,
+            10: label18
+        }
+        
+        label9:
+        aload 1
+        iload 4
+        iconst 2
+        isub
+        aload 1
+        iload 4
+        iconst 1
+        isub
+        baload
+        aload 1
+        iload 4
+        iconst 2
+        isub
+        baload
+        iadd
+        i2b
+        bastore
+        
+        label22:
+        iinc 3, [1]
+        
+        label23:
+        iinc 4, [-1]
+        
+        label24:
+        iload 3
+        aload 0
+        getfield Interpreter.bytecode [B
+        arraylength
+        if_icmpge label5
+        
+        aload 0
+        getfield Interpreter.bytecode [B
+        iload 3
+        baload
+        tableswitch label5 {
+            0: label8,
+            1: label9,
+            2: label10,
+            3: label11,
+            4: label12,
+            5: label13,
+            6: label14,
+            7: label15,
+            8: label16,
+            9: label17,
+            10: label18
+        }
+        
+        label10:
+        aload 1
+        iload 4
+        iconst 2
+        isub
+        aload 1
+        iload 4
+        iconst 1
+        isub
+        baload
+        aload 1
+        iload 4
+        iconst 2
+        isub
+        baload
+        isub
+        i2b
+        bastore
+        
+        label25:
+        iinc 3, [1]
+        
+        label26:
+        iinc 4, [-1]
+        
+        label27:
+        iload 3
+        aload 0
+        getfield Interpreter.bytecode [B
+        arraylength
+        if_icmpge label5
+        
+        aload 0
+        getfield Interpreter.bytecode [B
+        iload 3
+        baload
+        tableswitch label5 {
+            0: label8,
+            1: label9,
+            2: label10,
+            3: label11,
+            4: label12,
+            5: label13,
+            6: label14,
+            7: label15,
+            8: label16,
+            9: label17,
+            10: label18
+        }
+        
+        label11:
+        aload 1
+        iload 4
+        iconst 2
+        isub
+        aload 1
+        iload 4
+        iconst 1
+        isub
+        baload
+        aload 1
+        iload 4
+        iconst 2
+        isub
+        baload
+        imul
+        i2b
+        bastore
+        
+        label28:
+        iinc 3, [1]
+        
+        label29:
+        iinc 4, [-1]
+        
+        label30:
+        iload 3
+        aload 0
+        getfield Interpreter.bytecode [B
+        arraylength
+        if_icmpge label5
+        
+        aload 0
+        getfield Interpreter.bytecode [B
+        iload 3
+        baload
+        tableswitch label5 {
+            0: label8,
+            1: label9,
+            2: label10,
+            3: label11,
+            4: label12,
+            5: label13,
+            6: label14,
+            7: label15,
+            8: label16,
+            9: label17,
+            10: label18
+        }
+        
+        label12:
+        aload 1
+        iload 4
+        iconst 2
+        isub
+        aload 1
+        iload 4
+        iconst 1
+        isub
+        baload
+        aload 1
+        iload 4
+        iconst 2
+        isub
+        baload
+        idiv
+        i2b
+        bastore
+        
+        label31:
+        iinc 3, [1]
+        
+        label32:
+        iinc 4, [-1]
+        
+        label33:
+        iload 3
+        aload 0
+        getfield Interpreter.bytecode [B
+        arraylength
+        if_icmpge label5
+        
+        aload 0
+        getfield Interpreter.bytecode [B
+        iload 3
+        baload
+        tableswitch label5 {
+            0: label8,
+            1: label9,
+            2: label10,
+            3: label11,
+            4: label12,
+            5: label13,
+            6: label14,
+            7: label15,
+            8: label16,
+            9: label17,
+            10: label18
+        }
+        
+        label13:
+        aload 1
+        iload 4
+        iconst 2
+        isub
+        aload 1
+        iload 4
+        iconst 1
+        isub
+        baload
+        aload 1
+        iload 4
+        iconst 2
+        isub
+        baload
+        irem
+        i2b
+        bastore
+        
+        label34:
+        iinc 3, [1]
+        
+        label35:
+        iinc 4, [-1]
+        
+        label36:
+        iload 3
+        aload 0
+        getfield Interpreter.bytecode [B
+        arraylength
+        if_icmpge label5
+        
+        aload 0
+        getfield Interpreter.bytecode [B
+        iload 3
+        baload
+        tableswitch label5 {
+            0: label8,
+            1: label9,
+            2: label10,
+            3: label11,
+            4: label12,
+            5: label13,
+            6: label14,
+            7: label15,
+            8: label16,
+            9: label17,
+            10: label18
+        }
+        
+        label16:
+        aload 1
+        iload 4
+        aload 1
+        iload 4
+        iconst 1
+        isub
+        baload
+        bastore
+        
+        label37:
+        iinc 4, [1]
+        
+        label38:
+        iinc 3, [1]
+        
+        label39:
+        iload 3
+        aload 0
+        getfield Interpreter.bytecode [B
+        arraylength
+        if_icmpge label5
+        
+        aload 0
+        getfield Interpreter.bytecode [B
+        iload 3
+        baload
+        tableswitch label5 {
+            0: label8,
+            1: label9,
+            2: label10,
+            3: label11,
+            4: label12,
+            5: label13,
+            6: label14,
+            7: label15,
+            8: label16,
+            9: label17,
+            10: label18
+        }
+        
+        label17:
+        aload 0
+        getfield Interpreter.bytecode [B
+        iload 3
+        iconst 1
+        iadd
+        baload
+        istore 5
+        
+        label40:
+        aload 1
+        iload 4
+        aload 2
+        iload 5
+        baload
+        bastore
+        
+        label41:
+        iinc 4, [1]
+        
+        label42:
+        iinc 3, [2]
+        
+        label43:
+        iload 3
+        aload 0
+        getfield Interpreter.bytecode [B
+        arraylength
+        if_icmpge label5
+        
+        aload 0
+        getfield Interpreter.bytecode [B
+        iload 3
+        baload
+        tableswitch label5 {
+            0: label8,
+            1: label9,
+            2: label10,
+            3: label11,
+            4: label12,
+            5: label13,
+            6: label14,
+            7: label15,
+            8: label16,
+            9: label17,
+            10: label18
+        }
+        
+        label18:
+        aload 0
+        getfield Interpreter.bytecode [B
+        iload 3
+        iconst 1
+        iadd
+        baload
+        istore 5
+        
+        label44:
+        aload 2
+        iload 5
+        aload 1
+        iload 4
+        iconst 1
+        isub
+        baload
+        bastore
+        
+        label45:
+        iinc 4, [-1]
+        
+        label46:
+        iinc 3, [2]
+        
+        label47:
+        iload 3
+        aload 0
+        getfield Interpreter.bytecode [B
+        arraylength
+        if_icmpge label5
+        
+        aload 0
+        getfield Interpreter.bytecode [B
+        iload 3
+        baload
+        tableswitch label5 {
+            0: label8,
+            1: label9,
+            2: label10,
+            3: label11,
+            4: label12,
+            5: label13,
+            6: label14,
+            7: label15,
+            8: label16,
+            9: label17,
+            10: label18
+        }
+        
+        label14:
+        aload 0
+        getfield Interpreter.bytecode [B
+        iload 3
+        iconst 1
+        iadd
+        baload
+        istore 5
+        
+        label48:
+        aload 1
+        iload 4
+        iconst 1
+        isub
+        baload
+        istore 6
+        
+        label49:
+        iinc 4, [-1]
+        
+        label50:
+        iload 6
+        iflt label51
+        
+        label52:
+        iload 5
+        istore 3
+        goto label53
+        
+        label51:
+        iinc 3, [2]
+        
+        label53:
+        iload 3
+        aload 0
+        getfield Interpreter.bytecode [B
+        arraylength
+        if_icmpge label5
+        
+        aload 0
+        getfield Interpreter.bytecode [B
+        iload 3
+        baload
+        tableswitch label5 {
+            0: label8,
+            1: label9,
+            2: label10,
+            3: label11,
+            4: label12,
+            5: label13,
+            6: label14,
+            7: label15,
+            8: label16,
+            9: label17,
+            10: label18
+        }
+        
+        label15:
+        aload 1
+        iload 4
+        iconst 1
+        isub
+        baload
+        ireturn
+        
+        label5:
+        iconst 0
+        ireturn
+    }
+}
