@@ -175,7 +175,7 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
                 return tryInsertArrayDeref(currentType, targetType);
             }
         }
-        assert(targetType == null || currentType.equals(targetType));
+        assert(AsmTypeSupport.canBeAssignedTo(currentType, targetType));
         return currentType;
     }
 
