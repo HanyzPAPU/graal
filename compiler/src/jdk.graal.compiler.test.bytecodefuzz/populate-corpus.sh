@@ -1,6 +1,6 @@
 #!/bin/bash
 
-CORPUS_SEEDS="Duff FevenSum Automaton Interpreter"
+CORPUS_SEEDS="Duff FevenSum Automaton" # Interpreter - Too Many Loops
 
 for SEED in $CORPUS_SEEDS; do
     cp precorpus/$SEED.class corpus/
