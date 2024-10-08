@@ -157,8 +157,7 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
         mv.visitIntInsn(Opcodes.BIPUSH, index);
         Type elementType = currentType.getElementType();
         mv.visitInsn(AsmTypeSupport.getArayDerefOpcode(currentType));
-        // getStackTosType() works because the analyzer already visited ^this just added instruction
-        return tryInsertDeref(getStackTosType(), targetType);
+        return tryInsertDeref(AsmTypeSupport.getDirectSubarrayType(currentType), targetType);
     }
 
     private Type tryInsertDeref(Type currentType, Type targetType) {

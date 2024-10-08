@@ -54,6 +54,8 @@ public final class AsmTypeSupport {
             if (simple == Opcodes.DOUBLE) {
                 return Type.DOUBLE_TYPE;
             }
+
+            // Is this the problem?
             if (simple == Opcodes.NULL) {
                 return Type.getType(Object.class);
             }
@@ -81,6 +83,19 @@ public final class AsmTypeSupport {
         return arrayType.getDimensions() > 1 ? Opcodes.AALOAD : arrayType.getElementType().getOpcode(Opcodes.IALOAD);
     }
 
+    private static boolean isIntegral(Type type) {
+        switch(type.getSort()) {
+            case Type.BOOLEAN:
+            case Type.BYTE:
+            case Type.CHAR:
+            case Type.SHORT:
+            case Type.INT:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     public static boolean canBeAssignedTo(Type sourceType, Type targetType) {
 
         if (sourceType == null) {
@@ -92,16 +107,21 @@ public final class AsmTypeSupport {
         }
 
         int sourceSort = sourceType.getSort();
+        
+        boolean sameType = sourceType.equals(targetType);
         // Object and array sort can be accessed as objects
         boolean referenceTypeToObject = targetType.equals(objectType) && (sourceSort == Type.OBJECT || sourceSort == Type.ARRAY);
-        boolean sameType = sourceType.equals(targetType);
+        boolean integralToInt = isIntegral(sourceType) && targetType.getSort() == Type.INT;
+        
         //? inheritance?
-        return sameType || referenceTypeToObject;
+        return sameType || referenceTypeToObject || integralToInt;
     }
 
     public static boolean canBeDereferencedToStrict(Type sourceType, Type targetType) {
 
         // ret <-> targetType can still be reached after one level of deref
+
+        // Assume sourceType can be dereferenced
 
         if (sourceType == null) {
             return false;
