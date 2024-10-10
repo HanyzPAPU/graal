@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.MethodVisitor;
@@ -46,7 +47,7 @@ public class InsertEscapeMutation extends AbstractMutation {
             this.prng = prng;
         }
 
-        private static String getBlackholeDesc(Object type) {
+        private static String getBlackholeDesc(Type argType) {
             Type argType;
             if (type instanceof Integer i) {
                 argType = AsmTypeSupport.getType(type);
@@ -74,15 +75,14 @@ public class InsertEscapeMutation extends AbstractMutation {
 
         private void escapeVar() {
             assert(analyzer.locals != null);
-            int localIdx = prng.indexIn(analyzer.locals);
-            boolean wide = false;
-            if (analyzer.locals.get(localIdx).equals(Opcodes.TOP)) {
-                localIdx--;
-                wide = true;
-            }
 
-            Type localType = AsmTypeSupport.getType(analyzer.locals.get(localIdx));
-            String blackholeDesc = getBlackholeDesc(analyzer.locals.get(localIdx));
+            List<Integer> esapableVars = getEscapableVars().toList();
+
+            int localIdx = prng.pickIn(esapableVars);
+            Object typeObj = analyzer.locals.get(localIdx);
+
+            Type localType = AsmTypeSupport.getType(typeObj);
+            String blackholeDesc = getBlackholeDesc(typeObj);
             mv.visitIntInsn(localType.getOpcode(Opcodes.ILOAD), localIdx);
             mv.visitMethodInsn(Opcodes.INVOKESTATIC, graalDirectivesInternalClassName, blackholeMethodName, blackholeDesc, false);
         }
@@ -108,10 +108,13 @@ public class InsertEscapeMutation extends AbstractMutation {
             return false;
         }
 
+        private Stream<Integer> getEscapableVars() {
+            return analyzer.locals.stream().filter(o -> AsmTypeSupport.getType(o) != null);
+        }
+
         private boolean canEscapeVar() {
             if (analyzer.locals == null) return false;
-            if (analyzer.locals.isEmpty()) return false;
-            return true;
+            return getEscapableVars().findFirst().isPresent();
         }
 
         private void insertEscape() {
