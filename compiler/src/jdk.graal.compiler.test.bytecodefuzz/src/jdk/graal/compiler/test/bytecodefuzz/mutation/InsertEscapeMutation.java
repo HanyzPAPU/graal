@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.ArrayList;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 
 import org.objectweb.asm.Opcodes;
@@ -76,7 +77,7 @@ public class InsertEscapeMutation extends AbstractMutation {
         private void escapeVar() {
             assert(analyzer.locals != null);
 
-            List<Integer> esapableVars = getEscapableVars().toList();
+            List<Integer> esapableVars = getEscapableVars().boxed().toList();
 
             int localIdx = prng.pickIn(esapableVars);
             Object typeObj = analyzer.locals.get(localIdx);
@@ -108,8 +109,14 @@ public class InsertEscapeMutation extends AbstractMutation {
             return false;
         }
 
-        private Stream<Integer> getEscapableVars() {
-            return analyzer.locals.stream().filter(o -> o != Opcodes.NULL && AsmTypeSupport.getType(o) != null);
+        private IntStream getEscapableVars() {
+
+            return IntStream
+                .range(0, analyzer.locals.size())
+                .filter(i -> {
+                    Object typeObj = analyzer.locals.get(i);
+                    return typeObj != Opcodes.NULL && AsmTypeSupport.getType(typeObj) != null;
+                });
         }
 
         private boolean canEscapeVar() {
