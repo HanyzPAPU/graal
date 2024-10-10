@@ -155,7 +155,7 @@ public class InsertOperationMutation extends AbstractMutation {
 
         @Override
         protected void afterPush(Type type) {
-            assert(type.equals(this.type));
+            assert(AsmTypeSupport.canBeAssignedTo(type, this.type));
         }
 
         @Override
