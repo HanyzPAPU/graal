@@ -112,7 +112,7 @@ public class RemoveEscapeMutation implements NonGrowingMutation {
                 }
                 currentCall++;
             }
-            this.mv.visitMethodInsn(opcode, name, owner, descriptor, isInterface);
+            this.mv.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
         }
     }
 }
