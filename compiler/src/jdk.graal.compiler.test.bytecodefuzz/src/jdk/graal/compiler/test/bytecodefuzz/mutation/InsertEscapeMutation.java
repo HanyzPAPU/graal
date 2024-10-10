@@ -47,13 +47,13 @@ public class InsertEscapeMutation extends AbstractMutation {
             this.prng = prng;
         }
 
-        private static String getBlackholeDesc(Type argType) {
+        private static String getBlackholeDesc(Object type) {
             Type argType;
-            if (type instanceof Integer i) {
+            if (type instanceof Integer) {
                 argType = AsmTypeSupport.getType(type);
             }
             else {
-                argType = Type.getType(Object.class);
+                argType = AsmTypeSupport.objectType;
             }
             return Type.getMethodDescriptor(Type.VOID_TYPE, argType);
         }
@@ -109,7 +109,7 @@ public class InsertEscapeMutation extends AbstractMutation {
         }
 
         private Stream<Integer> getEscapableVars() {
-            return analyzer.locals.stream().filter(o -> AsmTypeSupport.getType(o) != null);
+            return analyzer.locals.stream().filter(o -> o != Opcodes.NULL && AsmTypeSupport.getType(o) != null);
         }
 
         private boolean canEscapeVar() {
