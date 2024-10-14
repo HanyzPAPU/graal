@@ -149,7 +149,6 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
         // Try to minimize null deref by always dereferencing indices valid in freshly inserted arrays
         int index = prng.indexIn(MIN_ARRAY_SIZE);
         mv.visitIntInsn(Opcodes.BIPUSH, index);
-        Type elementType = currentType.getElementType();
         mv.visitInsn(AsmTypeSupport.getArrayDerefOpcode(currentType));
         return tryInsertDeref(AsmTypeSupport.getDirectSubarrayType(currentType), targetType);
     }

@@ -41,7 +41,11 @@ public final class AsmTypeSupport {
         ));
 
     public static Type getType(Object type) {
+        if (type == null) return null;
         if (type instanceof Integer simple) {
+            if (simple.equals(Opcodes.TOP) || simple.equals(Opcodes.NULL)) {
+                return null;
+            }
             if (simple.equals(Opcodes.INTEGER)) {
                 return Type.INT_TYPE;
             }
@@ -53,11 +57,6 @@ public final class AsmTypeSupport {
             }
             if (simple.equals(Opcodes.DOUBLE)) {
                 return Type.DOUBLE_TYPE;
-            }
-
-            // Is this the problem?
-            if (simple.equals(Opcodes.NULL)) {
-                return Type.getType(Object.class);
             }
         }
         if (type instanceof String typeString) {

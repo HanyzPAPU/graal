@@ -73,12 +73,13 @@ public class InsertEscapeMutation extends AbstractMutation {
         private void escapeVar() {
             assert(analyzer.locals != null);
 
-            List<Integer> esapableVars = getEscapableVars().boxed().toList();
+            List<Integer> escapableVars = getEscapableVars().boxed().toList();
 
-            int localIdx = prng.pickIn(esapableVars);
+            int localIdx = prng.pickIn(escapableVars);
             Object typeObj = analyzer.locals.get(localIdx);
-
+            assert(typeObj != null && typeObj != Opcodes.TOP);
             Type localType = AsmTypeSupport.getType(typeObj);
+            assert(localType != null);
             String blackholeDesc = getBlackholeDesc(typeObj);
             mv.visitIntInsn(localType.getOpcode(Opcodes.ILOAD), localIdx);
             mv.visitMethodInsn(Opcodes.INVOKESTATIC, graalDirectivesInternalClassName, blackholeMethodName, blackholeDesc, false);
@@ -106,13 +107,9 @@ public class InsertEscapeMutation extends AbstractMutation {
         }
 
         private IntStream getEscapableVars() {
-
             return IntStream
                 .range(0, analyzer.locals.size())
-                .filter(i -> {
-                    Object typeObj = analyzer.locals.get(i);
-                    return typeObj != Opcodes.NULL && AsmTypeSupport.getType(typeObj) != null;
-                });
+                .filter(i -> AsmTypeSupport.getType(analyzer.locals.get(i)) != null);
         }
 
         private boolean canEscapeVar() {
@@ -141,6 +138,5 @@ public class InsertEscapeMutation extends AbstractMutation {
                 insertEscape();
             }
         }
-
     }
 }
