@@ -1,21 +1,16 @@
 package jdk.graal.compiler.test.bytecodefuzz.mutation;
 
-import java.util.Arrays;
 import java.util.Map;
 import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
-import java.util.function.Function;
 import java.util.function.Consumer;
 import java.util.stream.Stream;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.stream.StreamSupport;
-import java.lang.reflect.Field;
 
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Label;
-import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.commons.AnalyzerAdapter;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
@@ -23,7 +18,6 @@ import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.Type;
 
 import com.code_intelligence.jazzer.mutation.api.PseudoRandom;
-import jdk.graal.compiler.test.bytecodefuzz.FieldHolder;
 
 public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
 
@@ -156,7 +150,7 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
         int index = prng.indexIn(MIN_ARRAY_SIZE);
         mv.visitIntInsn(Opcodes.BIPUSH, index);
         Type elementType = currentType.getElementType();
-        mv.visitInsn(AsmTypeSupport.getArayDerefOpcode(currentType));
+        mv.visitInsn(AsmTypeSupport.getArrayDerefOpcode(currentType));
         return tryInsertDeref(AsmTypeSupport.getDirectSubarrayType(currentType), targetType);
     }
 
@@ -232,15 +226,11 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
     }
 
     protected boolean canGenerateFresh(Type type) {
-        return getFreshValueInserters().keySet().stream()
-            .filter(ft -> AsmTypeSupport.canBeDereferencedTo(ft, type))
-            .count() > 0;
+        return getFreshValueInserters().keySet().stream().anyMatch(ft -> AsmTypeSupport.canBeDereferencedTo(ft, type));
     }
 
     protected boolean canLoad(Type type) {
-        return analyzer.locals.stream()
-            .filter(l -> AsmTypeSupport.canBeDereferencedTo(AsmTypeSupport.getType(l), type))
-            .count() > 0;
+        return analyzer.locals.stream().anyMatch(l -> AsmTypeSupport.canBeDereferencedTo(AsmTypeSupport.getType(l), type));
     }
 
     protected boolean canGetField(Type type) {

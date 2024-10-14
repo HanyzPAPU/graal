@@ -101,7 +101,7 @@ public class ConstantMutation implements NonGrowingMutation {
     
     /**
      * Delegates between the given MethodVisitor mv (in our case the one from ClassWriter) and MutateConstantsMethodVisitor mcmv.
-     * MutateConstantsMethodVisitor is written in a way that it mutates all constants and we delegate the dispatch of which constant to mutate to this class.
+     * MutateConstantsMethodVisitor is written in a way that it mutates all constants, and we delegate the dispatch of which constant to mutate to this class.
      * 
      * When we delegate the instruction to mcmv, we still have to visit the instruction in InstructionVisitor, hence we call the visitInstructionInternal here.
      */

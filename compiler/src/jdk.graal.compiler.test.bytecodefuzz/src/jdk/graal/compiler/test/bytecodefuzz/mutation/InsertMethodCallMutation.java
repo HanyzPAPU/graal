@@ -20,12 +20,11 @@ import org.objectweb.asm.commons.GeneratorAdapter;
 import org.objectweb.asm.tree.AbstractInsnNode;
 
 
-import jdk.graal.compiler.test.bytecodefuzz.Pair;
 import com.code_intelligence.jazzer.mutation.api.PseudoRandom;
 
 public class InsertMethodCallMutation implements Mutation {
 
-    private static record UnInlineCandidate(Type methodType, int iindex, AbstractInsnNode insn){};
+    private record UnInlineCandidate(Type methodType, int iindex, AbstractInsnNode insn){}
 
     public final byte[] mutate(byte[] data, PseudoRandom prng) {
         ClassReader reader = new ClassReader(data);
@@ -57,10 +56,10 @@ public class InsertMethodCallMutation implements Mutation {
 
         ClassVisitor visitor = new ClassVisitor(Opcodes.ASM9, writer) {
 
-            Set<String> methodNames = new HashSet<>();
+            final Set<String> methodNames = new HashSet<>();
 
 
-            private static record VisitMethodParams(int access, String name, String descriptor, String signature, String[] exceptions){};
+            private record VisitMethodParams(int access, String name, String descriptor, String signature, String[] exceptions){}
             private VisitMethodParams fuzzedMethodParams = null;
 
             @Override
@@ -176,7 +175,7 @@ public class InsertMethodCallMutation implements Mutation {
                     if (tryInsertCall()) return;
                     super.visitTypeInsn(opcode, type);
                 }
-            };
+            }
         };
         cn.accept(visitor);
         return writer.toByteArray();

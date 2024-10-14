@@ -1,5 +1,6 @@
 package jdk.graal.compiler.test.bytecodefuzz.mutation;
 
+import java.lang.reflect.Field;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.stream.Collectors;
@@ -17,7 +18,6 @@ import org.objectweb.asm.tree.FieldInsnNode;
 import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.MethodInsnNode;
 import org.objectweb.asm.tree.TypeInsnNode;
-import org.objectweb.asm.tree.LdcInsnNode;
 import org.objectweb.asm.tree.IntInsnNode;
 import org.objectweb.asm.tree.MultiANewArrayInsnNode;
 
@@ -37,26 +37,26 @@ public final class AsmTypeSupport {
     public static final Map<Type, String> fieldHolderFieldNameByType = Arrays.stream(FieldHolder.class.getFields())
         .collect(Collectors.toMap(
             f -> Type.getType(f.getType()), // Key mapper
-            f -> f.getName()                // Val mapper
+            Field::getName                // Val mapper
         ));
 
     public static Type getType(Object type) {
         if (type instanceof Integer simple) {
-            if (simple == Opcodes.INTEGER) {
+            if (simple.equals(Opcodes.INTEGER)) {
                 return Type.INT_TYPE;
             }
-            if (simple == Opcodes.LONG) {
+            if (simple.equals(Opcodes.LONG)) {
                 return Type.LONG_TYPE;
             }
-            if (simple == Opcodes.FLOAT) {
+            if (simple.equals(Opcodes.FLOAT)) {
                 return Type.FLOAT_TYPE;
             }
-            if (simple == Opcodes.DOUBLE) {
+            if (simple.equals(Opcodes.DOUBLE)) {
                 return Type.DOUBLE_TYPE;
             }
 
             // Is this the problem?
-            if (simple == Opcodes.NULL) {
+            if (simple.equals(Opcodes.NULL)) {
                 return Type.getType(Object.class);
             }
         }
@@ -79,21 +79,15 @@ public final class AsmTypeSupport {
         return superArrayType.getElementType().equals(subArrayType.getElementType()) && superArrayType.getDimensions() > subArrayType.getDimensions();
     }
 
-    public static int getArayDerefOpcode(Type arrayType) {
+    public static int getArrayDerefOpcode(Type arrayType) {
         return arrayType.getDimensions() > 1 ? Opcodes.AALOAD : arrayType.getElementType().getOpcode(Opcodes.IALOAD);
     }
 
     private static boolean isIntegral(Type type) {
-        switch(type.getSort()) {
-            case Type.BOOLEAN:
-            case Type.BYTE:
-            case Type.CHAR:
-            case Type.SHORT:
-            case Type.INT:
-                return true;
-            default:
-                return false;
-        }
+        return switch (type.getSort()) {
+            case Type.BOOLEAN, Type.BYTE, Type.CHAR, Type.SHORT, Type.INT -> true;
+            default -> false;
+        };
     }
 
     public static boolean canBeAssignedTo(Type sourceType, Type targetType) {
@@ -175,7 +169,8 @@ public final class AsmTypeSupport {
         throw new RuntimeException("Unsupported primitive array type " + arrayType);
     }
 
-    // Returns an array type with same element type and 1 less dimensions or the element type if arrayType has only 1 dimension
+    // Returns an array type with the same element type of one fewer dimensions
+    // or the element type if arrayType has only 1 dimension
     public static Type getDirectSubarrayType(Type arrayType) {
         assert(arrayType.getSort() == Type.ARRAY);
         // Array type descriptors always start with [
@@ -202,7 +197,7 @@ public final class AsmTypeSupport {
             // All other calls must have the `this` argument added to the signature
 
             List<Type> args = new ArrayList<>(Arrays.asList(methodType.getArgumentTypes()));
-            args.add(0, Type.getObjectType(methodInsnNode.owner));
+            args.addFirst(Type.getObjectType(methodInsnNode.owner));
             return Type.getMethodType(methodType.getReturnType(), args.toArray(new Type[0]));
         }
 
@@ -420,7 +415,7 @@ public final class AsmTypeSupport {
             case Opcodes.POP:
             case Opcodes.MONITORENTER:
             case Opcodes.MONITOREXIT: {
-                Type tosType = getType(stack.get(stack.size() - 1));
+                Type tosType = getType(stack.getLast());
                 return Type.getMethodType(Type.VOID_TYPE, tosType);
             }
             // void(T1, T2)
@@ -429,7 +424,7 @@ public final class AsmTypeSupport {
                 if (lowType == Type.LONG_TYPE || lowType == Type.DOUBLE_TYPE) {
                     return Type.getMethodType(Type.VOID_TYPE, lowType);
                 }
-                Type topType = getType(stack.get(stack.size() - 1));
+                Type topType = getType(stack.getLast());
                 return Type.getMethodType(Type.VOID_TYPE, lowType, topType);
             }
             
@@ -445,13 +440,13 @@ public final class AsmTypeSupport {
             }
             // int(T[])
             case Opcodes.ARRAYLENGTH: {
-                Type arrayType = getType(stack.get(stack.size() - 1));
+                Type arrayType = getType(stack.getLast());
                 return Type.getMethodType(Type.INT_TYPE, arrayType);
             }
             
             // boolean(T)
             case Opcodes.INSTANCEOF: {
-                Type tosType = getType(stack.get(stack.size() - 1));
+                Type tosType = getType(stack.getLast());
                 return Type.getMethodType(Type.BOOLEAN_TYPE, tosType);
             }
             
@@ -487,30 +482,14 @@ public final class AsmTypeSupport {
                 IntInsnNode intNode = (IntInsnNode) insn;
                 Type arrayType;
                 switch(intNode.operand) {
-                    case Opcodes.T_BOOLEAN -> {
-                        arrayType = Type.getType(boolean[].class);
-                    }
-                    case Opcodes.T_CHAR -> {
-                        arrayType = Type.getType(char[].class);
-                    }
-                    case Opcodes.T_FLOAT -> {
-                        arrayType = floatArrayType;
-                    }
-                    case Opcodes.T_DOUBLE -> {
-                        arrayType = doubleArrayType;
-                    }
-                    case Opcodes.T_BYTE -> {
-                        arrayType = Type.getType(byte[].class);
-                    }
-                    case Opcodes.T_SHORT -> {
-                        arrayType = Type.getType(short[].class);
-                    }
-                    case Opcodes.T_INT -> {
-                        arrayType = intArrayType;
-                    }
-                    case Opcodes.T_LONG -> {
-                        arrayType = longArrayType;
-                    }
+                    case Opcodes.T_BOOLEAN -> arrayType = Type.getType(boolean[].class);
+                    case Opcodes.T_CHAR -> arrayType = Type.getType(char[].class);
+                    case Opcodes.T_FLOAT -> arrayType = floatArrayType;
+                    case Opcodes.T_DOUBLE -> arrayType = doubleArrayType;
+                    case Opcodes.T_BYTE -> arrayType = Type.getType(byte[].class);
+                    case Opcodes.T_SHORT -> arrayType = Type.getType(short[].class);
+                    case Opcodes.T_INT -> arrayType = intArrayType;
+                    case Opcodes.T_LONG -> arrayType = longArrayType;
                     default -> {
                         return null;
                     }
@@ -528,7 +507,7 @@ public final class AsmTypeSupport {
             case Opcodes.CHECKCAST: {
                 TypeInsnNode typeNode = (TypeInsnNode) insn;
                 Type targetType = Type.getObjectType(typeNode.desc);
-                Type sourceType = getType(stack.get(stack.size() - 1));
+                Type sourceType = getType(stack.getLast());
                 return Type.getMethodType(targetType, sourceType);
             }
             // MultiNewArrayInsnNode.desc(count x MultiNewArrayInsnNode.dims)

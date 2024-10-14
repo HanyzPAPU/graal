@@ -65,7 +65,7 @@ public class FuzzTarget extends GraalCompilerTest {
             //System.err.println("[DONE]");
         }
 
-        public void testCompile(byte[] bytes) throws Exception {
+        public void testCompile(byte[] bytes) {
             ResolvedJavaMethod method;
             try {
                 ByteClassLoader loader = new ByteClassLoader();
@@ -83,7 +83,6 @@ public class FuzzTarget extends GraalCompilerTest {
             }
             catch (BytecodeParserError e) {
                 // Ignore parser errors
-                return;
             }
         }
 
@@ -96,7 +95,7 @@ public class FuzzTarget extends GraalCompilerTest {
         }
     }
 
-    void testBytecode(byte[] bytes) throws Exception {
+    void testBytecode(byte[] bytes) {
         new TestExecution().testCompile(bytes);
     }
 

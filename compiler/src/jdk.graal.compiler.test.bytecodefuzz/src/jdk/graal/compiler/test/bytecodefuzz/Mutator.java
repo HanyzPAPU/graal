@@ -41,7 +41,7 @@ public final class Mutator {
     private final List<Mutation> mutations = getMutations();
     private final List<NonGrowingMutation> nonGrowingMutations = getNonGrowingMutations();
 
-    public byte[] Mutate(byte[] data, int maxSize, int seed) throws Exception {
+    public byte[] Mutate(byte[] data, int maxSize, int seed) {
 
         if (data == null || data.length < 10) {
             // The required classfile header has 10 B, so don't even bother opening anything smaller
@@ -70,7 +70,7 @@ public final class Mutator {
             return null;
         }
         if(result.length > maxSize) {
-            System.err.println("Nongrowing mutation grew over size limit!");
+            System.err.println("Non-growing mutation grew over size limit!");
             return null;
         }
         
@@ -86,7 +86,7 @@ public final class Mutator {
         StringWriter sw = new StringWriter();
         TraceClassVisitor visitor = new TraceClassVisitor(new PrintWriter(sw));
         reader.accept(visitor, 0);
-        System.err.println(sw.toString());
+        System.err.println(sw);
     }
 
     private void dumpBytes(byte[] bytes) {

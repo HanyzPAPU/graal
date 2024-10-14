@@ -9,13 +9,13 @@ import org.objectweb.asm.tree.MethodNode;
 import com.code_intelligence.jazzer.mutation.api.PseudoRandom;
 
 public class MethodSelector {
-    private MethodSelector() {};
+    private MethodSelector() {}
 
     private static final String ctorName = "<init>";
     private static final String staticCtorName = "<clinit>";
     private static final double epsilon = 0.05;
 
-    private static HashMap<String, Integer> mutCounts = new HashMap<>();
+    private static final HashMap<String, Integer> mutCounts = new HashMap<>();
 
     private record MethodWithPotential(MethodNode method, double potential){}
 

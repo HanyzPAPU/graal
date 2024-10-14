@@ -131,9 +131,7 @@ public class SplitConstantMutation extends AbstractMutation {
                         case (Opcodes.ICONST_3) -> 3;
                         case (Opcodes.ICONST_4) -> 4;
                         case (Opcodes.ICONST_5) -> 5;
-                        default -> {
-                            throw new RuntimeException("Invalid opcode selected!");
-                        }
+                        default -> throw new RuntimeException("Invalid opcode selected!");
 
                     };
                     split(value);
@@ -142,9 +140,7 @@ public class SplitConstantMutation extends AbstractMutation {
                     long value = switch(opcode) {
                         case (Opcodes.LCONST_0) -> 0;
                         case (Opcodes.LCONST_1) -> 1;
-                        default -> {
-                            throw new RuntimeException("Invalid opcode selected!");
-                        }
+                        default -> throw new RuntimeException("Invalid opcode selected!");
                     };
                     split(value);
                 }

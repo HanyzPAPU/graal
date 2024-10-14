@@ -66,10 +66,14 @@ public class LoadConstantLocator extends InstructionVisitor {
     @Override
     public void visitLdcInsn(Object value){
         // Optimistically include all Ldc locations, even if it is possible that the value itself might not be mutatable
-        if ((reducedSearch && (value instanceof Integer || value instanceof Long || value instanceof String)) || (!reducedSearch)) {
+        if (!reducedSearch || isOfReducedSearchType(value)) {
             loadConstantLocations.add(iindex());
         }
         super.visitLdcInsn(value);
+    }
+
+    private static boolean isOfReducedSearchType(Object value) {
+        return value instanceof Integer || value instanceof Long || value instanceof String;
     }
 
     @Override

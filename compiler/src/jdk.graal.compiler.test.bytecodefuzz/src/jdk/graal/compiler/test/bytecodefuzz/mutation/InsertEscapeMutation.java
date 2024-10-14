@@ -1,18 +1,14 @@
 package jdk.graal.compiler.test.bytecodefuzz.mutation;
 
 import java.util.List;
-import java.util.ArrayList;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.stream.Stream;
 
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.commons.AnalyzerAdapter;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
-import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.Type;
 
 import com.code_intelligence.jazzer.mutation.api.PseudoRandom;
@@ -23,7 +19,7 @@ public class InsertEscapeMutation extends AbstractMutation {
     protected Function<MethodVisitor,MethodVisitor> createMethodVisitorFactory(ClassNode cn, MethodNode mn, PseudoRandom prng) {
         InstructionVisitor iv = new InstructionVisitor(Opcodes.ASM9);
         mn.accept(iv);
-        // Don't insert escapes before first instruction
+        // Don't insert escapes before the first instruction
         // This would only ever escape `this`
         int iindex = prng.otherIndexIn(iv.iindex(), 0);
 
@@ -62,7 +58,7 @@ public class InsertEscapeMutation extends AbstractMutation {
         private void escapeTos() {
             assert(analyzer.stack != null);
 
-            Object tosType = analyzer.stack.get(analyzer.stack.size() - 1);
+            Object tosType = analyzer.stack.getLast();
             boolean wide = false;
             if (tosType.equals(Opcodes.TOP)) {
                 tosType = analyzer.stack.get(analyzer.stack.size() - 2);
@@ -91,12 +87,12 @@ public class InsertEscapeMutation extends AbstractMutation {
         private boolean canEscapeTos() {
             if (analyzer.stack == null) return false;
             if (analyzer.stack.isEmpty()) return false;
-            Object tosType = analyzer.stack.get(analyzer.stack.size() - 1);
+            Object tosType = analyzer.stack.getLast();
             if (tosType.equals(Opcodes.TOP)) {
                 tosType = analyzer.stack.get(analyzer.stack.size() - 2);
             }
             if (tosType instanceof Integer iTosType) {
-                if (iTosType == Opcodes.TOP || iTosType == Opcodes.NULL || iTosType == Opcodes.UNINITIALIZED_THIS) {
+                if (iTosType.equals(Opcodes.TOP) || iTosType.equals(Opcodes.NULL) || iTosType.equals(Opcodes.UNINITIALIZED_THIS)) {
                     return false;
                 }
                 else {

@@ -27,20 +27,20 @@ class MutateConstantsMethodVisitor extends MethodVisitor {
         this.freeSpace = freeSpace;
     }
 
-    <T> T mutateOrThrow(Object value, Class<T> clazz) throws Exception {
+    <T> T mutateOrThrow(Object value, Class<T> clazz) {
         AnnotatedType annotatedType = TypeSupport.notNull(TypeSupport.asAnnotatedType(clazz));
 
-        @SuppressWarnings("unchecked") // This method will throw before the cast would be unsuccesfull
+        @SuppressWarnings("unchecked") // This method will throw before the cast would be unsuccessful
         SerializingMutator<T> mutator = (SerializingMutator<T>)mutatorFactory.createOrThrow(annotatedType);
 
-        return mutator.mutate(clazz.cast(value), prng);    
+        return mutator.mutate(clazz.cast(value), prng);
     }
 
     // This function calculates the number of bytes needed to store the given string in a classfile
     int modifiedUTF8Len(String s) {
 
         // Classfiles use a modified UTF-8 encoding for some reason
-        // which stores the data in a different way than `s.getBytes(StandardCharsets.UTF_8)`
+        // that stores the data differently than `s.getBytes(StandardCharsets.UTF_8)`
 
         int res = 0;
         int i = 0;
@@ -81,14 +81,14 @@ class MutateConstantsMethodVisitor extends MethodVisitor {
                 AnnotatedType annotatedType = TypeSupport.asAnnotatedType(String.class);
                 annotatedType = JazzerTypeSupport.WithUtf8Length(annotatedType, 0, maxUTF8Length);
 
-                @SuppressWarnings("unchecked") // This method will throw before the cast would be unsuccesfull
+                @SuppressWarnings("unchecked") // This method will throw before the cast would be unsuccessful
                 SerializingMutator<String> mutator = (SerializingMutator<String>)mutatorFactory.createOrThrow(annotatedType);
 
                 String mutated = mutator.mutate(s, prng);
                 int mutatedLength;
 
                 while ((mutatedLength = modifiedUTF8Len(mutated)) > maxLength) {
-                    // Remove first character
+                    // Remove the first character
                     mutated = mutated.substring(1);
                 }
 
@@ -110,14 +110,14 @@ class MutateConstantsMethodVisitor extends MethodVisitor {
         }
     }
 
-    //? Should we keep the type or should we allow to make the constants bigger?
+    //? Should we keep the type, or should we allow to make the constants bigger?
     @Override
     public void visitIntInsn(int opcode, int operand) {
         if (opcode == Opcodes.BIPUSH) {
 
             AnnotatedType annotatedType = TypeSupport.asAnnotatedType(Byte.class);
             annotatedType = TypeSupport.notNull(annotatedType);
-            @SuppressWarnings("unchecked") // This method will throw before the cast would be unsuccesfull
+            @SuppressWarnings("unchecked") // This method will throw before the cast would be unsuccessful
             SerializingMutator<Byte> mutator = (SerializingMutator<Byte>)mutatorFactory.createOrThrow(annotatedType);
 
             byte mutant = mutator.mutate((byte)operand, prng);
@@ -126,7 +126,7 @@ class MutateConstantsMethodVisitor extends MethodVisitor {
         else if (opcode == Opcodes.SIPUSH) {
             AnnotatedType annotatedType = TypeSupport.asAnnotatedType(Short.class);
             annotatedType = TypeSupport.notNull(annotatedType);
-            @SuppressWarnings("unchecked") // This method will throw before the cast would be unsuccesfull
+            @SuppressWarnings("unchecked") // This method will throw before the cast would be unsuccessful
             SerializingMutator<Short> mutator = (SerializingMutator<Short>)mutatorFactory.createOrThrow(annotatedType);
 
             short mutant = mutator.mutate((short)operand, prng);
@@ -137,7 +137,7 @@ class MutateConstantsMethodVisitor extends MethodVisitor {
         }
     }
     
-    private int[] positiveICONSTopcodes = new int[] {
+    private final int[] positiveICONSTopcodes = new int[] {
         Opcodes.ICONST_0,
         Opcodes.ICONST_1,
         Opcodes.ICONST_2,
@@ -157,20 +157,20 @@ class MutateConstantsMethodVisitor extends MethodVisitor {
     }
 
 
-    //? Should we keep the predefined values or should we allow to make the constants bigger?
-    //? Making them bigger would make the classfile larger, so we have to tread carefully
+    // Should we keep the predefined values, or should we allow to make the constants bigger?
+    // Making them bigger would make the classfile larger, so we have to tread carefully
 
     @Override
     public void visitInsn(int opcode) {
 
-        // We don't use Jazzer mutators here, as they do not bring much benefit for such small intervals
+        // We don't use Jazzer mutators here, as they bring little benefit for such small intervals
 
         if (LoadConstantLocator.isOpcodeICONST(opcode)) {
             int value = prng.closedRange(-1, 5);
             this.mv.visitInsn(getICONSTopcode(value));
         }
 
-        // Just switch 1/0 for Longs and Doubles
+        // Switch 1/0 for Longs and Doubles
         else if (opcode == Opcodes.LCONST_0) {
             this.mv.visitInsn(Opcodes.LCONST_1);
         }

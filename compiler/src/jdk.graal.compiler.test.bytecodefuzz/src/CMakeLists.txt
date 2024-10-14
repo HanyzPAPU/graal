@@ -5,8 +5,8 @@ find_package(JNI REQUIRED)
 project("mutator")
 
 # We need to compile with clang to hook into libFuzzer
-set(CMAKE_C_COMPILER "/usr/bin/clang")
-set(CMAKE_CXX_COMPILER "/usr/bin/clang++")
+set(CMAKE_C_COMPILER "clang")
+set(CMAKE_CXX_COMPILER "clang++")
 
 add_library(mutator SHARED mutator.cpp)
 target_compile_options(mutator PRIVATE -g -fPIC)

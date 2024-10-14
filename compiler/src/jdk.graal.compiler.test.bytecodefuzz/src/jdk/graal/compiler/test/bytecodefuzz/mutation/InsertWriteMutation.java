@@ -1,19 +1,13 @@
 package jdk.graal.compiler.test.bytecodefuzz.mutation;
 
-import java.util.Arrays;
-import java.util.Map;
-import java.util.HashMap;
 import java.util.List;
 import java.util.ArrayList;
+import java.util.Objects;
 import java.util.function.Function;
-import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
-import java.util.stream.StreamSupport;
-import java.lang.reflect.Field;
 
 import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.commons.AnalyzerAdapter;
 import org.objectweb.asm.tree.ClassNode;
@@ -22,7 +16,6 @@ import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.Type;
 
 import com.code_intelligence.jazzer.mutation.api.PseudoRandom;
-import jdk.graal.compiler.test.bytecodefuzz.FieldHolder;
 
 public class InsertWriteMutation extends AbstractMutation {
     @Override
@@ -31,14 +24,14 @@ public class InsertWriteMutation extends AbstractMutation {
         InstructionVisitor iv = new InstructionVisitor(Opcodes.ASM9);
         mn.accept(iv);
 
-        // Don't select before first instruction in a class without any fields, as there will be no place to save to
+        // Don't select before the first instruction in a class without any fields, as there will be no place to save to
         int iindex = cn.fields.isEmpty() ? prng.otherIndexIn(iv.iindex(), 0) : prng.indexIn(iv.iindex());
 
         return mv -> {
             AnalyzerAdapter analyzer = new AnalyzerAdapter(cn.name, mn.access, mn.name, mn.desc, mv);
             return new InsertValuePushMethodVisitor(Opcodes.ASM9, analyzer, iindex, prng, cn, mn) {
                 
-                boolean isStatic = AsmTypeSupport.isStatic(mn.access);
+                final boolean isStatic = AsmTypeSupport.isStatic(mn.access);
 
                 Type selectedType;
                 
@@ -102,7 +95,7 @@ public class InsertWriteMutation extends AbstractMutation {
                 private boolean canInsertToLocal() {
                     return analyzer.locals.stream()
                         .map(AsmTypeSupport::getType)
-                        .anyMatch(x -> x != null);
+                        .anyMatch(Objects::nonNull);
                 }
 
                 // Recursively dereferences the value on TOS but leaves a value that can be written to on TOS
@@ -178,7 +171,7 @@ public class InsertWriteMutation extends AbstractMutation {
                             return true;
                         })
                         .map(f -> Type.getType(f.desc))
-                        .anyMatch(x -> x != null);
+                        .anyMatch(Objects::nonNull);
                 }
 
                 private void insertToField() {

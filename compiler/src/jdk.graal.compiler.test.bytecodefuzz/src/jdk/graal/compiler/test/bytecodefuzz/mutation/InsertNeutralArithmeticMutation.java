@@ -1,13 +1,8 @@
 package jdk.graal.compiler.test.bytecodefuzz.mutation;
 
 import java.util.List;
-import java.util.ArrayList;
 import java.util.Map;
 import java.util.function.Function;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
@@ -30,8 +25,8 @@ public class InsertNeutralArithmeticMutation extends AbstractMutation {
         }
 
         Pair<Integer, Type> typedIndex = prng.pickIn(validProgramPoints);
-        Type pickedType = typedIndex.second;
-        int pickedIndex = typedIndex.first;
+        Type pickedType = typedIndex.second();
+        int pickedIndex = typedIndex.first();
 
         return mv -> new InsertNeutralOpMethodVisitor(Opcodes.ASM9, mv, pickedIndex, pickedType, prng);
     }
@@ -98,8 +93,8 @@ public class InsertNeutralArithmeticMutation extends AbstractMutation {
 
         private final Runnable[] stringVariants = new Runnable[] {
             () -> {mv.visitLdcInsn(""); visitStringCall("concat", String.class); }, // tos + ""
-            () -> {visitStringCall("intern"); },                                    // tos.intern()
-            () -> {visitStringCall("toString"); },                                  // tos.toString()
+            () -> visitStringCall("intern"),                                    // tos.intern()
+            () -> visitStringCall("toString"),                                  // tos.toString()
             () -> {mv.visitInsn(Opcodes.ICONST_0);                                  // tos.substring(0)
                    visitStringCall("substring", int.class);
             }

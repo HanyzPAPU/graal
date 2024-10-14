@@ -1,7 +1,6 @@
 package jdk.graal.compiler.test.bytecodefuzz.mutation;
 
 import java.util.List;
-import java.util.ArrayList;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -32,10 +31,10 @@ public class PrimitiveOnTosLocator {
 
                     if (stringType == null) {
                         Type type = AsmTypeSupport.getType(Integer.parseInt(type1 != null ? type1 : type2));
-                        return e.getValue().stream().map(iindex -> new Pair<Integer, Type>(iindex, type));
+                        return e.getValue().stream().map(iindex -> new Pair<>(iindex, type));
                     }
                     else {
-                        return e.getValue().stream().map(iindex -> new Pair<Integer, Type>(iindex, AsmTypeSupport.stringType));
+                        return e.getValue().stream().map(iindex -> new Pair<>(iindex, AsmTypeSupport.stringType));
                     }
                 }
                 else {

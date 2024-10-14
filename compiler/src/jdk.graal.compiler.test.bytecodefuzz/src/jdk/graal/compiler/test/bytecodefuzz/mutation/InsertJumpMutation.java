@@ -41,9 +41,9 @@ public class InsertJumpMutation extends AbstractMutation {
         };
     }
 
-    private static record Jump(int source, int target) {}
+    private record Jump(int source, int target) {}
 
-    private static Function<List<Integer>, Integer> weightFunction = l -> l.size();
+    private static final Function<List<Integer>, Integer> weightFunction = List::size;
 
     private Jump selectJump(Map<String, List<Integer>> frameMap, PseudoRandom prng) {
 
@@ -54,12 +54,12 @@ public class InsertJumpMutation extends AbstractMutation {
         int rand = prng.indexIn(weightSum);
 
         int i = 0;
-        int cummulativeWeight = 0;
+        int cumulativeWeight = 0;
 
         for(Iterator<Integer> it = frameMap.values().stream().map(weightFunction).iterator(); it.hasNext(); i++) {
-            cummulativeWeight += it.next();
+            cumulativeWeight += it.next();
 
-            if (cummulativeWeight > rand)
+            if (cumulativeWeight > rand)
                 break;
         }
 

@@ -1,8 +1,6 @@
 package jdk.graal.compiler.test.bytecodefuzz.mutation;
 
 import java.util.List;
-import java.util.ArrayList;
-import java.util.Map;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -10,7 +8,6 @@ import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
@@ -61,8 +58,8 @@ public class InsertSwapMutation extends AbstractMutation {
         }
         
         Pair<Integer, Boolean> target = prng.pickIn(validProgramPoints);
-        int targetIindex = target.first;
-        boolean isSimple = target.second;
+        int targetIindex = target.first();
+        boolean isSimple = target.second();
 
         return mv -> new InstructionVisitor(Opcodes.ASM9, mv) {
             @Override

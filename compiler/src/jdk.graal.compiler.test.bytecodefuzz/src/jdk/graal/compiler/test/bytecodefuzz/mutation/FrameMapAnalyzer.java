@@ -12,7 +12,7 @@ public class FrameMapAnalyzer extends MethodVisitor  {
 
     public static final String separator = "{€}";
 
-    private FrameTracer frameTracer;
+    private final FrameTracer frameTracer;
     private final boolean varsInSig;
 
     public FrameMapAnalyzer(int api, String owner, int access, String name, String descriptor) {
@@ -69,7 +69,7 @@ public class FrameMapAnalyzer extends MethodVisitor  {
 
         private void updateMap() {
             String signature = getCurrentSignature();
-            map.computeIfAbsent(signature, k -> new ArrayList<>()).add(iindex());
+            map.computeIfAbsent(signature, val -> new ArrayList<>()).add(iindex());
         }
 
         @Override

@@ -1,9 +1,5 @@
 package jdk.graal.compiler.test.bytecodefuzz.mutation;
 
-import java.util.List;
-import java.util.ArrayList;
-import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
 import org.objectweb.asm.ClassReader;
@@ -11,7 +7,6 @@ import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.commons.AnalyzerAdapter;
 import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.MethodInsnNode;
@@ -89,7 +84,7 @@ public class RemoveEscapeMutation implements NonGrowingMutation {
         }
 
         private void removeEscape(String descriptor) {
-            // Dont visit the call
+            // Don't visit the call
             // Instead, we need to POP the argument from TOS
             Type[] argTypes = Type.getArgumentTypes(descriptor);
             assert(argTypes.length == 1);
