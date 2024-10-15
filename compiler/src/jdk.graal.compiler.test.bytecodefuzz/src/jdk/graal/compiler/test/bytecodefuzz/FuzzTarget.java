@@ -95,16 +95,45 @@ public class FuzzTarget extends GraalCompilerTest {
         }
     }
 
-    void testBytecode(byte[] bytes) {
-        new TestExecution().testCompile(bytes);
+    private final boolean compileOnly;
+
+    private FuzzTarget(boolean compileOnly) {
+        System.out.println(compileOnly);
+        System.exit(-1);
+        this.compileOnly = compileOnly;
+    }
+
+    void testBytecode(byte[] bytes) throws Exception{
+        var testExecution = new TestExecution();
+        if (compileOnly) {
+            testExecution.testCompile(bytes);
+        }
+        else {
+            testExecution.test(bytes);
+        }
     }
 
     static FuzzTarget instance;
 
+    static boolean getCompileOnlyProperty() {
+        String property = System.getProperty("fuzzCompileOnly");
+        if (property == null) {
+            return false;
+        }
+        if (property.equals("true")) {
+            return true;
+        }
+        if (property.equals("false")) {
+            return false;
+        }
+        System.err.println("Wrong format for property fuzzCompileOnly: " + property);
+        return false;
+    }
+
     public static void fuzzerInitialize(){
         // TODO: don't init in reproducer
         MutatorHarness.InitMutator();
-        instance = new FuzzTarget();
+        instance = new FuzzTarget(getCompileOnlyProperty());
     }
 
     public static void fuzzerTestOneInput(byte[] input) throws Exception {
