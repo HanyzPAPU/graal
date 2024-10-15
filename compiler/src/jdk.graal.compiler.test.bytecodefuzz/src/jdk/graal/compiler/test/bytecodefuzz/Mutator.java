@@ -15,20 +15,68 @@ import jdk.graal.compiler.test.bytecodefuzz.mutation.*;
 
 public final class Mutator {
 
+    private static final boolean conservative;
+    private static final boolean hasJumpInsertion;
+    private static final boolean onlyJumps;
+
+    private static boolean getBoolProperty(String name, boolean defaultVal) {
+        String property = System.getProperty(name);
+        if (property == null) {
+            return defaultVal;
+        }
+        if (property.equals("true")) {
+            return true;
+        }
+        if (property.equals("false")) {
+            return false;
+        }
+        System.err.println("Invalid format for " + name + " property: " + property);
+        return defaultVal;
+    }
+
+    static {
+        conservative = getBoolProperty("fuzzMutConservative", false);
+        hasJumpInsertion = getBoolProperty("fuzzMutHasJump", true);
+        onlyJumps = getBoolProperty("fuzzMutJumpOnly", false);
+    }
+
     private static List<Mutation> getMutations() {
-        return Arrays.asList(
-            new InsertJumpMutation(),
-            new ConstantMutation(),
+
+        if (onlyJumps) {
+            return Arrays.asList(new InsertJumpMutation());
+        }
+
+        // Start with conservative mutations
+        List<Mutation> mutations = Arrays.asList(
             new InsertNeutralArithmeticMutation(),
             new SplitConstantMutation(),
             new InsertDeadCodeMutation(),
             new InsertLocalVariableMutation(),
             new InsertSwapMutation(),
             new InsertEscapeMutation(),
-            new InsertWriteMutation(),
-            new InsertOperationMutation(),
             new InsertMethodCallMutation()
         );
+
+        // Add jump insertion if desired
+        if (hasJumpInsertion) {
+            mutations.add(new InsertJumpMutation());
+        }
+
+        // Conservative shortcircuit
+        if (conservative) {
+            // Allow ctor constant fuzzing
+            mutations.add(new ConstantMutation());
+            return mutations;
+        }
+
+        // Add aggresive mutations
+        mutations.addAll(Arrays.asList(
+            new ConstantMutation(false),
+            new InsertWriteMutation(),
+            new InsertOperationMutation()
+        ));
+
+        return mutations;
     }
 
     private static List<NonGrowingMutation> getNonGrowingMutations() {
