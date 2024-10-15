@@ -43,7 +43,27 @@ public class InsertJumpMutation extends AbstractMutation {
 
     private record Jump(int source, int target) {}
 
-    private static final Function<List<Integer>, Integer> weightFunction = List::size;
+
+    private static Function<List<Integer>, Integer> getWeightFunc() {
+        String property = System.getProperty("fuzzJumpProb");
+        if (property == null) {
+            return List::size;
+        }
+        if (property.equals("loc")) {
+            return List::size;
+            
+        }
+        if (property.equals("pair")) {
+            return list -> list.size() * list.size();
+        }
+        if (property.equals("sqrt")) {
+            return list -> (int)(Math.sqrt(list.size()) * list.size());
+        }
+        System.err.println("Jump Prob wrong format: " + property);
+        return List::size;
+    }
+
+    private static final Function<List<Integer>, Integer> weightFunction = getWeightFunc();
 
     private Jump selectJump(Map<String, List<Integer>> frameMap, PseudoRandom prng) {
 
