@@ -31,8 +31,21 @@ public abstract class InsertValuePushMethodVisitor extends InstructionVisitor {
     public final static int MIN_ARRAY_SIZE = 10;
     public final static int MAX_ARRAY_SIZE = 100;
     
-    // Expected number of derefs = 0.5 (would be 0.33 for 4 and 1 for 2)
-    public final static int RECURSIVE_DEREF_INVERSE_FREQ = 3;
+    private static int getDerefInverseFreq() {
+        String property = System.getProperty("fuzzDerefInverseFreq");
+        try {
+            return Integer.parseInt(property);
+        }
+        catch(Exception e) {
+            if (property != null) {
+                System.err.println("Deref Inverse Freq format error: " + property);
+            }
+            return 3;
+        }
+    }
+
+    // Expected number of derefs = 0.5 (would be 0.33 for 4, and 1 for 2)
+    public final static int RECURSIVE_DEREF_INVERSE_FREQ = getDerefInverseFreq();
 
     public InsertValuePushMethodVisitor(int api, AnalyzerAdapter analyzer, int targetIindex, PseudoRandom prng, ClassNode cn, MethodNode mn) {
         super(api, analyzer);
