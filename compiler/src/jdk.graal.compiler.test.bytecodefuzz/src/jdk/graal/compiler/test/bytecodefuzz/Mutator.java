@@ -2,6 +2,7 @@ package jdk.graal.compiler.test.bytecodefuzz;
 
 import java.util.Arrays;
 import java.util.List;
+import java.util.ArrayList;
 import java.io.StringWriter;
 import java.io.PrintWriter;
 
@@ -47,7 +48,7 @@ public final class Mutator {
         }
 
         // Start with conservative mutations
-        List<Mutation> mutations = Arrays.asList(
+        List<Mutation> mutations = new ArrayList<>(Arrays.asList(
             new InsertNeutralArithmeticMutation(),
             new SplitConstantMutation(),
             new InsertDeadCodeMutation(),
@@ -55,7 +56,7 @@ public final class Mutator {
             new InsertSwapMutation(),
             new InsertEscapeMutation(),
             new InsertMethodCallMutation()
-        );
+        ));
 
         // Add jump insertion if desired
         if (hasJumpInsertion) {
