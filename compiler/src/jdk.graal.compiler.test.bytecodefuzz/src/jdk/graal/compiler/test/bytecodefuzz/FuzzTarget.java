@@ -98,8 +98,6 @@ public class FuzzTarget extends GraalCompilerTest {
     private final boolean compileOnly;
 
     private FuzzTarget(boolean compileOnly) {
-        System.out.println(compileOnly);
-        System.exit(-1);
         this.compileOnly = compileOnly;
     }
 
@@ -118,7 +116,7 @@ public class FuzzTarget extends GraalCompilerTest {
     static boolean getCompileOnlyProperty() {
         String property = System.getProperty("fuzzCompileOnly");
         if (property == null) {
-            return false;
+            return true;
         }
         if (property.equals("true")) {
             return true;
@@ -127,7 +125,7 @@ public class FuzzTarget extends GraalCompilerTest {
             return false;
         }
         System.err.println("Wrong format for property fuzzCompileOnly: " + property);
-        return false;
+        return true;
     }
 
     public static void fuzzerInitialize(){
