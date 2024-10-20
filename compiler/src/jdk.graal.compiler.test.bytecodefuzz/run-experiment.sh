@@ -7,9 +7,12 @@ CPUS=4
 # TODO: increase max memory from 2 gigs
 # TODO: increase the number of CPUs
 # TODO: update max runtime to more than 4 minutes
-# TODO: increase the reload time (to maybe a minute?)
 
 EXPERIMENT_NAME=$1
+
+# Prepare the initial corpus
+rm -f corpus/*
+./populate-corpus.sh
 
 # Read from output log files and redirect them to experiment named files with timestamps
 for I in $(seq 0 $(($CPUS-1)))
@@ -20,7 +23,7 @@ do
     echo "" > $JAZZER_LOG_FILE
     # only append to experiment logs
     touch $EXPERIMENT_LOG_FILE
-    tail -f $JAZZER_LOG_FILE | while IFS= read -r line; do printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$line" >> $EXPERIMENT_LOG_FILE; done &
+    tail --pid=$$ -f $JAZZER_LOG_FILE | while IFS= read -r line; do printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$line" >> $EXPERIMENT_LOG_FILE; done &
 done
 
 # Run the fuzzing
@@ -40,6 +43,3 @@ mx vm @export-hack \
     --reproducer_path=./reproducers/ \
     -max_len=8192 -timeout=60 -max_total_time=240 -jobs=$CPUS -workers=$CPUS -reload=10 -print_final_stats=1 \
     $CORPUSDIR  
-
-# Kill all started subprocesses
-pkill -P $$
