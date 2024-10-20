@@ -11,8 +11,12 @@ CPUS=4
 EXPERIMENT_NAME=$1
 
 # Prepare the initial corpus
-rm -f corpus/*
-./populate-corpus.sh
+
+if [ -z "$PRESERVE_CORPUS" ]; then
+    rm -f corpus/*
+    ./populate-corpus.sh
+    echo "in if"
+fi
 
 # Read from output log files and redirect them to experiment named files with timestamps
 for I in $(seq 0 $(($CPUS-1)))
@@ -31,7 +35,7 @@ export LD_PRELOAD="$PWD/src/build/libmutator.so"
 mx vm @export-hack \
     -XX:+UseParallelGC -XX:+EnableDynamicAgentLoading -XX:-UseJVMCICompiler \
     -Xmx2g \
-    "${@:2}" \
+    "${@:3}" \
     -Djava.library.path="$PWD/src/build/" \
     -Djdk.graal.MaxDuplicationFactor=1000.0 \
     -Djdk.graal.CompilationFailureAction=Print \
@@ -41,5 +45,5 @@ mx vm @export-hack \
     --instrumentation_includes=jdk.graal.compiler.** \
     --target_class=jdk.graal.compiler.test.bytecodefuzz.FuzzTarget \
     --reproducer_path=./reproducers/ \
-    -max_len=8192 -timeout=60 -max_total_time=240 -jobs=$CPUS -workers=$CPUS -reload=10 -print_final_stats=1 \
+    -max_len=8192 -timeout=60 -max_total_time=$2 -jobs=$CPUS -workers=$CPUS -reload=10 -print_final_stats=1 \
     $CORPUSDIR  
