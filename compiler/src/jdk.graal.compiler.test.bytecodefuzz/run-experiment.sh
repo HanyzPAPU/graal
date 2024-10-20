@@ -1,12 +1,9 @@
 #!/bin/bash
 
+# Expects env. variables RUNTIME, CPUS and MAX_MEMORY to be set
+
 CLASSPATH="../../mxbuild/dists/graal-test-bytecodefuzz.jar"
 CORPUSDIR="./corpus"
-CPUS=4
-
-# TODO: increase max memory from 2 gigs
-# TODO: increase the number of CPUs
-# TODO: update max runtime to more than 4 minutes
 
 EXPERIMENT_NAME=$1
 
@@ -34,8 +31,8 @@ done
 export LD_PRELOAD="$PWD/src/build/libmutator.so"
 mx vm @export-hack \
     -XX:+UseParallelGC -XX:+EnableDynamicAgentLoading -XX:-UseJVMCICompiler \
-    -Xmx2g \
-    "${@:3}" \
+    -Xmx$MAX_MEMORY \
+    "${@:2}" \
     -Djava.library.path="$PWD/src/build/" \
     -Djdk.graal.MaxDuplicationFactor=1000.0 \
     -Djdk.graal.CompilationFailureAction=Print \
@@ -45,5 +42,5 @@ mx vm @export-hack \
     --instrumentation_includes=jdk.graal.compiler.** \
     --target_class=jdk.graal.compiler.test.bytecodefuzz.FuzzTarget \
     --reproducer_path=./reproducers/ \
-    -max_len=8192 -timeout=60 -max_total_time=$2 -jobs=$CPUS -workers=$CPUS -reload=10 -print_final_stats=1 \
+    -max_len=8192 -timeout=60 -max_total_time=$RUNTIME -jobs=$CPUS -workers=$CPUS -reload=10 -print_final_stats=1 \
     $CORPUSDIR  
