@@ -3,17 +3,14 @@
 # Parameters
 
 # Runtime of one experiment in seconds
-# TODO: make longer
-export RUNTIME=240
+export RUNTIME=7200 # 2 hours
 # Runtime of the experiment where we first prefuzz the corpus with jumps only, the two times should sum up to RUNTIME
-JUMP_PREFUZZ_PRETIME=60
-JUMP_PREFUZZ_RUNTIME=180
+JUMP_PREFUZZ_PRETIME=1800 # 30 minutes
+JUMP_PREFUZZ_RUNTIME=5400 # 1:30 hours
 
 # Number of available CPUs
-# TODO: make more
-export CPUS=4
+export CPUS=8
 # -Xmx JVM option
-# TODO: make higher
 export MAX_MEMORY=2g
 
 # Expects that mx is on path and that JAVA_HOME is set to a JVMCI compiler
