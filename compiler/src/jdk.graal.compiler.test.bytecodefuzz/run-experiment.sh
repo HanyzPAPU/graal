@@ -33,18 +33,18 @@ if [ -z "$NO_MUTATORS" ]; then
     export LD_PRELOAD="$PWD/src/build/libmutator.so"
 fi
 
-# mx vm @export-hack \
-#     -XX:+UseParallelGC -XX:+EnableDynamicAgentLoading -XX:-UseJVMCICompiler \
-#     -Xmx$MAX_MEMORY \
-#     "${@:2}" \
-#     -Djava.library.path="$PWD/src/build/" \
-#     -Djdk.graal.MaxDuplicationFactor=1000.0 \
-#     -Djdk.graal.CompilationFailureAction=Print \
-#     -cp $CLASSPATH \
-#     com.code_intelligence.jazzer.Jazzer \
-#     --instrumentation_excludes=jdk.graal.compiler.core.test.**:jdk.graal.compiler.test.**:org.objectweb.asm.** \
-#     --instrumentation_includes=jdk.graal.compiler.** \
-#     --target_class=jdk.graal.compiler.test.bytecodefuzz.FuzzTarget \
-#     --reproducer_path=./reproducers/ \
-#     -max_len=8192 -timeout=60 -max_total_time=$RUNTIME -jobs=$CPUS -workers=$CPUS -reload=10 -print_final_stats=1 \
-#     $CORPUSDIR
+mx vm @export-hack \
+    -XX:+UseParallelGC -XX:+EnableDynamicAgentLoading -XX:-UseJVMCICompiler \
+    -Xmx$MAX_MEMORY \
+    "${@:2}" \
+    -Djava.library.path="$PWD/src/build/" \
+    -Djdk.graal.MaxDuplicationFactor=1000.0 \
+    -Djdk.graal.CompilationFailureAction=Print \
+    -cp $CLASSPATH \
+    com.code_intelligence.jazzer.Jazzer \
+    --instrumentation_excludes=jdk.graal.compiler.core.test.**:jdk.graal.compiler.test.**:org.objectweb.asm.** \
+    --instrumentation_includes=jdk.graal.compiler.** \
+    --target_class=jdk.graal.compiler.test.bytecodefuzz.FuzzTarget \
+    --reproducer_path=./reproducers/ \
+    -max_len=8192 -timeout=60 -max_total_time=$RUNTIME -jobs=$CPUS -workers=$CPUS -reload=10 -print_final_stats=1 \
+    $CORPUSDIR
