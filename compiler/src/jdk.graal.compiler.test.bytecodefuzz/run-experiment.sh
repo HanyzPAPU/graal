@@ -12,7 +12,6 @@ EXPERIMENT_NAME=$1
 if [ -z "$PRESERVE_CORPUS" ]; then
     rm -f corpus/*
     ./populate-corpus.sh
-    echo "in if"
 fi
 
 # Read from output log files and redirect them to experiment named files with timestamps
@@ -28,7 +27,11 @@ do
 done
 
 # Run the fuzzing
-export LD_PRELOAD="$PWD/src/build/libmutator.so"
+
+if [ -z "$NO_MUTATORS" ]; then
+    export LD_PRELOAD="$PWD/src/build/libmutator.so"
+fi
+
 mx vm @export-hack \
     -XX:+UseParallelGC -XX:+EnableDynamicAgentLoading -XX:-UseJVMCICompiler \
     -Xmx$MAX_MEMORY \
@@ -43,4 +46,4 @@ mx vm @export-hack \
     --target_class=jdk.graal.compiler.test.bytecodefuzz.FuzzTarget \
     --reproducer_path=./reproducers/ \
     -max_len=8192 -timeout=60 -max_total_time=$RUNTIME -jobs=$CPUS -workers=$CPUS -reload=10 -print_final_stats=1 \
-    $CORPUSDIR  
+    $CORPUSDIR

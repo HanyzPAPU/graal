@@ -20,7 +20,7 @@ export MAX_MEMORY=2g
 
 echo "Building..."
 
-Build in a subshell because of the cd
+# Build in a subshell because of the cd
 (
     mx build
     cd src
@@ -40,6 +40,8 @@ echo "DEFAULT = All mutators"
 
 echo "NO-MUTATORS = Default libFuzzer/Jazzer mutators"
 
+NO_MUTATORS=1 ./run-experiment.sh NO-MUTATORS
+
 echo "CONSERVATIVE = Preserves that the program halts"
 
 ./run-experiment.sh CONSERVATIVE -DfuzzMutConservative=true
@@ -54,11 +56,8 @@ echo "DEFAULT-SANS-JUMP = Same as DEFAULT but without jump insertion"
 
 echo "JUMP-INSERTION-PRE-FUZZ = First fuzzes by only inserting jumps, then swithes to the DEAFAULT configuration"
 
-# TODO: test that this works
 RUNTIME=$JUMP_PREFUZZ_PRETIME ./run-experiment.sh JUMP-INSERTION-PRE-FUZZ-TRAIN -DfuzzMutJumpOnly=true
 RUNTIME=$JUMP_PREFUZZ_RUNTIME PRESERVE_CORPUS=1 ./run-experiment.sh JUMP-INSERTION-PRE-FUZZ-RUN
-
-## TODO: run this on default configuration?
 
 echo ""
 echo "Jump Insertion parameter - which distribution to choose"
