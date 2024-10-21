@@ -15,10 +15,11 @@ if [ -z "$PRESERVE_CORPUS" ]; then
 fi
 
 # Read from output log files and redirect them to experiment named files with timestamps
+mkdir -v $LOG_DIR
 for I in $(seq 0 $(($CPUS-1)))
 do
     JAZZER_LOG_FILE=fuzz-$I.log
-    EXPERIMENT_LOG_FILE=$EXPERIMENT_NAME-$JAZZER_LOG_FILE
+    EXPERIMENT_LOG_FILE=$LOG_DIR/$EXPERIMENT_NAME-$JAZZER_LOG_FILE
     # clear out jazzer log file
     echo "" > $JAZZER_LOG_FILE
     # only append to experiment logs
@@ -32,18 +33,18 @@ if [ -z "$NO_MUTATORS" ]; then
     export LD_PRELOAD="$PWD/src/build/libmutator.so"
 fi
 
-mx vm @export-hack \
-    -XX:+UseParallelGC -XX:+EnableDynamicAgentLoading -XX:-UseJVMCICompiler \
-    -Xmx$MAX_MEMORY \
-    "${@:2}" \
-    -Djava.library.path="$PWD/src/build/" \
-    -Djdk.graal.MaxDuplicationFactor=1000.0 \
-    -Djdk.graal.CompilationFailureAction=Print \
-    -cp $CLASSPATH \
-    com.code_intelligence.jazzer.Jazzer \
-    --instrumentation_excludes=jdk.graal.compiler.core.test.**:jdk.graal.compiler.test.**:org.objectweb.asm.** \
-    --instrumentation_includes=jdk.graal.compiler.** \
-    --target_class=jdk.graal.compiler.test.bytecodefuzz.FuzzTarget \
-    --reproducer_path=./reproducers/ \
-    -max_len=8192 -timeout=60 -max_total_time=$RUNTIME -jobs=$CPUS -workers=$CPUS -reload=10 -print_final_stats=1 \
-    $CORPUSDIR
+# mx vm @export-hack \
+#     -XX:+UseParallelGC -XX:+EnableDynamicAgentLoading -XX:-UseJVMCICompiler \
+#     -Xmx$MAX_MEMORY \
+#     "${@:2}" \
+#     -Djava.library.path="$PWD/src/build/" \
+#     -Djdk.graal.MaxDuplicationFactor=1000.0 \
+#     -Djdk.graal.CompilationFailureAction=Print \
+#     -cp $CLASSPATH \
+#     com.code_intelligence.jazzer.Jazzer \
+#     --instrumentation_excludes=jdk.graal.compiler.core.test.**:jdk.graal.compiler.test.**:org.objectweb.asm.** \
+#     --instrumentation_includes=jdk.graal.compiler.** \
+#     --target_class=jdk.graal.compiler.test.bytecodefuzz.FuzzTarget \
+#     --reproducer_path=./reproducers/ \
+#     -max_len=8192 -timeout=60 -max_total_time=$RUNTIME -jobs=$CPUS -workers=$CPUS -reload=10 -print_final_stats=1 \
+#     $CORPUSDIR

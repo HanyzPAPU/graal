@@ -13,6 +13,8 @@ export CPUS=8
 # -Xmx JVM option
 export MAX_MEMORY=2g
 
+export LOG_DIR=logs
+
 # Expects that mx is on path and that JAVA_HOME is set to a JVMCI compiler
 
 echo "Building..."
@@ -87,3 +89,6 @@ echo "DEREF-FREQ-2 = Deref probability = 1/2"
 echo "DEREF-FREQ-4 = Deref probability = 1/4"
 
 ./run-experiment.sh DEREF-FREQ-4 -DfuzzDerefInverseFreq=4
+
+# zip up all logs to one artefact
+zip -r $LOG_DIR.zip $LOG_DIR
