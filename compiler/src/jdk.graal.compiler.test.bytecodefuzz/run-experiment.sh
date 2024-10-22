@@ -2,10 +2,13 @@
 
 # Expects env. variables RUNTIME, CPUS and MAX_MEMORY to be set
 
+# TODO: longer timeout
+
 CLASSPATH="../../mxbuild/dists/graal-test-bytecodefuzz.jar"
 CORPUSDIR="./corpus"
 
 EXPERIMENT_NAME=$1
+EXPERIMENT_MAIN_LOG=$LOG_DIR/$EXPERIMENT_NAME.log
 
 # Prepare the initial corpus
 
@@ -46,5 +49,7 @@ mx vm @export-hack \
     --instrumentation_includes=jdk.graal.compiler.** \
     --target_class=jdk.graal.compiler.test.bytecodefuzz.FuzzTarget \
     --reproducer_path=./reproducers/ \
-    -max_len=8192 -timeout=60 -max_total_time=$RUNTIME -jobs=$CPUS -workers=$CPUS -reload=10 -print_final_stats=1 \
-    $CORPUSDIR
+    -max_len=8192 -timeout=180 -max_total_time=$RUNTIME -jobs=$CPUS -workers=$CPUS -reload=10 -print_final_stats=1 \
+    $CORPUSDIR 2>&1 | while IFS= read -r line; do printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$line" >> $EXPERIMENT_MAIN_LOG ; done
+
+tail $EXPERIMENT_MAIN_LOG
