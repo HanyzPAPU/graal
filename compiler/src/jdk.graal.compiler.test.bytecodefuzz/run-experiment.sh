@@ -15,7 +15,7 @@ if [ -z "$PRESERVE_CORPUS" ]; then
 fi
 
 # Read from output log files and redirect them to experiment named files with timestamps
-mkdir -v $LOG_DIR
+mkdir -p $LOG_DIR
 for I in $(seq 0 $(($CPUS-1)))
 do
     JAZZER_LOG_FILE=fuzz-$I.log
