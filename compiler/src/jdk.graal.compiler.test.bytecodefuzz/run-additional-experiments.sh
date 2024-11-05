@@ -43,3 +43,7 @@ echo "JUMP-INSERTION-PRE-FUZZ-SHORT = First fuzzes by only inserting jumps, then
 
 RUNTIME=$JUMP_PREFUZZ_PRETIME ./run-experiment.sh JUMP-INSERTION-PRE-FUZZ-SHORT-TRAIN -DfuzzMutJumpOnly=true
 RUNTIME=$JUMP_PREFUZZ_RUNTIME PRESERVE_CORPUS=1 ./run-experiment.sh JUMP-INSERTION-PRE-FUZZ-SHORT-RUN
+
+
+# zip up all logs to one artefact
+zip -r $LOG_DIR.zip $LOG_DIR
