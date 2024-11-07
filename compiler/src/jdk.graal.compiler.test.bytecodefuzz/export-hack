@@ -29,3 +29,5 @@
 --add-exports jdk.graal.compiler/jdk.graal.compiler.api.directives=ALL-UNNAMED
 --add-exports jdk.graal.compiler/jdk.graal.compiler.core.common.calc=ALL-UNNAMED
 --add-exports jdk.graal.compiler/jdk.graal.compiler.word=ALL-UNNAMED
+--add-exports java.base/jdk.internal.misc=ALL-UNNAMED
+--add-exports jdk.graal.compiler/jdk.graal.compiler.nodes.calc=ALL-UNNAMED
