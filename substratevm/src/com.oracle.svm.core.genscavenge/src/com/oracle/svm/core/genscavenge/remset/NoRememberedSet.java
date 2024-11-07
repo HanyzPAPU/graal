@@ -100,7 +100,7 @@ public final class NoRememberedSet implements RememberedSet {
     @Override
     @AlwaysInline("GC performance")
     @Uninterruptible(reason = "Called from uninterruptible code.", mayBeInlined = true)
-    public void enableRememberedSetForObject(AlignedHeader chunk, Object obj) {
+    public void enableRememberedSetForObject(AlignedHeader chunk, Object obj, UnsignedWord objSize) {
         // Nothing to do.
     }
 
@@ -124,11 +124,13 @@ public final class NoRememberedSet implements RememberedSet {
     }
 
     @Override
+    @Uninterruptible(reason = "Called from uninterruptible code.", mayBeInlined = true)
     public void dirtyCardForAlignedObject(Object object, boolean verifyOnly) {
         throw VMError.shouldNotReachHereAtRuntime(); // ExcludeFromJacocoGeneratedReport
     }
 
     @Override
+    @Uninterruptible(reason = "Called from uninterruptible code.", mayBeInlined = true)
     public void dirtyCardForUnalignedObject(Object object, boolean verifyOnly) {
         throw VMError.shouldNotReachHereAtRuntime(); // ExcludeFromJacocoGeneratedReport
     }

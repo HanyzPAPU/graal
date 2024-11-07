@@ -30,6 +30,7 @@ import java.lang.reflect.Modifier;
 import java.util.Comparator;
 import java.util.function.IntFunction;
 
+import com.oracle.truffle.espresso.jdwp.api.TagConstants;
 import org.graalvm.collections.EconomicSet;
 
 import com.oracle.truffle.api.Assumption;
@@ -62,12 +63,12 @@ import com.oracle.truffle.api.utilities.TriState;
 import com.oracle.truffle.espresso.EspressoLanguage;
 import com.oracle.truffle.espresso.classfile.ConstantPool;
 import com.oracle.truffle.espresso.classfile.Constants;
-import com.oracle.truffle.espresso.descriptors.ByteSequence;
-import com.oracle.truffle.espresso.descriptors.Symbol;
-import com.oracle.truffle.espresso.descriptors.Symbol.Name;
-import com.oracle.truffle.espresso.descriptors.Symbol.Signature;
-import com.oracle.truffle.espresso.descriptors.Symbol.Type;
-import com.oracle.truffle.espresso.descriptors.Types;
+import com.oracle.truffle.espresso.classfile.descriptors.ByteSequence;
+import com.oracle.truffle.espresso.classfile.descriptors.Symbol;
+import com.oracle.truffle.espresso.classfile.descriptors.Symbol.Name;
+import com.oracle.truffle.espresso.classfile.descriptors.Symbol.Signature;
+import com.oracle.truffle.espresso.classfile.descriptors.Symbol.Type;
+import com.oracle.truffle.espresso.classfile.descriptors.Types;
 import com.oracle.truffle.espresso.impl.ModuleTable.ModuleEntry;
 import com.oracle.truffle.espresso.impl.PackageTable.PackageEntry;
 import com.oracle.truffle.espresso.jdwp.api.ClassStatusConstants;
@@ -77,7 +78,7 @@ import com.oracle.truffle.espresso.jdwp.api.MethodRef;
 import com.oracle.truffle.espresso.jdwp.api.ModuleRef;
 import com.oracle.truffle.espresso.meta.EspressoError;
 import com.oracle.truffle.espresso.meta.InteropKlassesDispatch;
-import com.oracle.truffle.espresso.meta.JavaKind;
+import com.oracle.truffle.espresso.classfile.JavaKind;
 import com.oracle.truffle.espresso.meta.Meta;
 import com.oracle.truffle.espresso.meta.MetaUtil;
 import com.oracle.truffle.espresso.meta.ModifiersProvider;
@@ -89,7 +90,7 @@ import com.oracle.truffle.espresso.nodes.interop.ToEspressoNode;
 import com.oracle.truffle.espresso.nodes.interop.ToEspressoNodeFactory;
 import com.oracle.truffle.espresso.nodes.interop.ToPrimitive;
 import com.oracle.truffle.espresso.nodes.interop.ToPrimitiveFactory;
-import com.oracle.truffle.espresso.perf.DebugCounter;
+import com.oracle.truffle.espresso.classfile.perf.DebugCounter;
 import com.oracle.truffle.espresso.runtime.EspressoContext;
 import com.oracle.truffle.espresso.runtime.EspressoException;
 import com.oracle.truffle.espresso.runtime.EspressoFunction;
@@ -106,7 +107,7 @@ import com.oracle.truffle.espresso.vm.InterpreterToVM;
 import com.oracle.truffle.espresso.vm.VM;
 
 @ExportLibrary(InteropLibrary.class)
-public abstract class Klass extends ContextAccessImpl implements ModifiersProvider, KlassRef, TruffleObject {
+public abstract class Klass extends ContextAccessImpl implements ModifiersProvider, KlassRef, TruffleObject, EspressoType {
 
     // region Interop
 
@@ -163,11 +164,7 @@ public abstract class Klass extends ContextAccessImpl implements ModifiersProvid
             if (receiver.isArray() && COMPONENT.equals(member)) {
                 return true;
             }
-            if (receiver.getSuperKlass() != null && SUPER.equals(member)) {
-                return true;
-            }
-
-            return false;
+            return receiver.getSuperKlass() != null && SUPER.equals(member);
         }
     }
 
@@ -208,7 +205,7 @@ public abstract class Klass extends ContextAccessImpl implements ModifiersProvid
                         return EspressoFunction.createStaticInvocable(candidates[0]);
                     }
                 }
-            } catch (ArityException e) {
+            } catch (ArityException | UnknownIdentifierException e) {
                 /* ignore and continue */
             }
 
@@ -311,26 +308,16 @@ public abstract class Klass extends ContextAccessImpl implements ModifiersProvid
         // Specialization prevents caching a node that would leak the context
         @Specialization(guards = "language.isShared()")
         static Object doShared(Klass receiver, String member, Object[] arguments,
-                        @Bind("$node") Node node,
-                        @Cached @Shared InlinedBranchProfile error,
                         @CachedLibrary("receiver") @SuppressWarnings("unused") InteropLibrary receiverInterop,
                         @Bind("getLang(receiverInterop)") @SuppressWarnings("unused") EspressoLanguage language) throws ArityException, UnknownIdentifierException, UnsupportedTypeException {
-            return invokeMember(receiver, member, arguments, node, receiverInterop, error, InteropLookupAndInvokeFactory.NonVirtualNodeGen.getUncached());
+            return invokeMember(receiver, member, arguments, InteropLookupAndInvokeFactory.NonVirtualNodeGen.getUncached());
         }
 
         @Specialization
         static Object invokeMember(Klass receiver, String member,
                         Object[] arguments,
-                        @Bind("$node") Node node,
-                        @CachedLibrary("receiver") InteropLibrary receiverInterop,
-                        @Cached InlinedBranchProfile error,
                         @Cached InteropLookupAndInvoke.NonVirtual lookupAndInvoke)
                         throws ArityException, UnknownIdentifierException, UnsupportedTypeException {
-            if (!receiverInterop.isMemberInvocable(receiver, member)) {
-                // Not invocable, no matter the arity or argument types.
-                error.enter(node);
-                throw UnknownIdentifierException.create(member);
-            }
             return lookupAndInvoke.execute(null, receiver, arguments, member);
         }
     }
@@ -525,7 +512,12 @@ public abstract class Klass extends ContextAccessImpl implements ModifiersProvid
             }
             ObjectKlass objectKlass = (ObjectKlass) receiver;
             StaticObject instance = allocateNewInstance(EspressoContext.get(lookupAndInvoke), objectKlass);
-            lookupAndInvoke.execute(instance, objectKlass, arguments, INIT_NAME);
+            try {
+                lookupAndInvoke.execute(instance, objectKlass, arguments, INIT_NAME);
+            } catch (UnknownIdentifierException e) {
+                error.enter(node);
+                throw UnsupportedMessageException.create();
+            }
             return instance;
         }
 
@@ -545,14 +537,14 @@ public abstract class Klass extends ContextAccessImpl implements ModifiersProvid
     @ExportMessage
     public Object getMetaQualifiedName() {
         assert isMetaObject();
-        return getTypeName();
+        return getGuestTypeName();
     }
 
     @ExportMessage
     Object getMetaSimpleName() {
         assert isMetaObject();
         assert getContext().isInitialized();
-        return getMeta().java_lang_Class_getSimpleName.invokeDirect(mirror());
+        return getMeta().java_lang_Class_getSimpleName.invokeDirectSpecial(mirror());
     }
 
     @ExportMessage
@@ -579,9 +571,7 @@ public abstract class Klass extends ContextAccessImpl implements ModifiersProvid
                 ObjectKlass[] superInterfaces = getSuperInterfaces();
                 result = new Klass[superInterfaces.length];
 
-                for (int i = 0; i < superInterfaces.length; i++) {
-                    result[i] = superInterfaces[i];
-                }
+                System.arraycopy(superInterfaces, 0, result, 0, superInterfaces.length);
             } else {
                 Klass superKlass = getSuperKlass();
                 Klass[] superInterfaces = getSuperInterfaces();
@@ -589,9 +579,7 @@ public abstract class Klass extends ContextAccessImpl implements ModifiersProvid
                 // put the super class first in array
                 result[0] = superKlass;
 
-                for (int i = 0; i < superInterfaces.length; i++) {
-                    result[i + 1] = superInterfaces[i];
-                }
+                System.arraycopy(superInterfaces, 0, result, 1, superInterfaces.length);
             }
             return new KeysArray<>(result);
         }
@@ -719,6 +707,28 @@ public abstract class Klass extends ContextAccessImpl implements ModifiersProvid
 
     // Raw modifiers provided by the VM.
     private final int modifiers;
+
+    @CompilationFinal //
+    private StaticObject guestTypeLiteral;
+
+    @Override
+    public StaticObject getGuestTypeLiteral() {
+        if (guestTypeLiteral == null) {
+            if (CompilerDirectives.isPartialEvaluationConstant(this)) {
+                CompilerDirectives.transferToInterpreterAndInvalidate();
+            }
+            guestTypeLiteral = createGuestTypeLiteral();
+        }
+        return guestTypeLiteral;
+    }
+
+    @TruffleBoundary
+    public StaticObject createGuestTypeLiteral() {
+        StaticObject result = getContext().getAllocator().createNew(getMeta().polyglot.TypeLiteral$InternalTypeLiteral);
+        getMeta().polyglot.HIDDEN_TypeLiteral_internalType.setHiddenObject(result, this);
+        getMeta().polyglot.TypeLiteral_rawType.setObject(result, this.mirror());
+        return result;
+    }
 
     protected static boolean hasFinalInstanceField(Class<?> clazz) {
         for (Class<?> c = clazz; c != null; c = c.getSuperclass()) {
@@ -927,7 +937,7 @@ public abstract class Klass extends ContextAccessImpl implements ModifiersProvid
         return getMeta().toGuestString(result);
     }
 
-    public final @JavaType(String.class) StaticObject getTypeName() {
+    public final @JavaType(String.class) StaticObject getGuestTypeName() {
         if (typeName == null) {
             CompilerDirectives.transferToInterpreterAndInvalidate();
             typeName = computeTypeName();
@@ -936,13 +946,18 @@ public abstract class Klass extends ContextAccessImpl implements ModifiersProvid
         return typeName;
     }
 
+    public final String getTypeName() {
+        StaticObject guestTypeName = getGuestTypeName();
+        return getMeta().toHostString(guestTypeName);
+    }
+
     @TruffleBoundary
     private boolean checkTypeName(@JavaType(String.class) StaticObject computedTypeName) {
         if (!getContext().isInitialized()) {
             // Skip check: cannot safely call Class.getTypeName.
             return true;
         }
-        StaticObject expected = (StaticObject) getMeta().java_lang_Class_getTypeName.invokeDirect(mirror());
+        StaticObject expected = (StaticObject) getMeta().java_lang_Class_getTypeName.invokeDirectSpecial(mirror());
         return getMeta().toHostString(computedTypeName).equals(getMeta().toHostString(expected));
     }
 
@@ -1382,10 +1397,7 @@ public abstract class Klass extends ContextAccessImpl implements ModifiersProvid
             if (statics && m.isStatic()) {
                 return true;
             }
-            if (instances && !m.isStatic()) {
-                return true;
-            }
-            return false;
+            return instances && !m.isStatic();
         }
     }
 
@@ -1646,7 +1658,7 @@ public abstract class Klass extends ContextAccessImpl implements ModifiersProvid
         return ctx.getAllocator().createNew((ObjectKlass) this);
     }
 
-    @CompilationFinal private Symbol<Name> runtimePackage;
+    @CompilationFinal private final Symbol<Name> runtimePackage;
 
     private Symbol<Name> initRuntimePackage() {
         ByteSequence hostPkgName = Types.getRuntimePackage(type);
@@ -1712,12 +1724,12 @@ public abstract class Klass extends ContextAccessImpl implements ModifiersProvid
         }
     }
 
-    public final boolean isTypeMapped() {
+    public byte getTypeConversionState() {
         if (typeConversionState == UN_INITIALIZED) {
             CompilerDirectives.transferToInterpreterAndInvalidate();
             computeTypeConversionState();
         }
-        return typeConversionState == TYPE_MAPPED;
+        return typeConversionState;
     }
 
     private void computeTypeConversionState() {
@@ -1734,20 +1746,9 @@ public abstract class Klass extends ContextAccessImpl implements ModifiersProvid
         }
     }
 
-    public final boolean isInternalTypeMapped() {
-        if (typeConversionState == UN_INITIALIZED) {
-            CompilerDirectives.transferToInterpreterAndInvalidate();
-            computeTypeConversionState();
-        }
-        return typeConversionState == INTERNAL_MAPPED;
-    }
-
-    public final boolean isInternalCollectionTypeMapped() {
-        if (typeConversionState == UN_INITIALIZED) {
-            CompilerDirectives.transferToInterpreterAndInvalidate();
-            computeTypeConversionState();
-        }
-        return typeConversionState == INTERNAL_COLLECTION_MAPPED;
+    @Override
+    public Klass getRawType() {
+        return this;
     }
 
     // region jdwp-specific
@@ -1778,8 +1779,7 @@ public abstract class Klass extends ContextAccessImpl implements ModifiersProvid
 
     @Override
     public int getStatus() {
-        if (this instanceof ObjectKlass) {
-            ObjectKlass objectKlass = (ObjectKlass) this;
+        if (this instanceof ObjectKlass objectKlass) {
             int status = 0;
             if (objectKlass.isErroneous()) {
                 return ClassStatusConstants.ERROR;
@@ -1806,7 +1806,7 @@ public abstract class Klass extends ContextAccessImpl implements ModifiersProvid
 
     @Override
     public byte getTagConstant() {
-        return getJavaKind().toTagConstant();
+        return TagConstants.toTagConstant(getJavaKind());
     }
 
     @Override

@@ -41,8 +41,8 @@ import org.graalvm.options.OptionStability;
 import org.graalvm.options.OptionType;
 
 import com.oracle.truffle.api.Option;
+import com.oracle.truffle.espresso.classfile.JavaVersion;
 import com.oracle.truffle.espresso.jdwp.api.JDWPOptions;
-import com.oracle.truffle.espresso.runtime.JavaVersion;
 
 @Option.Group(EspressoLanguage.ID)
 public final class EspressoOptions {
@@ -219,6 +219,12 @@ public final class EspressoOptions {
                     stability = OptionStability.EXPERIMENTAL, //
                     usageSyntax = "java.PolyglotTypeConverters.java.lang.Optional=my.type.conversion.Implementation") //
     public static final OptionKey<OptionMap<String>> PolyglotTypeConverters = OptionKey.mapOf(String.class);
+
+    @Option(help = "Option to enable target type conversions for foreign objects using type hints from generics signatures.", //
+                    category = OptionCategory.USER, //
+                    stability = OptionStability.STABLE, //
+                    usageSyntax = "false|true") //
+    public static final OptionKey<Boolean> EnableGenericTypeHints = new OptionKey<>(true);
 
     @Option(help = "Enable assertions.", //
                     category = OptionCategory.USER, //
@@ -696,10 +702,6 @@ public final class EspressoOptions {
                     category = OptionCategory.INTERNAL, //
                     stability = OptionStability.EXPERIMENTAL, //
                     usageSyntax = "false|true") public static final OptionKey<Boolean> EagerFrameAnalysis = new OptionKey<>(false);
-
-    // These are host properties e.g. use --vm.Despresso.DebugCounters=true .
-    public static final boolean DebugCounters = booleanProperty("espresso.DebugCounters", false);
-    public static final boolean DumpDebugCounters = booleanProperty("espresso.DumpDebugCounters", true);
 
     // Properties for FinalizationSupport e.g. --vm.Despresso.finalization.UnsafeOverride=false .
     public static final boolean UnsafeOverride = booleanProperty("espresso.finalization.UnsafeOverride", true);

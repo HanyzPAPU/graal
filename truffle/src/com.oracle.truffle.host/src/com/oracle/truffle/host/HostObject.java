@@ -945,8 +945,7 @@ final class HostObject implements TruffleObject {
         }
 
         @Specialization(guards = {"receiver.isByteSequence()"})
-        static boolean doByteSequence(HostObject receiver,
-                        @Shared @Cached(value = "receiver.getHostClassCache()", allowUncached = true) HostClassCache hostClassCache) {
+        static boolean doByteSequence(HostObject receiver) {
             return false;
         }
 
@@ -1799,9 +1798,7 @@ final class HostObject implements TruffleObject {
 
     @TruffleBoundary
     private static void getByteSequenceBytesBoundary(APIAccess apiAccess, Object byteSequence, int index, byte[] destination, int destinationOffset, int byteLength) {
-        for (int i = index; i < index + byteLength; i++) {
-            destination[destinationOffset + (i - index)] = apiAccess.byteSequenceByteAt(byteSequence, i);
-        }
+        System.arraycopy(apiAccess.byteSequenceToByteArray(apiAccess.byteSequenceSubSequence(byteSequence, index, byteLength)), 0, destination, destinationOffset, byteLength);
     }
 
     @TruffleBoundary
@@ -3315,13 +3312,22 @@ final class HostObject implements TruffleObject {
     }
 
     @ExportMessage
-    @TruffleBoundary
     Object getMetaQualifiedName() throws UnsupportedMessageException {
         if (isClass()) {
-            return asClass().getTypeName();
+            Class<?> theClass = asClass();
+            if (theClass.isArray()) {
+                return getArrayName(theClass);
+            } else {
+                return theClass.getName();
+            }
         } else {
             throw UnsupportedMessageException.create();
         }
+    }
+
+    @TruffleBoundary
+    private static Object getArrayName(Class<?> theClass) {
+        return theClass.getTypeName();
     }
 
     @ExportMessage

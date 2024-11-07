@@ -24,7 +24,7 @@
  */
 package jdk.graal.compiler.nodes.graphbuilderconf;
 
-import static jdk.vm.ci.services.Services.IS_IN_NATIVE_IMAGE;
+import static org.graalvm.nativeimage.ImageInfo.inImageRuntimeCode;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
@@ -381,12 +381,12 @@ public abstract class InvocationPlugin implements GraphBuilderPlugin {
 
     public String getSourceLocation() {
         Class<?> c = getClass();
-        for (Method m : c.getDeclaredMethods()) {
+        for (Method m : c.getMethods()) {
             if (m.getName().equals("apply") || m.getName().equals("defaultHandler")) {
                 return String.format("%s.%s()", m.getDeclaringClass().getName(), m.getName());
             }
         }
-        if (IS_IN_NATIVE_IMAGE) {
+        if (inImageRuntimeCode()) {
             return String.format("%s.%s()", c.getName(), "apply");
         }
         throw new GraalError("could not find method named \"apply\" or \"defaultHandler\" in " + c.getName());
@@ -497,6 +497,13 @@ public abstract class InvocationPlugin implements GraphBuilderPlugin {
         @Override
         public final boolean canBeDisabled() {
             return false;
+        }
+
+        @Override
+        public boolean isGraalOnly() {
+            // We treat all required invocation plugins as Graal only. This will skip the return
+            // type check in BytecodeParser.
+            return true;
         }
     }
 

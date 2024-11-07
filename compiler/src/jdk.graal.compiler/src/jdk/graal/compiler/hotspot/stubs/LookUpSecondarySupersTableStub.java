@@ -55,7 +55,6 @@ public class LookUpSecondarySupersTableStub extends SnippetStub {
 
     public static final int SECONDARY_SUPERS_TABLE_SIZE = 64;
     public static final int SECONDARY_SUPERS_TABLE_MASK = SECONDARY_SUPERS_TABLE_SIZE - 1;
-    public static final long SECONDARY_SUPERS_BITMAP_FULL = ~0L;
 
     public static final HotSpotForeignCallDescriptor LOOKUP_SECONDARY_SUPERS_TABLE_SLOW_PATH = new HotSpotForeignCallDescriptor(LEAF_NO_VZERO, NO_SIDE_EFFECT, NO_LOCATIONS,
                     "lookupSecondarySupersTableSlowPath", boolean.class, KlassPointer.class, Word.class, long.class, long.class);
@@ -65,15 +64,17 @@ public class LookUpSecondarySupersTableStub extends SnippetStub {
     }
 
     // @formatter:off
-    @SyncPort(from = "https://github.com/openjdk/jdk/blob/8032d640c0d34fe507392a1d4faa4ff2005c771d/src/hotspot/cpu/x86/macroAssembler_x86.cpp#L4883-L4992",
-              sha1 = "555f4e42531f3f1fc32bac28b2f4e3337b42374f")
+    @SyncPort(from = "https://github.com/openjdk/jdk/blob/7131f053b0d26b62cbf0d8376ec117d6e8d79f9e/src/hotspot/cpu/x86/macroAssembler_x86.cpp#L4899-L5007",
+              sha1 = "64e666a1061a5188d6e9df14803aaa5e37be0b7b")
     // @formatter:on
     @Snippet
     private static boolean lookupSecondarySupersTableSlowPath(KlassPointer t, Word secondarySupers, long bitmap, long index) {
         int length = secondarySupers.readInt(HotSpotReplacementsUtil.metaspaceArrayLengthOffset(INJECTED_VMCONFIG), HotSpotReplacementsUtil.METASPACE_ARRAY_LENGTH_LOCATION);
 
-        if (probability(NOT_FREQUENT_PROBABILITY, bitmap == SECONDARY_SUPERS_BITMAP_FULL)) {
-            // Degenerate case: more than 64 secondary supers.
+        if (probability(NOT_FREQUENT_PROBABILITY, length > SECONDARY_SUPERS_TABLE_SIZE - 2)) {
+            // The runtime does not use a hash table when length is greater than or equal to
+            // SECONDARY_SUPERS_TABLE_SIZE. For SECONDARY_SUPERS_TABLE_SIZE - 1, the hashed
+            // search would not be faster than linear probing.
             for (int i = 0; i < length; i++) {
                 if (probability(NOT_LIKELY_PROBABILITY, t.equal(loadSecondarySupersElement(secondarySupers, i)))) {
                     return true;

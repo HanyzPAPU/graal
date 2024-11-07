@@ -34,12 +34,12 @@ import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
 import com.oracle.truffle.api.frame.Frame;
 import com.oracle.truffle.api.frame.VirtualFrame;
 import com.oracle.truffle.api.nodes.ExplodeLoop;
-import com.oracle.truffle.espresso.descriptors.Symbol;
-import com.oracle.truffle.espresso.descriptors.Symbol.Type;
+import com.oracle.truffle.espresso.classfile.descriptors.Symbol;
+import com.oracle.truffle.espresso.classfile.descriptors.Symbol.Type;
 import com.oracle.truffle.espresso.impl.Klass;
 import com.oracle.truffle.espresso.impl.ObjectKlass;
 import com.oracle.truffle.espresso.meta.EspressoError;
-import com.oracle.truffle.espresso.meta.JavaKind;
+import com.oracle.truffle.espresso.classfile.JavaKind;
 import com.oracle.truffle.espresso.meta.Meta;
 import com.oracle.truffle.espresso.runtime.staticobject.StaticObject;
 import com.oracle.truffle.espresso.verifier.StackMapFrameParser;
@@ -93,6 +93,7 @@ public class EspressoFrameDescriptor {
         assert objects != null && primitives != null;
         assert slotTypes.length == objects.length && slotTypes.length == primitives.length;
         Arrays.fill(objects, StaticObject.NULL);
+        Arrays.fill(primitives, 0);
         for (int slot = 0; slot < slotTypes.length; slot++) {
             importSlot(frame, slot, objects, primitives);
         }

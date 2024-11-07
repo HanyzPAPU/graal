@@ -117,6 +117,8 @@ final class PanamaNFIBackend implements NFIBackend {
                 return SymbolLookup.libraryLookup(name, ctx.getContextArena());
             } catch (IllegalArgumentException ex) {
                 throw new NFIError("Library lookup returned null. Library likely does not exist on the provided location.", this);
+            } catch (IllegalCallerException ic) {
+                throw NFIError.illegalNativeAccess(this);
             }
         }
 

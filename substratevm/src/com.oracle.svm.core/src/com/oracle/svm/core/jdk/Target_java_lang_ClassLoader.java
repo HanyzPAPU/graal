@@ -1,5 +1,5 @@
 /*
- * Copyright (c) 2018, 2020, Oracle and/or its affiliates. All rights reserved.
+ * Copyright (c) 2018, 2024, Oracle and/or its affiliates. All rights reserved.
  * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS FILE HEADER.
  *
  * This code is free software; you can redistribute it and/or modify it
@@ -29,7 +29,6 @@ import java.net.URL;
 import java.security.ProtectionDomain;
 import java.util.Collections;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.Set;
 import java.util.Vector;
 import java.util.WeakHashMap;
@@ -43,9 +42,10 @@ import com.oracle.svm.core.annotate.RecomputeFieldValue;
 import com.oracle.svm.core.annotate.RecomputeFieldValue.Kind;
 import com.oracle.svm.core.annotate.Substitute;
 import com.oracle.svm.core.annotate.TargetClass;
-import com.oracle.svm.core.fieldvaluetransformer.FieldValueTransformerWithAvailability;
+import com.oracle.svm.core.annotate.TargetElement;
 import com.oracle.svm.core.hub.ClassForNameSupport;
 import com.oracle.svm.core.hub.PredefinedClassesSupport;
+import com.oracle.svm.core.hub.RuntimeClassLoadingSupport;
 import com.oracle.svm.core.util.VMError;
 
 import jdk.graal.compiler.java.LambdaUtils;
@@ -71,13 +71,6 @@ public final class Target_java_lang_ClassLoader {
 
     @Alias @RecomputeFieldValue(kind = Kind.NewInstanceWhenNotNull, declClass = ConcurrentHashMap.class)//
     private ConcurrentHashMap<String, Object> parallelLockMap;
-
-    /**
-     * Recompute ClassLoader.packages; See {@link ClassLoaderSupport} for explanation on why this
-     * information must be reset.
-     */
-    @Alias @RecomputeFieldValue(kind = Kind.Custom, declClass = PackageFieldTransformer.class)//
-    private ConcurrentHashMap<String, Package> packages;
 
     @Alias //
     private static ClassLoader scl;
@@ -174,7 +167,7 @@ public final class Target_java_lang_ClassLoader {
     @Substitute //
     @SuppressWarnings({"unused"}) //
     private Class<?> findLoadedClass0(String name) {
-        return ClassForNameSupport.singleton().forNameOrNull(name, SubstrateUtil.cast(this, ClassLoader.class));
+        return ClassForNameSupport.forNameOrNull(name, SubstrateUtil.cast(this, ClassLoader.class));
     }
 
     /**
@@ -251,9 +244,10 @@ public final class Target_java_lang_ClassLoader {
     private static native void registerNatives();
 
     /**
-     * Ignores {@code loader}, as {@link Target_java_lang_ClassLoader#loadLibrary}.
+     * Ignores {@code loader}, like {@link Target_java_lang_ClassLoader#loadLibrary} does.
      */
     @Substitute
+    @TargetElement(onlyWith = JDK21OrEarlier.class)
     private static long findNative(@SuppressWarnings("unused") ClassLoader loader, String entryName) {
         return NativeLibrarySupport.singleton().findSymbol(entryName).rawValue();
     }
@@ -261,39 +255,40 @@ public final class Target_java_lang_ClassLoader {
     @Substitute
     @SuppressWarnings({"unused", "static-method"})
     Class<?> defineClass(byte[] b, int off, int len) throws ClassFormatError {
-        return PredefinedClassesSupport.loadClass(SubstrateUtil.cast(this, ClassLoader.class), null, b, off, len, null);
+        return defineClass(null, b, off, len);
     }
 
     @Substitute
     @SuppressWarnings({"unused", "static-method"})
     Class<?> defineClass(String name, byte[] b, int off, int len) throws ClassFormatError {
-        return PredefinedClassesSupport.loadClass(SubstrateUtil.cast(this, ClassLoader.class), name, b, off, len, null);
+        return defineClass(name, b, off, len, null);
     }
 
     @Substitute
     @SuppressWarnings({"unused", "static-method"})
     private Class<?> defineClass(String name, byte[] b, int off, int len, ProtectionDomain protectionDomain) {
-        return PredefinedClassesSupport.loadClass(SubstrateUtil.cast(this, ClassLoader.class), name, b, off, len, protectionDomain);
+        return ClassLoaderHelper.defineClass(SubstrateUtil.cast(this, ClassLoader.class), name, b, off, len, protectionDomain);
     }
 
     @Substitute
     @SuppressWarnings({"unused", "static-method"})
     private Class<?> defineClass(String name, java.nio.ByteBuffer b, ProtectionDomain protectionDomain) {
-        if (!PredefinedClassesSupport.hasBytecodeClasses()) {
-            throw PredefinedClassesSupport.throwNoBytecodeClasses(name);
+        // only bother extracting the bytes if it has a chance to work
+        if (PredefinedClassesSupport.hasBytecodeClasses() || RuntimeClassLoadingSupport.supportsRuntimeClassLoading()) {
+            byte[] array;
+            int off;
+            int len = b.remaining();
+            if (b.hasArray()) {
+                array = b.array();
+                off = b.position() + b.arrayOffset();
+            } else {
+                array = new byte[len];
+                b.get(array);
+                off = 0;
+            }
+            return ClassLoaderHelper.defineClass(SubstrateUtil.cast(this, ClassLoader.class), name, array, off, len, null);
         }
-        byte[] array;
-        int off;
-        int len = b.remaining();
-        if (b.hasArray()) {
-            array = b.array();
-            off = b.position() + b.arrayOffset();
-        } else {
-            array = new byte[len];
-            b.get(array);
-            off = 0;
-        }
-        return PredefinedClassesSupport.loadClass(SubstrateUtil.cast(this, ClassLoader.class), name, array, off, len, null);
+        throw PredefinedClassesSupport.throwNoBytecodeClasses(name);
     }
 
     @Substitute
@@ -326,33 +321,17 @@ public final class Target_java_lang_ClassLoader {
     private static native Target_java_lang_AssertionStatusDirectives retrieveDirectives();
 }
 
-@TargetClass(className = "java.lang.AssertionStatusDirectives") //
-final class Target_java_lang_AssertionStatusDirectives {
+final class ClassLoaderHelper {
+    public static Class<?> defineClass(ClassLoader loader, String name, byte[] b, int off, int len, ProtectionDomain protectionDomain) {
+        if (PredefinedClassesSupport.hasBytecodeClasses()) {
+            return PredefinedClassesSupport.loadClass(loader, name, b, off, len, protectionDomain);
+        }
+        throw VMError.unimplemented("Crema");
+    }
 }
 
-class PackageFieldTransformer implements FieldValueTransformerWithAvailability {
-
-    @Override
-    public ValueAvailability valueAvailability() {
-        return ValueAvailability.AfterAnalysis;
-    }
-
-    @Override
-    public Object transform(Object receiver, Object originalValue) {
-        assert receiver instanceof ClassLoader;
-
-        /* JDK9+ stores packages in a ConcurrentHashMap, while 8 and before use a HashMap. */
-        boolean useConcurrentHashMap = originalValue instanceof ConcurrentHashMap;
-
-        /* Retrieving initial package state for this class loader. */
-        ConcurrentHashMap<String, Package> packages = ClassLoaderSupport.getRegisteredPackages((ClassLoader) receiver);
-        if (packages == null) {
-            /* No package state available - have to create clean state. */
-            return useConcurrentHashMap ? new ConcurrentHashMap<String, Package>() : new HashMap<String, Package>();
-        } else {
-            return useConcurrentHashMap ? packages : new HashMap<>(packages);
-        }
-    }
+@TargetClass(className = "java.lang.AssertionStatusDirectives") //
+final class Target_java_lang_AssertionStatusDirectives {
 }
 
 @TargetClass(className = "java.lang.ClassLoader", innerClass = "ParallelLoaders")

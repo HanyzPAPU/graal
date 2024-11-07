@@ -46,6 +46,7 @@ import java.lang.foreign.MemorySegment;
 import java.lang.foreign.ValueLayout;
 import java.lang.invoke.MethodHandle;
 
+import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.InternalResource.OS;
 
 public class ErrorContext {
@@ -60,47 +61,57 @@ public class ErrorContext {
     }
 
     @SuppressWarnings("preview") private MemorySegment errnoLocation;
-    private Integer nativeErrno = null;
     final PanamaNFIContext ctx;
 
-    public boolean nativeErrnoSet() {
-        return (nativeErrno != null);
-    }
-
-    public int getNativeErrno() {
-        return nativeErrno;
-    }
-
-    public void setNativeErrno(int nativeErrno) {
-        this.nativeErrno = nativeErrno;
-    }
-
     @SuppressWarnings({"preview", "restricted"})
-    MemorySegment getErrnoLocation() {
-        Linker linker = Linker.nativeLinker();
-        FunctionDescriptor desc = FunctionDescriptor.of(ValueLayout.JAVA_LONG);
-
-        MemorySegment t = linker.defaultLookup().find(ERRNO_LOCATION).get();
-        MethodHandle handle = linker.downcallHandle(desc);
+    MemorySegment lookupErrnoLocation() {
         try {
-            return MemorySegment.ofAddress((long) handle.invokeExact(t)).reinterpret(4);
-        } catch (Throwable e) {
-            throw new RuntimeException(e);
+            Linker linker = Linker.nativeLinker();
+            FunctionDescriptor desc = FunctionDescriptor.of(ValueLayout.JAVA_LONG);
+            MemorySegment sym = linker.defaultLookup().find(ERRNO_LOCATION).orElseThrow();
+            MethodHandle handle = linker.downcallHandle(desc);
+            try {
+                return MemorySegment.ofAddress((long) handle.invokeExact(sym)).reinterpret(4);
+            } catch (Throwable e) {
+                throw new RuntimeException(e);
+            }
+        } catch (IllegalCallerException ic) {
+            throw NFIError.illegalNativeAccess(null);
         }
     }
 
     void initialize() {
-        errnoLocation = getErrnoLocation();
+        if (this.errnoLocation == null) {
+            errnoLocation = lookupErrnoLocation();
+        }
+    }
+
+    private MemorySegment getErrnoLocation() {
+        if (errnoLocation == null) {
+            // FIXME: GR-30264
+            /*
+             * This thread was initialized externally, and we were called before the first truffle
+             * safepoint after thread initialization. Unfortunately there is not much we can do here
+             * except deopt and lazy initialize. This should be very rare.
+             *
+             * The actual fix for this is that Truffle should take care of doing the thread
+             * initialization on the correct thread. Truffle has enough control over safepoints that
+             * it can make sure this is guaranteed to happen before any guest code runs.
+             */
+            CompilerDirectives.transferToInterpreterAndInvalidate();
+            errnoLocation = lookupErrnoLocation();
+        }
+        return errnoLocation;
     }
 
     @SuppressWarnings("preview")
-    int getErrno() {
-        return errnoLocation.get(ValueLayout.JAVA_INT, 0);
+    int getNativeErrno() {
+        return getErrnoLocation().get(ValueLayout.JAVA_INT, 0);
     }
 
     @SuppressWarnings("preview")
-    void setErrno(int newErrno) {
-        errnoLocation.set(ValueLayout.JAVA_INT, 0, newErrno);
+    void setNativeErrno(int newErrno) {
+        getErrnoLocation().set(ValueLayout.JAVA_INT, 0, newErrno);
     }
 
     ErrorContext(PanamaNFIContext ctx, Thread thread) {

@@ -50,6 +50,7 @@ import com.oracle.graal.pointsto.ObjectScanner.OtherReason;
 import com.oracle.graal.pointsto.heap.HostedValuesProvider;
 import com.oracle.graal.pointsto.heap.ImageHeapConstant;
 import com.oracle.graal.pointsto.heap.ImageHeapInstance;
+import com.oracle.graal.pointsto.heap.ImageHeapRelocatableConstant;
 import com.oracle.graal.pointsto.heap.ImageHeapScanner;
 import com.oracle.graal.pointsto.meta.AnalysisUniverse;
 import com.oracle.graal.pointsto.util.AnalysisError;
@@ -76,7 +77,7 @@ import com.oracle.svm.hosted.HostedConfiguration;
 import com.oracle.svm.hosted.config.DynamicHubLayout;
 import com.oracle.svm.hosted.config.HybridLayout;
 import com.oracle.svm.hosted.imagelayer.HostedImageLayerBuildingSupport;
-import com.oracle.svm.hosted.imagelayer.LoadImageSingletonFeature;
+import com.oracle.svm.hosted.imagelayer.LayeredImageHeapObjectAdder;
 import com.oracle.svm.hosted.meta.HostedArrayClass;
 import com.oracle.svm.hosted.meta.HostedClass;
 import com.oracle.svm.hosted.meta.HostedConstantReflectionProvider;
@@ -114,6 +115,7 @@ public final class NativeImageHeap implements ImageHeap {
     private final ImageHeapLayouter heapLayouter;
     private final int minInstanceSize;
     private final int minArraySize;
+    private final boolean layeredBuild = ImageLayerBuildingSupport.buildingImageLayer();
 
     /**
      * A Map from objects at construction-time to native image objects.
@@ -218,8 +220,8 @@ public final class NativeImageHeap implements ImageHeap {
         addObjectsPhase.allow();
         internStringsPhase.allow();
 
-        if (ImageSingletons.contains(LoadImageSingletonFeature.class)) {
-            ImageSingletons.lookup(LoadImageSingletonFeature.class).addInitialObjects(this, hUniverse);
+        if (ImageSingletons.contains(LayeredImageHeapObjectAdder.class)) {
+            ImageSingletons.lookup(LayeredImageHeapObjectAdder.class).addInitialObjects(this, hUniverse);
         }
 
         addStaticFields();
@@ -285,7 +287,7 @@ public final class NativeImageHeap implements ImageHeap {
     }
 
     private JavaConstant readConstantField(HostedField field, JavaConstant receiver) {
-        return hConstantReflection.readFieldValue(field, receiver);
+        return hConstantReflection.readFieldValue(field, receiver, true);
     }
 
     private void addStaticFields() {
@@ -303,6 +305,7 @@ public final class NativeImageHeap implements ImageHeap {
             }
             if (Modifier.isStatic(field.getModifiers()) && field.hasLocation() && field.getType().getStorageKind() == JavaKind.Object && field.isRead()) {
                 assert field.isWritten() || !field.isValueAvailable() || MaterializedConstantFields.singleton().contains(field.wrapped);
+                /* GR-56699 currently static fields cannot be ImageHeapRelocatableConstants. */
                 addConstant(readConstantField(field, null), false, field);
             }
         }
@@ -366,6 +369,7 @@ public final class NativeImageHeap implements ImageHeap {
 
     public void addConstant(final JavaConstant constant, boolean immutableFromParent, final Object reason) {
         assert addObjectsPhase.isAllowed() : "Objects cannot be added at phase: " + addObjectsPhase.toString() + " with reason: " + reason;
+        VMError.guarantee(!(constant instanceof ImageHeapRelocatableConstant), "ImageHeapRelocatableConstants cannot be added to the image heap: %s", constant);
 
         if (constant.getJavaKind().isPrimitive() || constant.isNull() || hMetaAccess.isInstanceOf(constant, WordBase.class)) {
             return;
@@ -477,6 +481,7 @@ public final class NativeImageHeap implements ImageHeap {
         boolean written = false;
         boolean references = false;
         boolean relocatable = false; /* always false when !spawnIsolates() */
+        boolean patched = false; /* always false when !layeredBuild */
 
         if (!type.isInstantiated()) {
             StringBuilder msg = new StringBuilder();
@@ -506,7 +511,7 @@ public final class NativeImageHeap implements ImageHeap {
                  * can never be duplicated, i.e. written as a separate object. We use the blacklist
                  * to check this.
                  */
-                if (SubstrateOptions.closedTypeWorld()) {
+                if (SubstrateOptions.useClosedTypeWorldHubLayout()) {
                     Object typeIDSlots = readInlinedField(dynamicHubLayout.closedTypeWorldTypeCheckSlotsField, constant);
                     assert typeIDSlots != null : "Cannot read value for field " + dynamicHubLayout.closedTypeWorldTypeCheckSlotsField.format("%H.%n");
                     blacklist.add(typeIDSlots);
@@ -572,12 +577,20 @@ public final class NativeImageHeap implements ImageHeap {
                     if (field.isRead() && field.isValueAvailable() && !ignoredFields.contains(field)) {
                         if (field.getJavaKind() == JavaKind.Object) {
                             assert field.hasLocation();
-                            JavaConstant fieldValueConstant = hConstantReflection.readFieldValue(field, constant);
+                            JavaConstant fieldValueConstant = hConstantReflection.readFieldValue(field, constant, true);
                             if (fieldValueConstant.getJavaKind() == JavaKind.Object) {
                                 if (spawnIsolates()) {
                                     fieldRelocatable = fieldValueConstant instanceof RelocatableConstant;
                                 }
-                                recursiveAddConstant(fieldValueConstant, fieldsAreImmutable, info);
+                                if (fieldValueConstant instanceof ImageHeapRelocatableConstant) {
+                                    VMError.guarantee(layeredBuild);
+                                    /*
+                                     * This value will need to be patched during startup.
+                                     */
+                                    patched = true;
+                                } else {
+                                    recursiveAddConstant(fieldValueConstant, fieldsAreImmutable, info);
+                                }
                                 references = true;
                             }
                         }
@@ -623,12 +636,9 @@ public final class NativeImageHeap implements ImageHeap {
         }
 
         if (relocatable && !isKnownImmutableConstant(constant)) {
-            /* The constant comes from the base image and is immutable */
-            if (!(constant instanceof ImageHeapConstant imageHeapConstant && imageHeapConstant.isInBaseLayer())) {
-                VMError.shouldNotReachHere("Object with relocatable pointers must be explicitly immutable: " + hUniverse.getSnippetReflection().asObject(Object.class, constant));
-            }
+            VMError.shouldNotReachHere("Object with relocatable pointers must be explicitly immutable: " + hUniverse.getSnippetReflection().asObject(Object.class, constant));
         }
-        heapLayouter.assignObjectToPartition(info, !written || immutable, references, relocatable);
+        heapLayouter.assignObjectToPartition(info, !written || immutable, references, relocatable, patched);
     }
 
     /**
@@ -657,7 +667,7 @@ public final class NativeImageHeap implements ImageHeap {
         return hostedType;
     }
 
-    static RuntimeException reportIllegalType(Object object, Object reason) {
+    public static RuntimeException reportIllegalType(Object object, Object reason) {
         throw reportIllegalType(object, reason, "");
     }
 
@@ -823,6 +833,8 @@ public final class NativeImageHeap implements ImageHeap {
         private final Object reason;
 
         ObjectInfo(ImageHeapConstant constant, long size, HostedClass clazz, int identityHashCode, Object reason) {
+            assert !(constant instanceof ImageHeapRelocatableConstant) : constant;
+
             this.constant = constant;
             this.clazz = clazz;
             this.partition = null;
@@ -885,7 +897,7 @@ public final class NativeImageHeap implements ImageHeap {
             return size;
         }
 
-        int getIdentityHashCode() {
+        public int getIdentityHashCode() {
             return identityHashCode;
         }
 

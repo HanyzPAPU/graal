@@ -382,6 +382,8 @@ public abstract class Accessor {
 
         public abstract Map<String, LanguageInfo> getInternalLanguages(Object polyglotObject);
 
+        public abstract LanguageInfo getHostLanguage(Object polyglotLanguageContext);
+
         public abstract Map<String, LanguageInfo> getPublicLanguages(Object polyglotObject);
 
         public abstract Map<String, InstrumentInfo> getInstruments(Object polyglotObject);
@@ -429,7 +431,7 @@ public abstract class Accessor {
         public abstract TruffleContext createInternalContext(Object sourcePolyglotLanguageContext, OutputStream out, OutputStream err, InputStream in,
                         ZoneId timeZone, String[] permittedLanguages, Map<String, Object> config, Map<String, String> options, Map<String, String[]> arguments,
                         Boolean sharingEnabled, boolean initializeCreatorContext, Runnable onCancelled, Consumer<Integer> onExited,
-                        Runnable onClosed, boolean inheritAccess, Boolean allowCreateThreads, Boolean allowNativeAccess, Boolean allowIO,
+                        Runnable onClosed, boolean inheritAccess, Boolean allowCreateThreads, Consumer<String> threadAccessDeniedHandler, Boolean allowNativeAccess, Boolean allowIO,
                         Boolean allowHostLookup, Boolean allowHostClassLoading, Boolean allowCreateProcess, Boolean allowPolyglotAccess,
                         Boolean allowEnvironmentAccess, Map<String, String> environment, Boolean allowInnerContextOptions);
 
@@ -599,7 +601,7 @@ public abstract class Accessor {
 
         public abstract URI getReinitializedURI(TruffleFile truffleFile);
 
-        public abstract LanguageInfo getLanguageInfo(Object polyglotInstrument, Class<? extends TruffleLanguage<?>> languageClass);
+        public abstract LanguageInfo getLanguageInfo(Object vmObject, Class<? extends TruffleLanguage<?>> languageClass);
 
         public abstract Object getDefaultLanguageView(TruffleLanguage<?> truffleLanguage, Object value);
 
@@ -783,6 +785,10 @@ public abstract class Accessor {
         public abstract void setIsolatePolyglot(AbstractPolyglotImpl instance);
 
         public abstract Object getEngineData(Object polyglotEngine);
+
+        public abstract long getEngineId(Object polyglotEngine);
+
+        public abstract ModulesAccessor getModulesAccessor();
     }
 
     public abstract static class LanguageSupport extends Support {
@@ -1126,6 +1132,8 @@ public abstract class Accessor {
 
         public abstract RootCallTarget newCallTarget(CallTarget source, RootNode rootNode);
 
+        public abstract long getCallTargetId(CallTarget target);
+
         public abstract boolean isLoaded(CallTarget callTarget);
 
         public abstract void notifyOnLoad(CallTarget callTarget);
@@ -1155,7 +1163,7 @@ public abstract class Accessor {
          */
         public abstract boolean pollBytecodeOSRBackEdge(BytecodeOSRNode osrNode);
 
-        public abstract Object tryBytecodeOSR(BytecodeOSRNode osrNode, int target, Object interpreterState, Runnable beforeTransfer, VirtualFrame parentFrame);
+        public abstract Object tryBytecodeOSR(BytecodeOSRNode osrNode, long target, Object interpreterState, Runnable beforeTransfer, VirtualFrame parentFrame);
 
         /**
          * Reports that a child node of an {@link BytecodeOSRNode} was replaced. Allows the runtime
@@ -1169,11 +1177,11 @@ public abstract class Accessor {
         public abstract void onOSRNodeReplaced(BytecodeOSRNode osrNode, Node oldNode, Node newNode, CharSequence reason);
 
         /**
-         * Same as {@link #transferOSRFrame(BytecodeOSRNode, Frame, Frame, int, Object)}, but
+         * Same as {@link #transferOSRFrame(BytecodeOSRNode, Frame, Frame, long, Object)}, but
          * fetches the target metadata.
          */
         // Support for deprecated frame transfer: GR-38296
-        public abstract void transferOSRFrame(BytecodeOSRNode osrNode, Frame source, Frame target, int bytecodeTarget);
+        public abstract void transferOSRFrame(BytecodeOSRNode osrNode, Frame source, Frame target, long bytecodeTarget);
 
         /**
          * Transfers state from the {@code source} frame into the {@code target} frame. This method
@@ -1185,7 +1193,7 @@ public abstract class Accessor {
          * @param target the frame to transfer state into
          * @param bytecodeTarget the target location OSR executes from (e.g., bytecode index).
          */
-        public abstract void transferOSRFrame(BytecodeOSRNode osrNode, Frame source, Frame target, int bytecodeTarget, Object targetMetadata);
+        public abstract void transferOSRFrame(BytecodeOSRNode osrNode, Frame source, Frame target, long bytecodeTarget, Object targetMetadata);
 
         /**
          * Restores state from the {@code source} frame into the {@code target} frame. This method
@@ -1321,6 +1329,89 @@ public abstract class Accessor {
 
         public abstract <T> Iterable<T> lookupTruffleService(Class<T> type);
 
+    }
+
+    /*
+     * We want to avoid exporting {@code jdk.internal.module} and {@code jdk.internal.access} to all
+     * classes in the unnamed module. So instead we load it in an isolated class loader and own
+     * module layer.
+     */
+    public abstract static class ModulesAccessor {
+
+        /**
+         * See {@code jdk.internal.module.Modules#addExports(Module, String, Module)}.
+         */
+        public abstract void addExports(Module base, String p, Module target);
+
+        /**
+         * See {@code jdk.internal.module.Modules#addExportsToAllUnnamed(Module, String)}.
+         */
+        public abstract void addExportsToAllUnnamed(Module base, String p);
+
+        /**
+         * See {@code jdk.internal.module.Modules#addOpens(Module, String, Module)}.
+         */
+        public abstract void addOpens(Module base, String p, Module target);
+
+        /**
+         * See {@code jdk.internal.module.Modules#addOpensToAllUnnamed(Module, String)}.
+         */
+        public abstract void addOpensToAllUnnamed(Module base, String p);
+
+        /**
+         * See {@code jdk.internal.access.JavaLangAccess#enableNativeAccess(Module)}.
+         */
+        public abstract void addEnableNativeAccess(Module module);
+
+        /**
+         * See {@code jdk.internal.access.JavaLangAccess#addEnableNativeAccessToAllUnnamed()}.
+         */
+        public abstract void addEnableNativeAccessToAllUnnamed();
+
+        public abstract Module getTargetModule();
+
+        public abstract JavaLangSupport getJavaLangSupport();
+
+    }
+
+    public abstract static class JavaLangSupport {
+
+        private static volatile Consumer<? super Thread> onMountCallBack;
+        private static volatile Consumer<? super Thread> onUnmountCallBack;
+
+        public final void registerVirtualThreadMountHooks(Consumer<? super Thread> onMount, Consumer<? super Thread> onUnmount) {
+            if (onMountCallBack != null) {
+                throw new IllegalStateException("OnMount callback is already set");
+            }
+            if (onUnmountCallBack != null) {
+                throw new IllegalStateException("OnUnmount callback is already set");
+            }
+            onMountCallBack = onMount;
+            onUnmountCallBack = onUnmount;
+            registerJVMTIHook();
+        }
+
+        public abstract Thread currentCarrierThread();
+
+        private static native void registerJVMTIHook();
+
+        /** Called from a JVMTI VirtualThreadMount hook. */
+        @SuppressWarnings("unused")
+        private static void mountHook(Thread currentThread) {
+            if (Thread.currentThread() != currentThread) {
+                throw CompilerDirectives.shouldNotReachHere("Thread.currentThread() not matching");
+            }
+            onMountCallBack.accept(currentThread);
+        }
+
+        /** Called from a JVMTI VirtualThreadUnmount hook. */
+        @SuppressWarnings("unused")
+        private static void unmountHook(Thread currentThread) {
+            if (Thread.currentThread() != currentThread) {
+                throw CompilerDirectives.shouldNotReachHere("Thread.currentThread() not matching");
+            }
+            onUnmountCallBack.accept(currentThread);
+        }
     }
 
     public final void transferOSRFrameStaticSlot(FrameWithoutBoxing sourceFrame, FrameWithoutBoxing targetFrame, int slot) {

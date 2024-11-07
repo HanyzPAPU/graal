@@ -31,17 +31,18 @@ import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.frame.VirtualFrame;
 import com.oracle.truffle.espresso.EspressoLanguage;
 import com.oracle.truffle.espresso.analysis.frame.EspressoFrameDescriptor;
-import com.oracle.truffle.espresso.bytecode.BytecodeStream;
-import com.oracle.truffle.espresso.bytecode.Bytecodes;
+import com.oracle.truffle.espresso.classfile.bytecode.BytecodeStream;
+import com.oracle.truffle.espresso.classfile.bytecode.Bytecodes;
 import com.oracle.truffle.espresso.classfile.ConstantPool;
 import com.oracle.truffle.espresso.classfile.constantpool.MethodRefConstant;
-import com.oracle.truffle.espresso.descriptors.Signatures;
-import com.oracle.truffle.espresso.descriptors.Symbol;
-import com.oracle.truffle.espresso.descriptors.Symbol.Name;
-import com.oracle.truffle.espresso.descriptors.Symbol.Signature;
-import com.oracle.truffle.espresso.descriptors.Symbol.Type;
+import com.oracle.truffle.espresso.classfile.descriptors.Signatures;
+import com.oracle.truffle.espresso.classfile.descriptors.Symbol;
+import com.oracle.truffle.espresso.classfile.descriptors.Symbol.Name;
+import com.oracle.truffle.espresso.classfile.descriptors.Symbol.Signature;
+import com.oracle.truffle.espresso.classfile.descriptors.Symbol.Type;
 import com.oracle.truffle.espresso.impl.Method;
 import com.oracle.truffle.espresso.meta.Meta;
+import com.oracle.truffle.espresso.nodes.EspressoFrame;
 import com.oracle.truffle.espresso.runtime.EspressoContext;
 import com.oracle.truffle.espresso.runtime.staticobject.StaticObject;
 import com.oracle.truffle.espresso.substitutions.JavaType;
@@ -62,9 +63,27 @@ public final class HostFrameRecord {
     public final Method.MethodVersion methodVersion;
     public HostFrameRecord next;
 
+    private boolean tainted = false;
+
     public int bci() {
         assert primitives.length > 0;
-        return EspressoFrameDescriptor.narrow(primitives[0]);
+        return EspressoFrame.decodeBCI(EspressoFrameDescriptor.narrow(primitives[0]));
+    }
+
+    private void setBci(int bci) {
+        primitives[0] = EspressoFrameDescriptor.zeroExtend(EspressoFrame.encodeBCI(bci));
+    }
+
+    public void taint() {
+        tainted = true;
+    }
+
+    public void untaint() {
+        tainted = false;
+    }
+
+    public boolean isTainted() {
+        return tainted;
     }
 
     public static HostFrameRecord recordFrame(VirtualFrame frame, Method.MethodVersion m, int bci, int top, HostFrameRecord next) {
@@ -82,6 +101,7 @@ public final class HostFrameRecord {
 
         HostFrameRecord hfr = new HostFrameRecord(fd, objects, primitives, bci, top, m, next);
         // Result is trusted, but it never hurts to assert that.
+        assert hfr.bci() == bci;
         assert top == fd.top() : "Mismatched tops: " + top + ", " + fd.top();
         assert hfr.verify(m.getMethod().getMeta(), true);
         return hfr;
@@ -94,7 +114,7 @@ public final class HostFrameRecord {
         this.top = top;
         this.methodVersion = methodVersion;
         this.next = next;
-        primitives[0] = EspressoFrameDescriptor.zeroExtend(bci);
+        setBci(bci);
     }
 
     @TruffleBoundary

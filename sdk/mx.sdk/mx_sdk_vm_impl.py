@@ -262,6 +262,8 @@ def registered_graalvm_components(stage1=False):
 def _get_component_type_base(c, graalvm_dist_for_substitutions=None):
     if isinstance(c, mx_sdk.GraalVmLanguage):
         result = '<jre_base>/languages/'
+    elif isinstance(c, mx_sdk.GraalVmSvmTool):
+        result = _get_svm_component_base(graalvm_dist_for_substitutions) + '/tools/'
     elif isinstance(c, mx_sdk.GraalVmTool):
         result = '<jre_base>/tools/'
     elif isinstance(c, mx_sdk.GraalVmJdkComponent):
@@ -269,9 +271,7 @@ def _get_component_type_base(c, graalvm_dist_for_substitutions=None):
     elif isinstance(c, mx_sdk.GraalVmJreComponent):
         result = '<jre_base>/lib/'
     elif isinstance(c, mx_sdk.GraalVMSvmMacro):
-        # Get the 'svm' component, even if it's not part of the GraalVM image
-        svm_component = mx_sdk_vm.graalvm_component_by_name('svm', fatalIfMissing=True)
-        result = _get_component_type_base(svm_component, graalvm_dist_for_substitutions=graalvm_dist_for_substitutions) + svm_component.dir_name + '/macros/'
+        result = _get_svm_component_base(graalvm_dist_for_substitutions) + '/macros/'
     elif isinstance(c, mx_sdk.GraalVmComponent):
         result = '<jdk_base>/'
     else:
@@ -279,6 +279,12 @@ def _get_component_type_base(c, graalvm_dist_for_substitutions=None):
     if graalvm_dist_for_substitutions is not None:
         result = graalvm_dist_for_substitutions.path_substitutions.substitute(result)
     return result
+
+
+def _get_svm_component_base(graalvm_dist_for_substitutions=None) -> str:
+    # Get the 'svm' component, even if it's not part of the GraalVM image
+    svm_component = mx_sdk_vm.graalvm_component_by_name('svm', fatalIfMissing=True)
+    return _get_component_type_base(svm_component, graalvm_dist_for_substitutions=graalvm_dist_for_substitutions) + svm_component.dir_name
 
 
 def _get_jdk_base(jdk):
@@ -1766,11 +1772,12 @@ class GraalVmJImageBuildTask(mx.ProjectBuildTask):
             return True, '{} does not exist'.format(out_file.path)
         if newestInput and out_file.isOlderThan(newestInput):
             return True, '{} is older than {}'.format(out_file, newestInput)
-        if exists(self._config_file()):
-            with open(self._config_file(), 'r') as f:
-                old_config = [l.strip() for l in f.readlines()]
-                if set(old_config) != set(self._config()):
-                    return True, 'the configuration changed'
+        if not exists(self._config_file()):
+            return True, '{} does not exits'.format(self._config_file())
+        with open(self._config_file(), 'r') as f:
+            old_config = [l.strip() for l in f.readlines()]
+            if set(old_config) != set(self._config()):
+                return True, 'the configuration changed'
         return False, None
 
     def newestOutput(self):
@@ -1794,14 +1801,16 @@ class GraalVmJImageBuildTask(mx.ProjectBuildTask):
         # always updated when the JDK is rebuilt.
         src_jimage = mx.TimeStampFile(join(_src_jdk.home, 'lib', 'modules'))
         return [
-            f'components: {", ".join(sorted(_components_set()))}',
             f'include sources: {_include_sources_str()}',
             f'strip jars: {mx.get_opts().strip_jars}',
             f'vendor-version: {graalvm_vendor_version()}',
+            f'use jlink{_jlink_libraries()}',
+            f'build exploded: {mx.get_env("MX_BUILD_EXPLODED") == "true"}',
             f'source jimage: {src_jimage}',
-            f'use_upgrade_module_path: {mx.get_env("GRAALVM_JIMAGE_USE_UPGRADE_MODULE_PATH", None)}',
             f'default_to_jvmci: {self.subject.default_to_jvmci}',
             f'missing_export_target_action: {self.subject.missing_export_target_action}',
+            f'jars: {sorted("{}:{}".format(d.suite, d.name) for d in self.subject.deps)}',
+            f'ignore jars: {sorted(self.subject.jimage_ignore_jars)}',
         ]
 
     def _config_file(self):
@@ -2295,6 +2304,8 @@ class GraalVmBashLauncherBuildTask(GraalVmNativeImageBuildTask):
         def _get_extra_jvm_args():
             image_config = self.subject.native_image_config
             extra_jvm_args = mx.list_to_cmd_line(image_config.extra_jvm_args)
+            if isinstance(self.subject.component, mx_sdk.GraalVmTruffleComponent) or image_config.is_polyglot:
+                extra_jvm_args = ' '.join([extra_jvm_args, '--enable-native-access=org.graalvm.truffle'])
             if not _jlink_libraries():
                 if mx.is_windows():
                     extra_jvm_args = ' '.join([extra_jvm_args, r'--upgrade-module-path "%location%\..\..\jvmci\graal.jar"'])
@@ -2502,7 +2513,6 @@ class PolyglotIsolateLibraryBuildTask(GraalVmLibraryBuildTask):
             '-H:APIFunctionPrefix=truffle_isolate_',
         ] + svm_experimental_options([
             '-H:+IgnoreMaxHeapSizeWhileInVMOperation',
-            '-H:+BuildOutputPrefix',
             '-H:+GenerateBuildArtifactsFile',  # generate 'build-artifacts.json'
         ]) + mx.get_runtime_jvm_args(self.subject.native_image_jar_distributions) + \
         project.native_image_config.build_args + project.native_image_config.build_args_enterprise
@@ -3083,7 +3093,7 @@ class GraalVmStandaloneComponent(LayoutSuper):  # pylint: disable=R0901
                 'name': 'truffle.attach.library',
                 'layout_dict': {
                     'source_type': 'extracted-dependency',
-                    'dependency': 'truffle:TRUFFLE_RUNTIME',
+                    'dependency': 'truffle:TRUFFLE_API',
                     'exclude': [],
                     'path': 'META-INF/resources/engine/libtruffleattach/<os>/<arch>/bin/<lib:truffleattach>',
                 },
@@ -3275,6 +3285,10 @@ class NativeLibraryLauncherProject(mx_native.DefaultNativeProject):
             **kwargs
         )
 
+    def isJDKDependent(self):
+        # because of -DLAUNCHER_JDK_VERSION (GR-57817)
+        return True
+
     @staticmethod
     def library_launcher_project_name(language_library_config, for_jvm_standalone=False):
         return "org.graalvm.launcher.native." + ("jvm_standalone." if for_jvm_standalone else "") + language_library_config.language
@@ -3292,6 +3306,8 @@ class NativeLibraryLauncherProject(mx_native.DefaultNativeProject):
             '-DCP_SEP=' + os.pathsep,
             '-DDIR_SEP=' + ('\\\\' if mx.is_windows() else '/'),
             '-DGRAALVM_VERSION=' + _suite.release_version(),
+            # Might not be needed anymore if GR-57817 gets fixed.
+            f'-DLAUNCHER_JDK_VERSION={mx_sdk_vm.base_jdk_version()}',
         ]
         if not mx.is_windows():
             _dynamic_cflags += ['-pthread']
@@ -4066,7 +4082,9 @@ def _infer_env(graalvm_dist):
     if isinstance(non_rebuildable_images, bool):
         non_rebuildable_images = [str(non_rebuildable_images)]
 
-    return sorted(list(dynamicImports)), sorted(components), sorted(excludeComponents), sorted(nativeImages), sorted(disableInstallables), sorted(non_rebuildable_images), _debuginfo_dists(), _no_licenses()
+    extra_image_builder_args = _parse_cmd_arg('extra_image_builder_argument', env_var_name='EXTRA_IMAGE_BUILDER_ARGUMENTS', separator=None, parse_bool=False) or []
+
+    return sorted(list(dynamicImports)), sorted(components), sorted(excludeComponents), sorted(nativeImages), sorted(disableInstallables), sorted(non_rebuildable_images), _debuginfo_dists(), _no_licenses(), sorted(extra_image_builder_args)
 
 
 def graalvm_clean_env(out_env=None):
@@ -4089,7 +4107,7 @@ def graalvm_env(out_env=None):
     """
     env = out_env or os.environ.copy()
     graalvm_dist = get_final_graalvm_distribution()
-    dynamicImports, components, exclude_components, nativeImages, disableInstallables, non_rebuildable_images, debuginfo_dists, noLicenses = _infer_env(graalvm_dist)
+    dynamicImports, components, exclude_components, nativeImages, disableInstallables, non_rebuildable_images, debuginfo_dists, noLicenses, extra_image_builder_args = _infer_env(graalvm_dist)
 
     env['GRAALVM_HOME'] = graalvm_home()
 
@@ -4099,6 +4117,7 @@ def graalvm_env(out_env=None):
     env['EXCLUDE_COMPONENTS'] = ','.join(exclude_components)
     env['DISABLE_INSTALLABLES'] = ','.join(disableInstallables)
     env['NON_REBUILDABLE_IMAGES'] = ','.join(non_rebuildable_images)
+    env['EXTRA_IMAGE_BUILDER_ARGUMENTS'] = ' '.join(extra_image_builder_args)
     if debuginfo_dists:
         env['DEBUGINFO_DISTS'] = 'true'
     if noLicenses:
@@ -4198,9 +4217,13 @@ def graalvm_show(args, forced_graalvm_dist=None):
             print("Launchers:")
             for launcher in sorted(launchers, key=lambda l: l.native_image_name):
                 suffix = ''
-                profile_cnt = len(_image_profiles(GraalVmNativeProperties.canonical_image_name(launcher.native_image_config)))
+                name = GraalVmNativeProperties.canonical_image_name(launcher.native_image_config)
+                profile_cnt = len(_image_profiles(name))
                 if profile_cnt > 0:
                     suffix += " ({} pgo profile file{})".format(profile_cnt, 's' if profile_cnt > 1 else '')
+                extra_args = _extra_image_builder_args(name)
+                if extra_args:
+                    suffix += " (" + mx.list_to_cmd_line(extra_args) + ")"
                 print(" - {name} ({native}, {rebuildable}){suffix}".format(
                     name=launcher.native_image_name,
                     native="native" if launcher.is_native() else "bash",
@@ -4223,9 +4246,13 @@ def graalvm_show(args, forced_graalvm_dist=None):
                     suffix += "rebuildable)"
                 else:
                     suffix += "non-rebuildable)"
-                profile_cnt = len(_image_profiles(GraalVmNativeProperties.canonical_image_name(library.native_image_config)))
+                name = GraalVmNativeProperties.canonical_image_name(library.native_image_config)
+                profile_cnt = len(_image_profiles(name))
                 if profile_cnt > 0:
                     suffix += " ({} pgo profile file{})".format(profile_cnt, 's' if profile_cnt > 1 else '')
+                extra_args = _extra_image_builder_args(name)
+                if extra_args:
+                    suffix += " (" + mx.list_to_cmd_line(extra_args) + ")"
                 print(" - {name}{suffix}".format(
                     name=library.native_image_name,
                     suffix=suffix))
@@ -4283,17 +4310,18 @@ def graalvm_show(args, forced_graalvm_dist=None):
                         print(f"Dependencies of the '{dist_name}' distribution:\n -", '\n - '.join(sorted(dep.name for dep in dist.deps)))
 
         if args.print_env:
-            def _print_env(name, val):
+            def _print_env(name, val, separator=','):
                 if val:
-                    print(name + '=' + ','.join(val))
+                    print(name + '=' + separator.join(val))
             print('Inferred env file:')
-            dynamic_imports, components, exclude_components, native_images, disable_installables, non_rebuildable_images, debuginfo_dists, no_licenses = _infer_env(graalvm_dist)
+            dynamic_imports, components, exclude_components, native_images, disable_installables, non_rebuildable_images, debuginfo_dists, no_licenses, extra_image_builder_args = _infer_env(graalvm_dist)
             _print_env('DYNAMIC_IMPORTS', dynamic_imports)
             _print_env('COMPONENTS', components)
             _print_env('EXCLUDE_COMPONENTS', exclude_components)
             _print_env('NATIVE_IMAGES', native_images)
             _print_env('DISABLE_INSTALLABLES', disable_installables)
             _print_env('NON_REBUILDABLE_IMAGES', non_rebuildable_images)
+            _print_env('EXTRA_IMAGE_BUILDER_ARGUMENTS', extra_image_builder_args, separator=' ')
             if debuginfo_dists:
                 print('DEBUGINFO_DISTS=true')
             if no_licenses:
@@ -4506,7 +4534,8 @@ def _extra_image_builder_args(image):
     prefix = image + ':'
     prefix_len = len(prefix)
     args = []
-    extra_args = _parse_cmd_arg('extra_image_builder_argument', env_var_name='EXTRA_IMAGE_BUILDER_ARGUMENTS', separator=None, parse_bool=False, default_value='')
+    # separator=None means any whitespace and there will be no empty elements
+    extra_args = _parse_cmd_arg('extra_image_builder_argument', env_var_name='EXTRA_IMAGE_BUILDER_ARGUMENTS', separator=None, parse_bool=False) or []
     for arg in extra_args:
         if arg.startswith(prefix):
             args.append(arg[prefix_len:])

@@ -22,6 +22,7 @@
  */
 package com.oracle.truffle.espresso.impl;
 
+import static com.oracle.truffle.espresso.classfile.Constants.ACC_HIDDEN;
 import static java.util.Map.entry;
 
 import java.util.HashSet;
@@ -32,11 +33,13 @@ import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
 import com.oracle.truffle.api.staticobject.StaticShape;
 import com.oracle.truffle.api.staticobject.StaticShape.Builder;
 import com.oracle.truffle.espresso.classfile.Constants;
-import com.oracle.truffle.espresso.descriptors.Symbol;
-import com.oracle.truffle.espresso.descriptors.Symbol.Name;
-import com.oracle.truffle.espresso.descriptors.Symbol.Type;
-import com.oracle.truffle.espresso.runtime.JavaVersion;
-import com.oracle.truffle.espresso.runtime.JavaVersion.VersionRange;
+import com.oracle.truffle.espresso.classfile.descriptors.Symbol;
+import com.oracle.truffle.espresso.classfile.descriptors.Symbol.Name;
+import com.oracle.truffle.espresso.classfile.descriptors.Symbol.Type;
+import com.oracle.truffle.espresso.classfile.JavaVersion;
+import com.oracle.truffle.espresso.classfile.JavaVersion.VersionRange;
+import com.oracle.truffle.espresso.classfile.ParserField;
+import com.oracle.truffle.espresso.classfile.ParserKlass;
 import com.oracle.truffle.espresso.runtime.staticobject.StaticObject;
 import com.oracle.truffle.espresso.runtime.staticobject.StaticObject.StaticObjectFactory;
 
@@ -78,7 +81,7 @@ final class LinkedKlassFieldLayout {
 
         for (HiddenField hiddenField : fieldCounter.hiddenFieldNames) {
             if (hiddenField.versionRange.contains(description.javaVersion)) {
-                ParserField hiddenParserField = new ParserField(ParserField.HIDDEN | hiddenField.additionalFlags, hiddenField.name, hiddenField.type, null);
+                ParserField hiddenParserField = new ParserField(ACC_HIDDEN | hiddenField.additionalFlags, hiddenField.name, hiddenField.type, null);
                 createAndRegisterLinkedField(parserKlass, hiddenParserField, nextInstanceFieldSlot++, nextInstanceFieldIndex++, idMode, instanceBuilder, instanceFields);
             }
         }
@@ -125,7 +128,7 @@ final class LinkedKlassFieldLayout {
 
     private static void createAndRegisterLinkedField(ParserKlass parserKlass, ParserField parserField, int slot, int index, LinkedField.IdMode idMode, Builder builder, LinkedField[] linkedFields) {
         LinkedField field = new LinkedField(parserField, slot, idMode);
-        builder.property(field, parserField.getPropertyType(), storeAsFinal(parserKlass, parserField));
+        builder.property(field, LinkedField.getPropertyType(parserField), storeAsFinal(parserKlass, parserField));
         linkedFields[index] = field;
     }
 
@@ -240,6 +243,9 @@ final class LinkedKlassFieldLayout {
                                         new HiddenField(Name.HIDDEN_TREGEX_SEARCH_FROM_BACKUP),
                                         new HiddenField(Name.HIDDEN_TREGEX_MATCHING_MODE_BACKUP)
                         }),
+
+                        entry(Type.com_oracle_truffle_espresso_polyglot_TypeLiteral, new HiddenField[]{
+                                        new HiddenField(Name.HIDDEN_INTERNAL_TYPE)}),
                         entry(Type.org_graalvm_continuations_ContinuationImpl, new HiddenField[]{
                                         new HiddenField(Name.HIDDEN_CONTINUATION_FRAME_RECORD)
                         }));

@@ -59,27 +59,29 @@ import com.oracle.truffle.api.nodes.RootNode;
 import com.oracle.truffle.api.staticobject.DefaultStaticProperty;
 import com.oracle.truffle.api.staticobject.StaticProperty;
 import com.oracle.truffle.api.staticobject.StaticShape;
-import com.oracle.truffle.espresso.descriptors.Names;
-import com.oracle.truffle.espresso.descriptors.Signatures;
-import com.oracle.truffle.espresso.descriptors.StaticSymbols;
-import com.oracle.truffle.espresso.descriptors.Symbol.Name;
-import com.oracle.truffle.espresso.descriptors.Symbol.Signature;
-import com.oracle.truffle.espresso.descriptors.Symbol.Type;
-import com.oracle.truffle.espresso.descriptors.Symbols;
-import com.oracle.truffle.espresso.descriptors.Types;
-import com.oracle.truffle.espresso.descriptors.Utf8ConstantTable;
+import com.oracle.truffle.espresso.classfile.JavaKind;
+import com.oracle.truffle.espresso.classfile.JavaVersion;
+import com.oracle.truffle.espresso.classfile.descriptors.Names;
+import com.oracle.truffle.espresso.classfile.descriptors.Signatures;
+import com.oracle.truffle.espresso.classfile.descriptors.StaticSymbols;
+import com.oracle.truffle.espresso.classfile.descriptors.Symbols;
+import com.oracle.truffle.espresso.classfile.descriptors.Types;
+import com.oracle.truffle.espresso.classfile.descriptors.Utf8ConstantTable;
+import com.oracle.truffle.espresso.classfile.descriptors.Symbol.Name;
+import com.oracle.truffle.espresso.classfile.descriptors.Symbol.Signature;
+import com.oracle.truffle.espresso.classfile.descriptors.Symbol.Type;
+import com.oracle.truffle.espresso.impl.EspressoType;
 import com.oracle.truffle.espresso.impl.SuppressFBWarnings;
 import com.oracle.truffle.espresso.meta.EspressoError;
-import com.oracle.truffle.espresso.meta.JavaKind;
 import com.oracle.truffle.espresso.nodes.commands.ExitCodeNode;
 import com.oracle.truffle.espresso.nodes.commands.GetBindingsNode;
 import com.oracle.truffle.espresso.nodes.commands.ReferenceProcessRootNode;
 import com.oracle.truffle.espresso.preinit.ContextPatchingException;
 import com.oracle.truffle.espresso.preinit.EspressoLanguageCache;
 import com.oracle.truffle.espresso.runtime.EspressoContext;
+import com.oracle.truffle.espresso.runtime.EspressoException;
 import com.oracle.truffle.espresso.runtime.EspressoThreadLocalState;
 import com.oracle.truffle.espresso.runtime.GuestAllocator;
-import com.oracle.truffle.espresso.runtime.JavaVersion;
 import com.oracle.truffle.espresso.runtime.OS;
 import com.oracle.truffle.espresso.runtime.staticobject.StaticObject;
 import com.oracle.truffle.espresso.runtime.staticobject.StaticObject.StaticObjectFactory;
@@ -126,6 +128,7 @@ public final class EspressoLanguage extends TruffleLanguage<EspressoContext> {
     private StaticShape<StaticObjectFactory> arrayShape;
 
     private final StaticProperty foreignProperty = new DefaultStaticProperty("foreignObject");
+    private final StaticProperty typeArgumentProperty = new DefaultStaticProperty("typeArguments");
     // This field should be final, but creating a shape requires a fully-initialized instance of
     // TruffleLanguage.
     @CompilationFinal //
@@ -347,7 +350,7 @@ public final class EspressoLanguage extends TruffleLanguage<EspressoContext> {
 
         if (exitMode == ExitMode.NATURAL) {
             // Make sure current thread is no longer considered alive by guest code.
-            if (context.getVM().DetachCurrentThread(context) == JNI_OK) {
+            if (context.getVM().DetachCurrentThread(context, this) == JNI_OK) {
                 // Create a new guest thread to wait for other non-daemon threads
                 context.createThread(Thread.currentThread(), context.getMainThreadGroup(), "DestroyJavaVM", false);
             }
@@ -485,6 +488,10 @@ public final class EspressoLanguage extends TruffleLanguage<EspressoContext> {
         return foreignProperty;
     }
 
+    public StaticProperty getTypeArgumentProperty() {
+        return typeArgumentProperty;
+    }
+
     public StaticShape<StaticObjectFactory> getForeignShape() {
         assert fullyInitialized : "Array shape accessed before language is fully initialized";
         return foreignShape;
@@ -493,7 +500,8 @@ public final class EspressoLanguage extends TruffleLanguage<EspressoContext> {
     @TruffleBoundary
     private StaticShape<StaticObjectFactory> createForeignShape() {
         assert foreignShape == null;
-        return StaticShape.newBuilder(this).property(foreignProperty, Object.class, true).build(StaticObject.class, StaticObjectFactory.class);
+        return StaticShape.newBuilder(this).property(foreignProperty, Object.class, true).property(typeArgumentProperty, EspressoType[].class, true).build(StaticObject.class,
+                        StaticObjectFactory.class);
     }
 
     private static final LanguageReference<EspressoLanguage> REFERENCE = LanguageReference.create(EspressoLanguage.class);
@@ -694,5 +702,21 @@ public final class EspressoLanguage extends TruffleLanguage<EspressoContext> {
 
     public GuestFieldOffsetStrategy getGuestFieldOffsetStrategy() {
         return guestFieldOffsetStrategy;
+    }
+
+    public StaticObject getPendingException() {
+        return getThreadLocalState().getPendingExceptionObject();
+    }
+
+    public EspressoException getPendingEspressoException() {
+        return getThreadLocalState().getPendingException();
+    }
+
+    public void clearPendingException() {
+        getThreadLocalState().clearPendingException();
+    }
+
+    public void setPendingException(EspressoException ex) {
+        getThreadLocalState().setPendingException(ex);
     }
 }

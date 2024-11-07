@@ -77,7 +77,7 @@ import jdk.vm.ci.meta.ResolvedJavaMethod;
 import jdk.vm.ci.meta.SpeculationLog;
 import jdk.vm.ci.meta.TriState;
 import jdk.vm.ci.runtime.JVMCICompiler;
-import jdk.vm.ci.services.Services;
+import org.graalvm.nativeimage.ImageInfo;
 
 public class HotSpotGraalCompiler implements GraalJVMCICompiler, Cancellable, JVMCICompilerShadow, GraalCompiler.RequestedCrashHandler {
 
@@ -160,7 +160,7 @@ public class HotSpotGraalCompiler implements GraalJVMCICompiler, Cancellable, JV
             OptionValues options = task.filterOptions(initialOptions);
 
             HotSpotVMConfigAccess config = new HotSpotVMConfigAccess(graalRuntime.getVMConfig().getStore());
-            boolean oneIsolatePerCompilation = Services.IS_IN_NATIVE_IMAGE &&
+            boolean oneIsolatePerCompilation = ImageInfo.inImageRuntimeCode() &&
                             config.getFlag("JVMCIThreadsPerNativeLibraryRuntime", Integer.class, 0) == 1 &&
                             config.getFlag("JVMCICompilerIdleDelay", Integer.class, 1000) == 0;
             try (CompilationWatchDog w1 = CompilationWatchDog.watch(task.getCompilationIdentifier(), options, oneIsolatePerCompilation, task);
@@ -284,7 +284,7 @@ public class HotSpotGraalCompiler implements GraalJVMCICompiler, Cancellable, JV
                         null,
                         this,
                         true));
-        graph.getOptimizationLog().emit(new HotSpotStableMethodNameFormatter(providers, graph.getDebug()));
+        graph.getOptimizationLog().emit();
         if (!isOSR) {
             profilingInfo.setCompilerIRSize(StructuredGraph.class, graph.getNodeCount());
         }
@@ -347,6 +347,9 @@ public class HotSpotGraalCompiler implements GraalJVMCICompiler, Cancellable, JV
             graphBuilderConfig = graphBuilderConfig.withEagerResolving(true);
             graphBuilderConfig = graphBuilderConfig.withUnresolvedIsError(true);
         }
+        if (graalRuntime.getVMConfig().alwaysSafeConstructors) {
+            graphBuilderConfig = graphBuilderConfig.withAlwaysSafeConstructors();
+        }
         GraphBuilderPhase newGraphBuilderPhase = new HotSpotGraphBuilderPhase(graphBuilderConfig);
         newGbs.findPhase(GraphBuilderPhase.class).set(newGraphBuilderPhase);
         if (isOSR) {
@@ -369,7 +372,7 @@ public class HotSpotGraalCompiler implements GraalJVMCICompiler, Cancellable, JV
 
     @Override
     public boolean notifyCrash(OptionValues options, String crashMessage) {
-        if (Services.IS_IN_NATIVE_IMAGE) {
+        if (ImageInfo.inImageRuntimeCode()) {
             if (HotSpotGraalCompiler.Options.CrashAtThrowsOOME.getValue(options)) {
                 if (OOME_CRASH_DONE.compareAndSet(0L, 1L)) {
                     // The -Djdk.libgraal.Xmx option should also be employed to make

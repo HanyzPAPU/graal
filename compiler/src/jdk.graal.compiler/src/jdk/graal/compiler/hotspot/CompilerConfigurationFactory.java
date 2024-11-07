@@ -32,6 +32,7 @@ import java.util.List;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 
+import jdk.graal.compiler.serviceprovider.LibGraalService;
 import org.graalvm.collections.EconomicMap;
 import jdk.graal.compiler.core.Instrumentation;
 import jdk.graal.compiler.core.common.SuppressFBWarnings;
@@ -51,13 +52,14 @@ import jdk.graal.compiler.serviceprovider.GraalServices;
 import jdk.vm.ci.code.Architecture;
 import jdk.vm.ci.common.InitTimer;
 import jdk.vm.ci.hotspot.HotSpotJVMCIRuntime;
-import jdk.vm.ci.services.Services;
+import org.graalvm.nativeimage.ImageInfo;
 
 /**
  * A factory that creates the {@link CompilerConfiguration} the compiler will use. Each factory must
  * have a unique {@link #name} and {@link #autoSelectionPriority}. The latter imposes a total
  * ordering between factories for the purpose of auto-selecting the factory to use.
  */
+@LibGraalService
 public abstract class CompilerConfigurationFactory implements Comparable<CompilerConfigurationFactory> {
 
     public enum ShowConfigurationLevel {
@@ -272,7 +274,7 @@ public abstract class CompilerConfigurationFactory implements Comparable<Compile
      * loaded from.
      */
     private Object getLoadedFromLocation(boolean verbose) {
-        if (Services.IS_IN_NATIVE_IMAGE) {
+        if (ImageInfo.inImageRuntimeCode()) {
             if (nativeImageLocationQualifier != null) {
                 return "a " + nativeImageLocationQualifier + " Native Image shared library";
             }
@@ -282,6 +284,13 @@ public abstract class CompilerConfigurationFactory implements Comparable<Compile
     }
 
     private static String nativeImageLocationQualifier;
+
+    /**
+     * Gets the qualifier for the libgraal library (e.g., "PGO optimized").
+     */
+    public static String getNativeImageLocationQualifier() {
+        return nativeImageLocationQualifier;
+    }
 
     /**
      * Records a qualifier for the libgraal library (e.g., "PGO optimized").

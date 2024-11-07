@@ -34,9 +34,9 @@ import java.util.concurrent.ConcurrentHashMap;
 
 import com.oracle.truffle.api.CompilerAsserts;
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
-import com.oracle.truffle.espresso.descriptors.Symbol;
-import com.oracle.truffle.espresso.descriptors.Symbol.Type;
-import com.oracle.truffle.espresso.descriptors.Types;
+import com.oracle.truffle.espresso.classfile.descriptors.Symbol;
+import com.oracle.truffle.espresso.classfile.descriptors.Symbol.Type;
+import com.oracle.truffle.espresso.classfile.descriptors.Types;
 import com.oracle.truffle.espresso.jdwp.api.ModuleRef;
 import com.oracle.truffle.espresso.meta.EspressoError;
 import com.oracle.truffle.espresso.meta.Meta;
@@ -44,7 +44,6 @@ import com.oracle.truffle.espresso.redefinition.DefineKlassListener;
 import com.oracle.truffle.espresso.runtime.EspressoContext;
 import com.oracle.truffle.espresso.runtime.staticobject.StaticObject;
 import com.oracle.truffle.espresso.substitutions.JavaType;
-import com.oracle.truffle.espresso.vm.InterpreterToVM;
 
 public final class ClassRegistries {
 
@@ -166,7 +165,8 @@ public final class ClassRegistries {
             }
             return result;
         }
-        return getClassRegistry(classLoader).getLoadedKlasses();
+        ClassRegistry classRegistry = getClassRegistry(classLoader);
+        return classRegistry == null ? Collections.emptyList() : classRegistry.getLoadedKlasses();
     }
 
     @TruffleBoundary
@@ -177,7 +177,7 @@ public final class ClassRegistries {
             klasses.add(bootClassRegistry.classes.get(type).klass());
             // if a type loaded by the boot loader, there can't
             // be any others, so return immediately
-            return klasses.toArray(new Klass[0]);
+            return klasses.toArray(Klass.EMPTY_ARRAY);
         }
         // continue search in all other registries
         synchronized (weakClassLoaderSet) {
@@ -188,7 +188,7 @@ public final class ClassRegistries {
                 }
             }
         }
-        return klasses.toArray(new Klass[0]);
+        return klasses.toArray(Klass.EMPTY_ARRAY);
     }
 
     @TruffleBoundary
@@ -263,11 +263,6 @@ public final class ClassRegistries {
     }
 
     @TruffleBoundary
-    public ObjectKlass defineKlass(Symbol<Type> type, byte[] bytes, StaticObject classLoader) throws EspressoClassLoadingException {
-        return defineKlass(type, bytes, classLoader, ClassRegistry.ClassDefinitionInfo.EMPTY);
-    }
-
-    @TruffleBoundary
     public ObjectKlass defineKlass(Symbol<Type> type, byte[] bytes, StaticObject classLoader, ClassRegistry.ClassDefinitionInfo info) throws EspressoClassLoadingException {
         assert classLoader != null;
         ClassRegistry registry = getClassRegistry(classLoader);
@@ -308,15 +303,6 @@ public final class ClassRegistries {
         }
         assert result >= 0;
         return result;
-    }
-
-    public boolean isClassLoader(StaticObject object) {
-        if (InterpreterToVM.instanceOf(object, context.getMeta().java_lang_ClassLoader)) {
-            synchronized (weakClassLoaderSet) {
-                return weakClassLoaderSet.contains(object);
-            }
-        }
-        return false;
     }
 
     public void addToFixupList(Klass k) {
@@ -387,7 +373,7 @@ public final class ClassRegistries {
                 return;
             }
             // throws SecurityException if access is not allowed.
-            meta.java_lang_ClassLoader_checkPackageAccess.invokeDirect(classLoader, klass.mirror(), protectionDomain);
+            meta.java_lang_ClassLoader_checkPackageAccess.invokeDirectSpecial(classLoader, klass.mirror(), protectionDomain);
             cachedDomains.add(protectionDomain);
         }
 

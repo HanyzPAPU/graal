@@ -51,7 +51,7 @@ import com.oracle.truffle.espresso.impl.LanguageAccess;
 import com.oracle.truffle.espresso.impl.ObjectKlass;
 import com.oracle.truffle.espresso.impl.PackageTable;
 import com.oracle.truffle.espresso.meta.EspressoError;
-import com.oracle.truffle.espresso.meta.JavaKind;
+import com.oracle.truffle.espresso.classfile.JavaKind;
 import com.oracle.truffle.espresso.meta.Meta;
 import com.oracle.truffle.espresso.runtime.staticobject.StaticObject;
 import com.oracle.truffle.espresso.substitutions.JavaType;
@@ -318,7 +318,7 @@ public final class GuestAllocator implements LanguageAccess {
         if (interopLibrary.isNull(foreignObject)) {
             return createForeignNull(lang, foreignObject);
         }
-        return createForeign(lang, klass, foreignObject);
+        return doCreateForeign(lang, klass, foreignObject);
     }
 
     /**
@@ -326,7 +326,7 @@ public final class GuestAllocator implements LanguageAccess {
      */
     public static StaticObject createForeignNull(EspressoLanguage lang, Object foreignObject) {
         assert InteropLibrary.getUncached().isNull(foreignObject);
-        return createForeign(lang, null, foreignObject);
+        return doCreateForeign(lang, null, foreignObject);
     }
 
     private static void initInstanceFields(StaticObject obj, ObjectKlass thisKlass) {
@@ -397,7 +397,7 @@ public final class GuestAllocator implements LanguageAccess {
         }
     }
 
-    private static StaticObject createForeign(EspressoLanguage lang, Klass klass, Object foreignObject) {
+    private static StaticObject doCreateForeign(EspressoLanguage lang, Klass klass, Object foreignObject) {
         assert foreignObject != null;
         assert klass == null || !klass.isAbstract() || klass.isArray();
         assert klass == null || klass != klass.getMeta().java_lang_Class;

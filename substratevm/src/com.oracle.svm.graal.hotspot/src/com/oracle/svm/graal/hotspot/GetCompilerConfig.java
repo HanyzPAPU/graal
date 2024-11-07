@@ -24,7 +24,9 @@
  */
 package com.oracle.svm.graal.hotspot;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -33,7 +35,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import jdk.graal.compiler.util.ObjectCopier;
 import org.graalvm.collections.UnmodifiableEconomicMap;
 import org.graalvm.collections.UnmodifiableMapCursor;
 
@@ -43,9 +44,11 @@ import com.oracle.svm.core.option.RuntimeOptionKey;
 
 import jdk.graal.compiler.debug.GraalError;
 import jdk.graal.compiler.hotspot.HotSpotGraalOptionValues;
+import jdk.graal.compiler.hotspot.libgraal.CompilerConfig;
 import jdk.graal.compiler.options.OptionKey;
 import jdk.graal.compiler.options.OptionValues;
-import jdk.graal.compiler.hotspot.guestgraal.CompilerConfig;
+import jdk.graal.compiler.util.ObjectCopier;
+import org.graalvm.nativeimage.ImageInfo;
 
 /**
  * Gets the map created in a JVM subprocess by running {@link CompilerConfig}.
@@ -62,7 +65,36 @@ public class GetCompilerConfig {
      *            {@link ObjectCopier}. These packages need to be opened when decoding the returned
      *            string back to an object.
      */
-    public record Result(String encodedConfig, Map<String, Set<String>> opens) {
+    public record Result(byte[] encodedConfig, Map<String, Set<String>> opens) {
+    }
+
+    /**
+     * Tests whether {@code module} is in the boot layer.
+     *
+     * @param javaExe java executable
+     * @param module name of the module to test
+     */
+    private static boolean isInBootLayer(Path javaExe, String module) {
+        String search = "jrt:/" + module;
+        String[] command = {javaExe.toString(), "--show-module-resolution", "--version"};
+        try {
+            Process p = new ProcessBuilder(command).start();
+            BufferedReader reader = new BufferedReader(new InputStreamReader(p.getInputStream()));
+            String line;
+            boolean found = false;
+            while ((line = reader.readLine()) != null) {
+                if (line.contains(search)) {
+                    found = true;
+                }
+            }
+            int exitValue = p.waitFor();
+            if (exitValue != 0) {
+                throw new GraalError("Command finished with exit value %d: %s", exitValue, String.join(" ", command));
+            }
+            return found;
+        } catch (Exception e) {
+            throw new GraalError(e, "Error running command: %s", String.join(" ", command));
+        }
     }
 
     /**
@@ -81,12 +113,21 @@ public class GetCompilerConfig {
                         // java.util.ImmutableCollections.EMPTY
                         "java.base", Set.of("java.util"));
 
+        // Only modules in the boot layer can be the target of --add-exports
+        String addExports = "--add-exports=java.base/jdk.internal.misc=jdk.graal.compiler";
+        String ee = "com.oracle.graal.graal_enterprise";
+        if (isInBootLayer(javaExe, ee)) {
+            addExports += "," + ee;
+        }
+
         List<String> command = new ArrayList<>(List.of(
                         javaExe.toFile().getAbsolutePath(),
                         "-XX:+UnlockExperimentalVMOptions",
                         "-XX:+EnableJVMCI",
                         "-XX:-UseJVMCICompiler", // avoid deadlock with jargraal
-                        "-Djdk.vm.ci.services.aot=true"));
+                        addExports,
+                        "-Djdk.vm.ci.services.aot=true",
+                        "-D%s=%s".formatted(ImageInfo.PROPERTY_IMAGE_CODE_KEY, ImageInfo.PROPERTY_IMAGE_CODE_VALUE_BUILDTIME)));
 
         Module module = ObjectCopier.class.getModule();
         String target = module.isNamed() ? module.getName() : "ALL-UNNAMED";
@@ -127,13 +168,13 @@ public class GetCompilerConfig {
         try {
             int exitValue = p.waitFor();
             if (exitValue != 0) {
-                throw new GraalError("Command finished with exit value %d: %s", exitValue, quotedCommand);
+                throw new GraalError("Command finished with exit value %d (look for stdout and stderr above): %s", exitValue, quotedCommand);
             }
         } catch (InterruptedException e) {
             throw new GraalError("Interrupted waiting for command: %s", quotedCommand);
         }
         try {
-            String encodedConfig = Files.readString(encodedConfigPath);
+            byte[] encodedConfig = Files.readAllBytes(encodedConfigPath);
             if (DEBUG) {
                 System.out.printf("[%d] Executed: %s%n", p.pid(), quotedCommand);
                 System.out.printf("[%d] Output saved in %s%n", p.pid(), encodedConfigPath);

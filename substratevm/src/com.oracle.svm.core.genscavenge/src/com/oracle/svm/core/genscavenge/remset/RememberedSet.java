@@ -94,7 +94,7 @@ public interface RememberedSet extends BarrierSetProvider {
      */
     @AlwaysInline("GC performance")
     @Uninterruptible(reason = "Called from uninterruptible code.", mayBeInlined = true)
-    void enableRememberedSetForObject(AlignedHeader chunk, Object obj);
+    void enableRememberedSetForObject(AlignedHeader chunk, Object obj, UnsignedWord objSize);
 
     /** Clears the remembered set of an aligned chunk. */
     @Uninterruptible(reason = "Called from uninterruptible code.", mayBeInlined = true)
@@ -115,6 +115,7 @@ public interface RememberedSet extends BarrierSetProvider {
      * (from old generation to young generation, or from image heap to runtime heap).
      */
     @AlwaysInline("GC performance")
+    @Uninterruptible(reason = "Called from uninterruptible code.", mayBeInlined = true)
     void dirtyCardForAlignedObject(Object object, boolean verifyOnly);
 
     /**
@@ -123,6 +124,7 @@ public interface RememberedSet extends BarrierSetProvider {
      * (from old generation to young generation, or from image heap to runtime heap).
      */
     @AlwaysInline("GC performance")
+    @Uninterruptible(reason = "Called from uninterruptible code.", mayBeInlined = true)
     void dirtyCardForUnalignedObject(Object object, boolean verifyOnly);
 
     /**

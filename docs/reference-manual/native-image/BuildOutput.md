@@ -9,7 +9,10 @@ redirect_from: /reference-manual/native-image/BuildOutput/
 # Native Image Build Output
 
 * [Build Stages](#build-stages)
+* [Security Report](#security-report)
+* [Recommendations](#recommendations)
 * [Resource Usage Statistics](#resource-usage-statistics)
+* [Build Artifacts](#build-artifacts)
 * [Machine-Readable Build Output](#machine-readable-build-output)
 
 Here you will find information about the build output of GraalVM Native Image.
@@ -256,10 +259,14 @@ This data typically contains internal information for Native Image and should no
 This shows whether Java deserialization is included in the native executable or not.
 If not included, the attack surface of the executable is reduced as the executable cannot be exploited with attacks based on Java deserialization.
 
-#### <a name="glossary-embedded-sbom"></a>Embedded SBOM
-Number of components and the size of the embedded Software Bill of Materials (SBOM).
-Use `--enable-sbom` to include an SBOM in the native executable.
-For more information, see [Inspection Tool](InspectTool.md)
+#### <a name="glossary-sbom"></a><a name="glossary-embedded-sbom"></a>Software Bill of Material (SBOM)
+This section indicates whether a SBOM was assembled and in what ways it was stored. 
+The storage formats include: `embed`, which embeds the SBOM in the binary; `classpath`, which saves the SBOM to the classpath; and `export`, which includes the SBOM as a JSON build artifact. 
+Use `--enable-sbom` to activate this feature which defaults to the `embed` option. 
+When embedded, the SBOM size is displayed. 
+The number of components is always displayed.
+
+For more information, see [Software Bill of Materials](../../security/native-image.md).
 
 #### <a name="glossary-backwards-edge-cfi"></a>Backwards-Edge Control-Flow Integrity (CFI)
 Control-Flow Integrity (CFI) can be enforced with the experimental `-H:CFI=HW` option.
@@ -272,15 +279,6 @@ This feature is currently only available for code compiled by Graal for Linux AM
 ## Recommendations
 
 The build output may contain one or more of the following recommendations that help you get the best out of Native Image.
-
-#### <a name="recommendation-init"></a>`INIT`: Use the Strict Image Heap Configuration
-
-Start using `--strict-image-heap` to reduce the amount of configuration and prepare for future GraalVM releases where this will be the default.
-This mode requires only the classes that are stored in the image heap to be marked with `--initialize-at-build-time`. 
-This effectively reduces the number of configuration entries necessary to achieve build-time initialization. 
-When adopting the new mode it is best to start introducing build-time initialization from scratch.
-During this process, it is best to select individual classes (as opposed to whole packages) for build time initialization.
-Also, before migrating to the new flag make sure to update all framework dependencies to the latest versions as they might need to migrate too. 
 
 #### <a name="recommendation-awt"></a>`AWT`: Missing Reachability Metadata for Abstract Window Toolkit
 
@@ -328,9 +326,20 @@ More precisely, this mode reduces the number of optimizations performed by the G
 The quick build mode is not only useful for development, it can also cause the generated executable file to be smaller in size.
 Note, however, that the overall peak throughput of the executable may be lower due to the reduced number of optimizations.
 
+#### <a name="recommendation-init"></a>`INIT`: Use the Strict Image Heap Configuration
+
+Start using `--strict-image-heap` to reduce the amount of configuration and prepare for future GraalVM releases where this will be the default.
+This mode requires only the classes that are stored in the image heap to be marked with `--initialize-at-build-time`. 
+This effectively reduces the number of configuration entries necessary to achieve build-time initialization. 
+When adopting the new mode it is best to start introducing build-time initialization from scratch.
+During this process, it is best to select individual classes (as opposed to whole packages) for build time initialization.
+Also, before migrating to the new flag make sure to update all framework dependencies to the latest versions as they might need to migrate too.
+
+> Note that `--strict-image-heap` is enabled by default in Native Image starting from GraalVM for JDK 22.
+
 ## Resource Usage Statistics
 
-#### <a name="glossary-garbage-collection"></a>Garbage Collections
+#### <a name="glossary-garbage-collections"></a>Garbage Collections
 The total time spent in all garbage collectors, total GC time divided by the total process time as a percentage, and the total number of garbage collections.
 A large number of collections or time spent in collectors usually indicates that the system is under memory pressure.
 Increase the amount of available memory to reduce the time to build the native binary.
@@ -339,7 +348,7 @@ Increase the amount of available memory to reduce the time to build the native b
 Peak [resident set size](https://en.wikipedia.org/wiki/Resident_set_size) as reported by the operating system.
 This value indicates the maximum amount of memory consumed by the build process.
 You may want to compare this value to the memory limit reported in the [build resources section](#glossary-build-resources).
-If there is enough headroom and the [GC statistics](#glossary-garbage-collection) do not show any problems, the amount of total memory of the system can be reduced to a value closer to the peak RSS to lower operational costs.
+If there is enough headroom and the [GC statistics](#glossary-garbage-collections) do not show any problems, the amount of total memory of the system can be reduced to a value closer to the peak RSS to lower operational costs.
 
 #### <a name="glossary-cpu-load"></a>CPU load
 The CPU time used by the process divided by the total process time.

@@ -74,7 +74,6 @@ import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.LogRecord;
 
-import com.oracle.truffle.api.impl.JDKAccessor;
 import org.graalvm.collections.Pair;
 import org.graalvm.nativeimage.ImageInfo;
 import org.graalvm.options.OptionKey;
@@ -107,6 +106,7 @@ import com.oracle.truffle.api.TruffleLanguage.Registration;
 import com.oracle.truffle.api.TruffleLogger;
 import com.oracle.truffle.api.TruffleSafepoint;
 import com.oracle.truffle.api.impl.Accessor;
+import com.oracle.truffle.api.impl.JDKAccessor;
 import com.oracle.truffle.api.impl.TruffleLocator;
 import com.oracle.truffle.api.instrumentation.ContextsListener;
 import com.oracle.truffle.api.instrumentation.ProbeNode;
@@ -114,8 +114,6 @@ import com.oracle.truffle.api.instrumentation.ThreadsListener;
 import com.oracle.truffle.api.interop.InteropLibrary;
 import com.oracle.truffle.api.interop.TruffleObject;
 import com.oracle.truffle.api.interop.UnsupportedMessageException;
-import com.oracle.truffle.api.library.provider.DefaultExportProvider;
-import com.oracle.truffle.api.library.provider.EagerExportProvider;
 import com.oracle.truffle.api.nodes.EncapsulatingNodeReference;
 import com.oracle.truffle.api.nodes.LanguageInfo;
 import com.oracle.truffle.api.nodes.Node;
@@ -268,8 +266,8 @@ final class EngineAccessor extends Accessor {
         }
 
         @Override
-        public LanguageInfo getLanguageInfo(Object polyglotInstrument, Class<? extends TruffleLanguage<?>> languageClass) {
-            return ((PolyglotInstrument) polyglotInstrument).engine.getLanguage(languageClass, true).info;
+        public LanguageInfo getLanguageInfo(Object vmObject, Class<? extends TruffleLanguage<?>> languageClass) {
+            return ((VMObject) vmObject).getEngine().getLanguage(languageClass, true).info;
         }
 
         @Override
@@ -328,30 +326,14 @@ final class EngineAccessor extends Accessor {
             Map<Class<?>, T> found = new LinkedHashMap<>();
             // 1) Add known Truffle DynamicObjectLibraryProvider service.
             DYNAMIC_OBJECT.lookupTruffleService(type).forEach((s) -> found.putIfAbsent(s.getClass(), s));
-            Class<? extends T> legacyInterface = null;
-            if (type == EagerExportProvider.class) {
-                legacyInterface = com.oracle.truffle.api.library.EagerExportProvider.class.asSubclass(type);
-            } else if (type == DefaultExportProvider.class) {
-                legacyInterface = com.oracle.truffle.api.library.DefaultExportProvider.class.asSubclass(type);
-            }
             for (AbstractClassLoaderSupplier loaderSupplier : EngineAccessor.locatorOrDefaultLoaders()) {
                 ClassLoader loader = loaderSupplier.get();
                 if (loader != null) {
                     // 2) Lookup implementations of a module aware interface
                     for (T service : ServiceLoader.load(type, loader)) {
                         if (loaderSupplier.accepts(service.getClass())) {
-                            ModuleUtils.exportTransitivelyTo(service.getClass().getModule());
+                            JDKSupport.exportTransitivelyTo(service.getClass().getModule());
                             found.putIfAbsent(service.getClass(), service);
-                        }
-                    }
-                    // 3) Lookup implementations of a legacy interface
-                    // GR-46293 Remove the deprecated service interface lookup.
-                    if (legacyInterface != null && loaderSupplier.supportsLegacyProviders()) {
-                        ModuleUtils.exportToUnnamedModuleOf(loader);
-                        for (T service : ServiceLoader.load(legacyInterface, loader)) {
-                            if (loaderSupplier.accepts(service.getClass())) {
-                                found.putIfAbsent(service.getClass(), service);
-                            }
                         }
                     }
                 }
@@ -475,6 +457,11 @@ final class EngineAccessor extends Accessor {
         }
 
         @Override
+        public LanguageInfo getHostLanguage(Object polyglotLanguageContext) {
+            return ((PolyglotLanguageContext) polyglotLanguageContext).context.engine.hostLanguage.info;
+        }
+
+        @Override
         public Map<String, LanguageInfo> getPublicLanguages(Object polyglotObject) {
             return ((PolyglotLanguageContext) polyglotObject).getAccessibleLanguages(false);
         }
@@ -501,13 +488,14 @@ final class EngineAccessor extends Accessor {
         @Override
         public Object getScope(Object polyglotLanguageContext, LanguageInfo requiredLanguage, boolean internal) {
             PolyglotLanguageContext languageContext = (PolyglotLanguageContext) polyglotLanguageContext;
-            Map<String, LanguageInfo> allowedLanguages;
+            Set<String> allowedLanguages;
             if (internal) {
-                allowedLanguages = getInternalLanguages(languageContext);
+                allowedLanguages = getInternalLanguages(languageContext).keySet();
             } else {
-                allowedLanguages = getPublicLanguages(languageContext);
+                allowedLanguages = getPublicLanguages(languageContext).keySet();
             }
-            if (!allowedLanguages.containsKey(requiredLanguage.getId())) {
+            String requiredId = requiredLanguage.getId();
+            if (!allowedLanguages.contains(requiredId) && !(internal && PolyglotEngineImpl.HOST_LANGUAGE_ID.equals(requiredId) && languageContext.context.config.hostLookupAllowed)) {
                 throw new PolyglotEngineException(new SecurityException(String.format("Access to language '%s' is not permitted.", requiredLanguage.getId())));
             }
             PolyglotContextImpl context = languageContext.context;
@@ -981,6 +969,7 @@ final class EngineAccessor extends Accessor {
                         String[] onlyLanguagesArray, Map<String, Object> config, Map<String, String> options, Map<String, String[]> arguments,
                         Boolean sharingEnabled, boolean initializeCreatorContext, Runnable onCancelledRunnable,
                         Consumer<Integer> onExitedRunnable, Runnable onClosedRunnable, boolean inheritAccess, Boolean allowCreateThreads,
+                        Consumer<String> threadAccessDeniedHandler,
                         Boolean allowNativeAccess, Boolean allowIO, Boolean allowHostLookup, Boolean allowHostClassLoading,
                         Boolean allowCreateProcess, Boolean allowPolyglotAccess, Boolean allowEnvironmentAccess,
                         Map<String, String> customEnvironment, Boolean allowInnerContextOptions) {
@@ -1104,6 +1093,8 @@ final class EngineAccessor extends Accessor {
 
             ZoneId useTimeZone = timeZone == null ? creatorConfig.timeZone : timeZone;
 
+            Consumer<String> useDeniedThreadAccess = threadAccessDeniedHandler != null ? threadAccessDeniedHandler : creatorConfig.threadAccessDeniedHandler;
+
             Map<String, String[]> useArguments;
             if (arguments == null) {
                 // change: application arguments are not inherited by default
@@ -1113,7 +1104,7 @@ final class EngineAccessor extends Accessor {
             }
 
             PolyglotContextConfig innerConfig = new PolyglotContextConfig(engine, creatorConfig.sandboxPolicy, sharingEnabled, useOut, useErr, useIn,
-                            useAllowHostLookup, usePolyglotAccess, useAllowNativeAccess, useAllowCreateThread, useAllowHostClassLoading,
+                            useAllowHostLookup, usePolyglotAccess, useAllowNativeAccess, useAllowCreateThread, useDeniedThreadAccess, useAllowHostClassLoading,
                             useAllowInnerContextOptions, creatorConfig.allowExperimentalOptions,
                             useClassFilter, useArguments, allowedLanguages, useOptions, fileSystemConfig, creatorConfig.logHandler,
                             useAllowCreateProcess, useProcessHandler, useEnvironmentAccess, useCustomEnvironment,
@@ -1178,9 +1169,14 @@ final class EngineAccessor extends Accessor {
                 newThread = new Thread(group, task, name, stackSize);
             }
             newThread.setUncaughtExceptionHandler(threadContext.getPolyglotExceptionHandler());
-
-            threadContext.context.checkMultiThreadedAccess(newThread);
-            return newThread;
+            for (;;) {
+                try {
+                    threadContext.context.checkMultiThreadedAccess(newThread);
+                    return newThread;
+                } catch (PolyglotThreadAccessException ex) {
+                    ex.rethrow(threadContext.context);
+                }
+            }
         }
 
         @Override
@@ -2184,6 +2180,16 @@ final class EngineAccessor extends Accessor {
         public Object getEngineData(Object polyglotEngine) {
             return ((PolyglotEngineImpl) polyglotEngine).runtimeData;
         }
+
+        @Override
+        public long getEngineId(Object polyglotEngine) {
+            return ((PolyglotEngineImpl) polyglotEngine).engineId;
+        }
+
+        @Override
+        public ModulesAccessor getModulesAccessor() {
+            return JDKSupport.getModulesAccessor();
+        }
     }
 
     abstract static class AbstractClassLoaderSupplier implements Supplier<ClassLoader> {
@@ -2191,10 +2197,6 @@ final class EngineAccessor extends Accessor {
 
         AbstractClassLoaderSupplier(ClassLoader loader) {
             this.hashCode = loader == null ? 0 : loader.hashCode();
-        }
-
-        boolean supportsLegacyProviders() {
-            return true;
         }
 
         boolean accepts(@SuppressWarnings("unused") Class<?> clazz) {
@@ -2241,11 +2243,6 @@ final class EngineAccessor extends Accessor {
         }
 
         @Override
-        boolean supportsLegacyProviders() {
-            return false;
-        }
-
-        @Override
         boolean accepts(Class<?> clazz) {
             return clazz.getModule().isNamed();
         }
@@ -2270,11 +2267,6 @@ final class EngineAccessor extends Accessor {
 
         WeakModulePathLoaderSupplier(ClassLoader loader) {
             super(loader);
-        }
-
-        @Override
-        boolean supportsLegacyProviders() {
-            return false;
         }
 
         @Override

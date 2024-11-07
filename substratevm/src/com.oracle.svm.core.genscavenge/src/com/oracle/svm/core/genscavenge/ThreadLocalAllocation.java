@@ -44,6 +44,7 @@ import org.graalvm.word.WordFactory;
 
 import com.oracle.svm.core.SubstrateGCOptions;
 import com.oracle.svm.core.Uninterruptible;
+import com.oracle.svm.core.config.ConfigurationValues;
 import com.oracle.svm.core.genscavenge.AlignedHeapChunk.AlignedHeader;
 import com.oracle.svm.core.genscavenge.UnalignedHeapChunk.UnalignedHeader;
 import com.oracle.svm.core.genscavenge.graal.nodes.FormatArrayNode;
@@ -72,6 +73,7 @@ import com.oracle.svm.core.threadlocal.FastThreadLocal;
 import com.oracle.svm.core.threadlocal.FastThreadLocalBytes;
 import com.oracle.svm.core.threadlocal.FastThreadLocalFactory;
 import com.oracle.svm.core.threadlocal.FastThreadLocalWord;
+import com.oracle.svm.core.util.UnsignedUtils;
 import com.oracle.svm.core.util.VMError;
 
 import jdk.graal.compiler.api.replacements.Fold;
@@ -221,11 +223,12 @@ public final class ThreadLocalAllocation {
             DynamicHub hub = ObjectHeaderImpl.getObjectHeaderImpl().dynamicHubFromObjectHeader(objectHeader);
 
             UnsignedWord size = LayoutEncoding.getPureInstanceAllocationSize(hub.getLayoutEncoding());
-            Object result = slowPathNewInstanceWithoutAllocating(hub, size);
-
-            runSlowPathHooks();
-            sampleSlowPathAllocation(result, size, Integer.MIN_VALUE);
-
+            Object result = allocateInstanceInCurrentTlab(hub, size);
+            if (result == null) {
+                result = slowPathNewInstanceWithoutAllocating(hub, size);
+                runSlowPathHooks();
+                sampleSlowPathAllocation(result, size, Integer.MIN_VALUE);
+            }
             return result;
         } finally {
             StackOverflowCheck.singleton().protectYellowZone();
@@ -333,6 +336,16 @@ public final class ThreadLocalAllocation {
     }
 
     @Uninterruptible(reason = "Holds uninitialized memory.")
+    private static Object allocateInstanceInCurrentTlab(DynamicHub hub, UnsignedWord size) {
+        if (size.aboveThan(availableTlabMemory(getTlab()))) {
+            return null;
+        }
+        assert size.equal(LayoutEncoding.getPureInstanceAllocationSize(hub.getLayoutEncoding()));
+        Pointer memory = allocateRawMemoryInTlab(size, getTlab());
+        return FormatObjectNode.formatObject(memory, DynamicHub.toClass(hub), false, FillContent.WITH_ZEROES, true);
+    }
+
+    @Uninterruptible(reason = "Holds uninitialized memory.")
     private static Object allocateInstanceInNewTlab(DynamicHub hub, UnsignedWord size, AlignedHeader newTlabChunk) {
         assert size.equal(LayoutEncoding.getPureInstanceAllocationSize(hub.getLayoutEncoding()));
         Pointer memory = allocateRawMemoryInNewTlab(size, newTlabChunk);
@@ -425,11 +438,15 @@ public final class ThreadLocalAllocation {
 
     @Uninterruptible(reason = "Called from uninterruptible code.", mayBeInlined = true)
     private static void guaranteeZeroed(Pointer memory, UnsignedWord size) {
+        int wordSize = ConfigurationValues.getTarget().wordSize;
+        VMError.guarantee(UnsignedUtils.isAMultiple(size, WordFactory.unsigned(wordSize)));
+
         Pointer pos = memory;
         Pointer end = memory.add(size);
         while (pos.belowThan(end)) {
-            VMError.guarantee(pos.readByte(0) == 0);
-            pos = pos.add(1);
+            Word v = pos.readWord(0);
+            VMError.guarantee(v.equal(0));
+            pos = pos.add(wordSize);
         }
     }
 

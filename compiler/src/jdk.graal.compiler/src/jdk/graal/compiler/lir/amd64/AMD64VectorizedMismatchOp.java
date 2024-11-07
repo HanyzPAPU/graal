@@ -61,7 +61,7 @@ import jdk.vm.ci.meta.Value;
  * instructions where possible.
  */
 // @formatter:off
-@SyncPort(from = "https://github.com/openjdk/jdk/blob/7bb59dc8da0c61c5da5c3aab5d56a6e4880001ce/src/hotspot/cpu/x86/macroAssembler_x86.cpp#L7147-L7365",
+@SyncPort(from = "https://github.com/openjdk/jdk/blob/7131f053b0d26b62cbf0d8376ec117d6e8d79f9e/src/hotspot/cpu/x86/macroAssembler_x86.cpp#L7163-L7381",
           sha1 = "72f9b7a60b75ecabf09fc10cb01a9504be97957a")
 // @formatter:on
 @Opcode("VECTORIZED_MISMATCH")

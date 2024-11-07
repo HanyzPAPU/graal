@@ -35,6 +35,7 @@ import org.graalvm.nativeimage.Platforms;
 import org.graalvm.word.Pointer;
 import org.graalvm.word.UnsignedWord;
 
+import com.oracle.svm.core.AlwaysInline;
 import com.oracle.svm.core.MemoryWalker;
 import com.oracle.svm.core.NeverInline;
 import com.oracle.svm.core.SubstrateDiagnostics;
@@ -69,12 +70,14 @@ import com.oracle.svm.core.imagelayer.ImageLayerBuildingSupport;
 import com.oracle.svm.core.jdk.UninterruptibleUtils.AtomicReference;
 import com.oracle.svm.core.jfr.JfrTicks;
 import com.oracle.svm.core.jfr.events.SystemGCEvent;
+import com.oracle.svm.core.layeredimagesingleton.MultiLayeredImageSingleton;
 import com.oracle.svm.core.locks.VMCondition;
 import com.oracle.svm.core.locks.VMMutex;
 import com.oracle.svm.core.log.Log;
 import com.oracle.svm.core.nodes.CFunctionEpilogueNode;
 import com.oracle.svm.core.nodes.CFunctionPrologueNode;
 import com.oracle.svm.core.option.RuntimeOptionKey;
+import com.oracle.svm.core.os.ImageHeapProvider;
 import com.oracle.svm.core.snippets.KnownIntrinsics;
 import com.oracle.svm.core.thread.PlatformThreads;
 import com.oracle.svm.core.thread.ThreadStatus;
@@ -105,7 +108,6 @@ public final class HeapImpl extends Heap {
     private final ObjectHeaderImpl objectHeaderImpl = new ObjectHeaderImpl();
     private final GCImpl gcImpl;
     private final RuntimeCodeInfoGCSupportImpl runtimeCodeInfoGcSupport;
-    private final ImageHeapInfo firstImageHeapInfo = new ImageHeapInfo();
     private final HeapAccounting accounting = new HeapAccounting();
 
     /** Head of the linked list of currently pending (ready to be enqueued) {@link Reference}s. */
@@ -140,9 +142,9 @@ public final class HeapImpl extends Heap {
         return (HeapImpl) heap;
     }
 
-    @Fold
-    public static ImageHeapInfo getFirstImageHeapInfo() {
-        return getHeapImpl().firstImageHeapInfo;
+    @Uninterruptible(reason = "Called from uninterruptible code.", mayBeInlined = true)
+    public static ImageHeapInfo[] getImageHeapInfos() {
+        return MultiLayeredImageSingleton.getAllLayers(ImageHeapInfo.class);
     }
 
     @Fold
@@ -160,6 +162,7 @@ public final class HeapImpl extends Heap {
     }
 
     @Override
+    @AlwaysInline("GC performance")
     @Uninterruptible(reason = "Called from uninterruptible code.", mayBeInlined = true)
     public boolean isInImageHeap(Pointer objPointer) {
         return isInPrimaryImageHeap(objPointer) || (AuxiliaryImageHeap.isPresent() && AuxiliaryImageHeap.singleton().containsObject(objPointer));
@@ -175,9 +178,10 @@ public final class HeapImpl extends Heap {
     }
 
     @Override
+    @AlwaysInline("GC performance")
     @Uninterruptible(reason = "Called from uninterruptible code.", mayBeInlined = true)
     public boolean isInPrimaryImageHeap(Pointer objPointer) {
-        for (ImageHeapInfo info = firstImageHeapInfo; info != null; info = info.next) {
+        for (ImageHeapInfo info : getImageHeapInfos()) {
             if (info.isInImageHeap(objPointer)) {
                 return true;
             }
@@ -284,9 +288,10 @@ public final class HeapImpl extends Heap {
         getChunkProvider().logFreeChunks(log);
     }
 
+    @SuppressWarnings("static-method")
     void logImageHeapPartitionBoundaries(Log log) {
         log.string("Native image heap boundaries:").indent(true);
-        for (ImageHeapInfo info = firstImageHeapInfo; info != null; info = info.next) {
+        for (ImageHeapInfo info : HeapImpl.getImageHeapInfos()) {
             info.print(log);
         }
         log.indent(false);
@@ -331,8 +336,8 @@ public final class HeapImpl extends Heap {
     @Override
     @Uninterruptible(reason = "Called from uninterruptible code.", mayBeInlined = true)
     public int getClassCount() {
-        int count = firstImageHeapInfo.dynamicHubCount;
-        for (ImageHeapInfo info = firstImageHeapInfo.next; info != null; info = info.next) {
+        int count = 0;
+        for (ImageHeapInfo info : HeapImpl.getImageHeapInfos()) {
             count += info.dynamicHubCount;
         }
         return count;
@@ -354,7 +359,7 @@ public final class HeapImpl extends Heap {
         int dynamicHubCount = getClassCount();
 
         ArrayList<Class<?>> list = new ArrayList<>(dynamicHubCount);
-        for (ImageHeapInfo info = firstImageHeapInfo; info != null; info = info.next) {
+        for (ImageHeapInfo info : HeapImpl.getImageHeapInfos()) {
             ImageHeapWalker.walkRegions(info, new ClassListBuilderVisitor(list.size() + info.dynamicHubCount, list));
         }
 
@@ -462,12 +467,23 @@ public final class HeapImpl extends Heap {
     }
 
     @Override
+    public UnsignedWord getImageHeapReservedBytes() {
+        return ImageHeapProvider.get().getImageHeapAddressSpaceSize();
+    }
+
+    @Override
+    public UnsignedWord getImageHeapCommittedBytes() {
+        int imageHeapOffset = HeapImpl.getHeapImpl().getImageHeapOffsetInAddressSpace();
+        return ImageHeapProvider.get().getImageHeapAddressSpaceSize().subtract(imageHeapOffset);
+    }
+
+    @Override
     public boolean walkImageHeapObjects(ObjectVisitor visitor) {
         VMOperation.guaranteeInProgressAtSafepoint("Must only be called at a safepoint");
         if (visitor == null) {
             return true;
         }
-        for (ImageHeapInfo info = firstImageHeapInfo; info != null; info = info.next) {
+        for (ImageHeapInfo info : HeapImpl.getImageHeapInfos()) {
             if (!ImageHeapWalker.walkImageHeapObjects(info, visitor)) {
                 return false;
             }
@@ -640,15 +656,13 @@ public final class HeapImpl extends Heap {
 
     @Override
     public boolean printLocationInfo(Log log, UnsignedWord value, boolean allowJavaHeapAccess, boolean allowUnsafeOperations) {
-        if (SubstrateOptions.SpawnIsolates.getValue()) {
-            Pointer heapBase = KnownIntrinsics.heapBase();
-            if (value.equal(heapBase)) {
-                log.string("is the heap base");
-                return true;
-            } else if (value.aboveThan(heapBase) && value.belowThan(getImageHeapStart())) {
-                log.string("points into the protected memory between the heap base and the image heap");
-                return true;
-            }
+        Pointer heapBase = KnownIntrinsics.heapBase();
+        if (value.equal(heapBase)) {
+            log.string("is the heap base");
+            return true;
+        } else if (value.aboveThan(heapBase) && value.belowThan(getImageHeapStart())) {
+            log.string("points into the protected memory between the heap base and the image heap");
+            return true;
         }
 
         if (objectHeaderImpl.isEncodedObjectHeader((Word) value)) {
@@ -733,12 +747,15 @@ public final class HeapImpl extends Heap {
     }
 
     private boolean printLocationInfo(Log log, Pointer ptr, boolean allowJavaHeapAccess, boolean allowUnsafeOperations) {
-        for (ImageHeapInfo info = firstImageHeapInfo; info != null; info = info.next) {
+        for (ImageHeapInfo info : HeapImpl.getImageHeapInfos()) {
             if (info.isInReadOnlyRegularPartition(ptr)) {
                 log.string("points into the image heap (read-only)");
                 return true;
             } else if (info.isInReadOnlyRelocatablePartition(ptr)) {
                 log.string("points into the image heap (read-only relocatables)");
+                return true;
+            } else if (info.isInWritablePatchedPartition(ptr)) {
+                log.string("points into the image heap (writable patched)");
                 return true;
             } else if (info.isInWritableRegularPartition(ptr)) {
                 log.string("points into the image heap (writable)");
@@ -835,9 +852,7 @@ public final class HeapImpl extends Heap {
         public void printDiagnostics(Log log, ErrorContext context, int maxDiagnosticLevel, int invocationCount) {
             log.string("Heap settings and statistics:").indent(true);
             log.string("Supports isolates: ").bool(SubstrateOptions.SpawnIsolates.getValue()).newline();
-            if (SubstrateOptions.SpawnIsolates.getValue()) {
-                log.string("Heap base: ").zhex(KnownIntrinsics.heapBase()).newline();
-            }
+            log.string("Heap base: ").zhex(KnownIntrinsics.heapBase()).newline();
             log.string("Object reference size: ").signed(ConfigurationValues.getObjectLayout().getReferenceSize()).newline();
             log.string("Reserved object header bits: 0b").number(Heap.getHeap().getObjectHeader().getReservedBitsMask(), 2, false).newline();
 

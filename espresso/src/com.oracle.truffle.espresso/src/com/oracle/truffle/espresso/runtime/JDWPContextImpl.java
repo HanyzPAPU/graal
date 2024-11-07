@@ -47,8 +47,8 @@ import com.oracle.truffle.api.nodes.RootNode;
 import com.oracle.truffle.api.profiles.BranchProfile;
 import com.oracle.truffle.espresso.EspressoLanguage;
 import com.oracle.truffle.espresso.blocking.EspressoLock;
-import com.oracle.truffle.espresso.bytecode.BytecodeStream;
-import com.oracle.truffle.espresso.descriptors.Symbol;
+import com.oracle.truffle.espresso.classfile.bytecode.BytecodeStream;
+import com.oracle.truffle.espresso.classfile.descriptors.Symbol;
 import com.oracle.truffle.espresso.impl.ArrayKlass;
 import com.oracle.truffle.espresso.impl.Klass;
 import com.oracle.truffle.espresso.impl.Method.MethodVersion;
@@ -82,10 +82,9 @@ import com.oracle.truffle.espresso.redefinition.RedefinitionNotSupportedExceptio
 import com.oracle.truffle.espresso.redefinition.plugins.impl.RedefinitionPluginHandler;
 import com.oracle.truffle.espresso.runtime.staticobject.StaticObject;
 import com.oracle.truffle.espresso.threads.State;
+import com.oracle.truffle.espresso.vm.InterpreterToVM;
 
 public final class JDWPContextImpl implements JDWPContext {
-
-    public static final String JAVA_LANG_STRING = "Ljava/lang/String;";
     private static final InteropLibrary UNCACHED = InteropLibrary.getUncached();
 
     private static final long SUSPEND_TIMEOUT = 100;
@@ -247,7 +246,7 @@ public final class JDWPContextImpl implements JDWPContext {
     @Override
     public boolean isValidClassLoader(Object object) {
         if (object instanceof StaticObject loader) {
-            return context.getRegistries().isClassLoader(loader);
+            return InterpreterToVM.instanceOf(loader, context.getMeta().java_lang_ClassLoader);
         }
         return false;
     }
@@ -270,6 +269,11 @@ public final class JDWPContextImpl implements JDWPContext {
     @Override
     public boolean isSingleSteppingDisabled() {
         return context.getLanguage().getThreadLocalState().isSteppingDisabled();
+    }
+
+    @Override
+    public Object allocateInstance(KlassRef klass) {
+        return context.getAllocator().createNew((ObjectKlass) klass);
     }
 
     @Override
@@ -353,8 +357,7 @@ public final class JDWPContextImpl implements JDWPContext {
             }
             tag = staticObject.getKlass().getTagConstant();
             if (tag == TagConstants.OBJECT) {
-                // check specifically for String
-                if (JAVA_LANG_STRING.equals(staticObject.getKlass().getType().toString())) {
+                if (staticObject.getKlass() == context.getMeta().java_lang_String) {
                     tag = TagConstants.STRING;
                 } else if (staticObject.getKlass().isArray()) {
                     tag = TagConstants.ARRAY;
@@ -437,29 +440,14 @@ public final class JDWPContextImpl implements JDWPContext {
     }
 
     @Override
-    public byte getTypeTag(Object array) {
+    public byte getArrayComponentTag(Object array) {
         StaticObject staticObject = (StaticObject) array;
-        byte tag;
-        if (staticObject.isArray()) {
-            ArrayKlass arrayKlass = (ArrayKlass) staticObject.getKlass();
-            tag = arrayKlass.getComponentType().getJavaKind().toTagConstant();
-            if (arrayKlass.getDimension() > 1) {
-                tag = TagConstants.ARRAY;
-            } else if (tag == TagConstants.OBJECT) {
-                if (JAVA_LANG_STRING.equals(arrayKlass.getComponentType().getType().toString())) {
-                    tag = TagConstants.STRING;
-                }
-            }
-        } else {
-            tag = staticObject.getKlass().getTagConstant();
-            // Object type, so check for String
-            if (tag == TagConstants.OBJECT) {
-                if (JAVA_LANG_STRING.equals(((StaticObject) array).getKlass().getType().toString())) {
-                    tag = TagConstants.STRING;
-                }
-            }
+        assert ((StaticObject) array).isArray();
+        ArrayKlass arrayKlass = (ArrayKlass) staticObject.getKlass();
+        if (arrayKlass.getDimension() > 1) {
+            return TagConstants.ARRAY;
         }
-        return tag;
+        return TagConstants.toTagConstant(arrayKlass.getComponentType().getJavaKind());
     }
 
     // introspection
@@ -503,17 +491,30 @@ public final class JDWPContextImpl implements JDWPContext {
     @Override
     public void setArrayValue(Object array, int index, Object value) {
         StaticObject arrayRef = (StaticObject) array;
-        context.getInterpreterToVM().setArrayObject(context.getLanguage(), (StaticObject) value, index, arrayRef);
+        byte tag = getTag(value);
+        switch (tag) {
+            case TagConstants.BOOLEAN -> context.getInterpreterToVM().setArrayByte(context.getLanguage(), (boolean) value ? (byte) 1 : 0, index, arrayRef);
+            case TagConstants.BYTE -> context.getInterpreterToVM().setArrayByte(context.getLanguage(), (byte) value, index, arrayRef);
+            case TagConstants.SHORT -> context.getInterpreterToVM().setArrayShort(context.getLanguage(), (short) value, index, arrayRef);
+            case TagConstants.CHAR -> context.getInterpreterToVM().setArrayChar(context.getLanguage(), (char) value, index, arrayRef);
+            case TagConstants.INT -> context.getInterpreterToVM().setArrayInt(context.getLanguage(), (int) value, index, arrayRef);
+            case TagConstants.FLOAT -> context.getInterpreterToVM().setArrayFloat(context.getLanguage(), (float) value, index, arrayRef);
+            case TagConstants.LONG -> context.getInterpreterToVM().setArrayLong(context.getLanguage(), (long) value, index, arrayRef);
+            case TagConstants.DOUBLE -> context.getInterpreterToVM().setArrayDouble(context.getLanguage(), (double) value, index, arrayRef);
+            case TagConstants.ARRAY, TagConstants.STRING, TagConstants.OBJECT ->
+                context.getInterpreterToVM().setArrayObject(context.getLanguage(), (StaticObject) value, index, arrayRef);
+            default -> throw new RuntimeException("should not reach here: " + tag);
+        }
     }
 
     @Override
     public Object newArray(KlassRef klass, int length) {
-        return StaticObject.createArray((ArrayKlass) klass, new StaticObject[length], context);
-    }
-
-    @Override
-    public Object toGuest(Object object) {
-        return context.getMeta().toGuestBoxed(object);
+        ArrayKlass arrayKlass = (ArrayKlass) klass;
+        Klass componentType = arrayKlass.getComponentType();
+        if (componentType.isPrimitive()) {
+            return context.getAllocator().createNewPrimitiveArray(componentType, length);
+        }
+        return context.getAllocator().createNewReferenceArray(componentType, length);
     }
 
     @Override
@@ -666,7 +667,10 @@ public final class JDWPContextImpl implements JDWPContext {
     public Object getMonitorOwnerThread(Object object) {
         if (object instanceof StaticObject) {
             EspressoLock lock = ((StaticObject) object).getLock(context);
-            return asGuestThread(lock.getOwnerThread());
+            Thread ownerThread = lock.getOwnerThread();
+            if (ownerThread != null) {
+                return asGuestThread(ownerThread);
+            }
         }
         return null;
     }
@@ -745,11 +749,6 @@ public final class JDWPContextImpl implements JDWPContext {
         if (rootNode instanceof EspressoRootNode espressoRootNode) {
             espressoRootNode.abortInternalMonitors(frame.getFrame());
         }
-    }
-
-    @Override
-    public void abort(int exitCode) {
-        context.doExit(197);
     }
 
     @Override

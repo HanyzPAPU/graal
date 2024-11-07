@@ -27,19 +27,20 @@ import com.oracle.truffle.api.CompilerDirectives;
 import com.oracle.truffle.api.CompilerDirectives.CompilationFinal;
 import com.oracle.truffle.api.CompilerDirectives.TruffleBoundary;
 import com.oracle.truffle.api.Truffle;
+import com.oracle.truffle.espresso.jdwp.api.TagConstants;
 import com.oracle.truffle.espresso.classfile.Constants;
-import com.oracle.truffle.espresso.classfile.RuntimeConstantPool;
+import com.oracle.truffle.espresso.constantpool.RuntimeConstantPool;
 import com.oracle.truffle.espresso.classfile.attributes.SignatureAttribute;
-import com.oracle.truffle.espresso.descriptors.Symbol;
-import com.oracle.truffle.espresso.descriptors.Symbol.ModifiedUTF8;
-import com.oracle.truffle.espresso.descriptors.Symbol.Name;
-import com.oracle.truffle.espresso.descriptors.Symbol.Type;
+import com.oracle.truffle.espresso.classfile.descriptors.Symbol;
+import com.oracle.truffle.espresso.classfile.descriptors.Symbol.ModifiedUTF8;
+import com.oracle.truffle.espresso.classfile.descriptors.Symbol.Name;
+import com.oracle.truffle.espresso.classfile.descriptors.Symbol.Type;
 import com.oracle.truffle.espresso.jdwp.api.FieldBreakpoint;
 import com.oracle.truffle.espresso.jdwp.api.FieldRef;
 import com.oracle.truffle.espresso.meta.EspressoError;
-import com.oracle.truffle.espresso.meta.JavaKind;
+import com.oracle.truffle.espresso.classfile.JavaKind;
 import com.oracle.truffle.espresso.meta.Meta;
-import com.oracle.truffle.espresso.runtime.Attribute;
+import com.oracle.truffle.espresso.classfile.attributes.Attribute;
 import com.oracle.truffle.espresso.runtime.EspressoException;
 import com.oracle.truffle.espresso.runtime.staticobject.FieldStorageObject;
 import com.oracle.truffle.espresso.runtime.staticobject.StaticObject;
@@ -399,7 +400,7 @@ public class Field extends Member<Type> implements FieldRef {
         assert getDeclaringKlass().isAssignableFrom(obj.getKlass()) : this + " does not exist in " + obj.getKlass();
 
         if (getDeclaringKlass().getContext().anyHierarchyChanged()) {
-            checkSetValueValifity(value);
+            checkSetValueValidity(value);
         }
         if (isVolatile() || forceVolatile) {
             linkedField.setObjectVolatile(obj, value);
@@ -408,7 +409,7 @@ public class Field extends Member<Type> implements FieldRef {
         }
     }
 
-    protected void checkSetValueValifity(Object value) {
+    protected void checkSetValueValidity(Object value) {
         if (value != StaticObject.NULL && value instanceof StaticObject) {
             Klass klass = null;
             try {
@@ -841,7 +842,7 @@ public class Field extends Member<Type> implements FieldRef {
     // region jdwp-specific
     @Override
     public final byte getTagConstant() {
-        return getKind().toTagConstant();
+        return TagConstants.toTagConstant(getKind());
     }
 
     @Override
@@ -956,7 +957,7 @@ public class Field extends Member<Type> implements FieldRef {
                         ? StaticObject.wrap(rawRuntimeVisibleTypeAnnotations.getData(), meta)
                         : StaticObject.NULL;
         if (meta.getJavaVersion().java15OrLater()) {
-            meta.java_lang_reflect_Field_init.invokeDirect(
+            meta.java_lang_reflect_Field_init.invokeDirectSpecial(
                             /* this */ instance,
                             /* declaringKlass */ getDeclaringKlass().mirror(),
                             /* name */ meta.getStrings().intern(getName()),
@@ -967,7 +968,7 @@ public class Field extends Member<Type> implements FieldRef {
                             /* signature */ meta.toGuestString(getGenericSignature()),
                             /* annotations */ runtimeVisibleAnnotations);
         } else {
-            meta.java_lang_reflect_Field_init.invokeDirect(
+            meta.java_lang_reflect_Field_init.invokeDirectSpecial(
                             /* this */ instance,
                             /* declaringKlass */ getDeclaringKlass().mirror(),
                             /* name */ meta.getStrings().intern(getName()),

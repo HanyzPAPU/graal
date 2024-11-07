@@ -62,7 +62,6 @@ import jdk.graal.compiler.util.Digest;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 import jdk.vm.ci.meta.ResolvedJavaType;
 import jdk.vm.ci.meta.Signature;
-import jdk.vm.ci.services.Services;
 
 public class SubstrateUtil {
 
@@ -91,20 +90,6 @@ public class SubstrateUtil {
                 break;
         }
         return arch;
-    }
-
-    /**
-     * @return true if the standalone libgraal is being built instead of a normal SVM image.
-     */
-    public static boolean isBuildingLibgraal() {
-        return Services.IS_BUILDING_NATIVE_IMAGE;
-    }
-
-    /**
-     * @return true if running in the standalone libgraal image.
-     */
-    public static boolean isInLibgraal() {
-        return Services.IS_IN_NATIVE_IMAGE;
     }
 
     private static final Method IS_TERMINAL_METHOD = ReflectionUtil.lookupMethod(true, Console.class, "isTerminal");

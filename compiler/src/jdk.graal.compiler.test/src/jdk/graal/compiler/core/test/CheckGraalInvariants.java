@@ -51,7 +51,6 @@ import java.util.function.Supplier;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-import jdk.graal.compiler.test.SubprocessUtil;
 import org.graalvm.word.LocationIdentity;
 import org.junit.Assert;
 import org.junit.Assume;
@@ -103,6 +102,7 @@ import jdk.graal.compiler.phases.tiers.HighTierContext;
 import jdk.graal.compiler.phases.util.Providers;
 import jdk.graal.compiler.runtime.RuntimeProvider;
 import jdk.graal.compiler.test.AddExports;
+import jdk.graal.compiler.test.SubprocessUtil;
 import jdk.internal.misc.Unsafe;
 import jdk.vm.ci.code.BailoutException;
 import jdk.vm.ci.code.Register;
@@ -206,18 +206,9 @@ public class CheckGraalInvariants extends GraalCompilerTest {
          * Determines if {@code option} should be checked to ensure it has at least one usage.
          */
         public boolean shouldCheckUsage(OptionDescriptor option) {
-            Class<?> declaringClass = option.getDeclaringClass();
-            if (declaringClass.getName().equals("jdk.graal.compiler.truffle.TruffleCompilerOptions")) {
-                /*
-                 * These options are deprecated and will be removed in GraalVM 20.2.0. The
-                 * TruffleIntrinsifyFrameAccess option has no replacement and is unused.
-                 */
-                return false;
-            }
             if (option.getOptionKey().getClass().isAnonymousClass()) {
                 /*
-                 * Probably a derived option such as
-                 * jdk.graal.compiler.debug.DebugOptions.PrintGraphFile.
+                 * A derived option.
                  */
                 return false;
             }
@@ -334,6 +325,7 @@ public class CheckGraalInvariants extends GraalCompilerTest {
         verifiers.add(new VerifyDebugUsage());
         verifiers.add(new VerifyVirtualizableUsage());
         verifiers.add(new VerifyUpdateUsages());
+        verifiers.add(new VerifyLibGraalContextChecks());
         verifiers.add(new VerifyBailoutUsage());
         verifiers.add(new VerifySystemPropertyUsage());
         verifiers.add(new VerifyInstanceOfUsage());
@@ -351,6 +343,10 @@ public class CheckGraalInvariants extends GraalCompilerTest {
         verifiers.add(new VerifyEndlessLoops());
         verifiers.add(new VerifyPhaseNoDirectRecursion());
         verifiers.add(new VerifyStringCaseUsage());
+        verifiers.add(new VerifyMathAbs());
+        verifiers.add(new VerifyLoopInfo());
+        verifiers.add(new VerifyRuntimeVersionFeature());
+        verifiers.add(new VerifyGuardsStageUsages());
         VerifyAssertionUsage assertionUsages = null;
         boolean checkAssertions = tool.checkAssertions();
 

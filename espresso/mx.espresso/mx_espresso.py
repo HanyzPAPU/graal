@@ -26,12 +26,15 @@ import os
 import shutil
 import signal
 import subprocess
+import argparse
+import sys
 
 import mx
 import mx_jardistribution
 import mx_pomdistribution
 import mx_subst
 import mx_util
+import mx_gate
 import mx_espresso_benchmarks  # pylint: disable=unused-import
 import mx_sdk_vm
 import mx_sdk_vm_impl
@@ -57,7 +60,8 @@ def _espresso_command(launcher, args):
 
 def _espresso_launcher_command(args):
     """Espresso launcher embedded in GraalVM + arguments"""
-    return _espresso_command('espresso', args)
+    jacoco_args = ['--vm.' + arg for arg in mx_gate.get_jacoco_agent_args() or []]
+    return _espresso_command('espresso', jacoco_args + args)
 
 
 def _java_truffle_command(args):
@@ -65,15 +69,20 @@ def _java_truffle_command(args):
     return _espresso_command('java', ['-truffle'] + args)
 
 
-def _espresso_standalone_command(args, use_optimized_runtime=False, with_sulong=False):
+def _espresso_standalone_command(args, use_optimized_runtime=False, with_sulong=False, allow_jacoco=True):
     """Espresso standalone command from distribution jars + arguments"""
     vm_args, args = mx.extract_VM_args(args, useDoubleDash=True, defaultAllVMArgs=False)
     distributions = ['ESPRESSO', 'ESPRESSO_LAUNCHER', 'ESPRESSO_LIBS_RESOURCES', 'ESPRESSO_RUNTIME_RESOURCES', 'TRUFFLE_NFI_LIBFFI']
     if with_sulong:
         distributions += ['SULONG_NFI', 'SULONG_NATIVE']
+    if allow_jacoco:
+        jacoco_args = ['--vm.' + arg for arg in mx_gate.get_jacoco_agent_args() or []]
+    else:
+        jacoco_args = []
     return (
         vm_args
         + mx.get_runtime_jvm_args(distributions, jdk=mx.get_jdk())
+        + jacoco_args
         # We are not adding the truffle runtime
         + ['-Dpolyglot.engine.WarnInterpreterOnly=false']
         + [mx.distribution('ESPRESSO_LAUNCHER').mainClass] + args
@@ -122,7 +131,7 @@ def _run_espresso_meta(args, nonZeroIsFatal=True, timeout=None):
     """Run Espresso (standalone) on Espresso (launcher)"""
     return _run_espresso_launcher([
         '--vm.Xss4m',
-    ] + _espresso_standalone_command(args), nonZeroIsFatal=nonZeroIsFatal, timeout=timeout)
+    ] + _espresso_standalone_command(args, allow_jacoco=False), nonZeroIsFatal=nonZeroIsFatal, timeout=timeout)
 
 
 class EspressoTags:
@@ -221,7 +230,7 @@ class EspressoLegacyNativeImagePropertiesBuildTask(mx.BuildTask):
         return f'Create {self.subject}'
 
     def newestOutput(self):
-        return mx.TimeStampFile.newest(self.subject.output_file())
+        return mx.TimeStampFile(self.subject.output_file())
 
     def needsBuild(self, newestInput):
         r = super().needsBuild(newestInput)
@@ -726,12 +735,102 @@ jvm_cfg_component = mx_sdk_vm.GraalVmJreComponent(
 mx_sdk_vm.register_graalvm_component(jvm_cfg_component)
 
 
+def _gen_option_probe_switch(options, out, ident):
+    assert options
+    next_checks_map = {}
+    common_prefix = ""
+    while True:
+        for suffix, is_boolean in options:
+            if len(suffix) == 0:
+                next_checks_map['\0'] = is_boolean
+            else:
+                next_checks_map.setdefault(suffix[0], []).append((suffix[1:], is_boolean))
+        if len(next_checks_map) > 1:
+            break
+        common_first_char = next(iter(next_checks_map.keys()))
+        if common_first_char == '\0':
+            break
+        next_checks_map = {}
+        common_prefix = common_prefix + common_first_char
+        options = [(suffix[1:], is_boolean) for suffix, is_boolean in options]
+
+    def write_line(line):
+        out.write("    " * ident)
+        out.write(line)
+        out.write("\n")
+
+    if common_prefix:
+        write_line(f"if (strncmp(option, \"{common_prefix}\", strlen(\"{common_prefix}\")) != 0) {{")
+        write_line("    return OPTION_UNKNOWN;")
+        write_line("}")
+        write_line(f"option += strlen(\"{common_prefix}\");")
+    write_line("switch(*option) {")
+    for first_char in sorted(next_checks_map.keys()):
+        assert len(first_char) > 0
+        next_checks = next_checks_map[first_char]
+        if first_char == '\0':
+            assert isinstance(next_checks, bool)
+            if next_checks:
+                write_line("    case '\\0':")
+                write_line(f"        return OPTION_BOOLEAN;")
+            else:
+                write_line("    case '=':")
+                write_line("        return OPTION_STRING;")
+        else:
+            write_line(f"    case '{first_char}':")
+            assert isinstance(next_checks, list)
+            if len(next_checks) > 1:
+                write_line("        option++;")
+                _gen_option_probe_switch(next_checks, out, ident + 2)
+            else:
+                rest_str = next_checks[0][0]
+                if next_checks[0][1]:
+                    write_line(
+                        f"        return strncmp(option + 1, \"{rest_str}\", sizeof(\"{rest_str}\")) == 0 ? OPTION_BOOLEAN : OPTION_UNKNOWN;")
+                else:
+                    write_line(
+                        f"        return strncmp(option + 1, \"{rest_str}=\", strlen(\"{rest_str}=\")) == 0 ? OPTION_STRING : OPTION_UNKNOWN;")
+    write_line("    default:")
+    write_line("        return OPTION_UNKNOWN;")
+    write_line("}")
+
+def gen_gc_option_check(args):
+    parser = argparse.ArgumentParser(prog='mx gen-gc-option-check')
+    parser.add_argument('input', type=argparse.FileType('r'), help='Input G1 options dump file (From -H:+DumpIsolateCreationOnlyOptions)')
+    args = parser.parse_args(args)
+    options = []
+    for line in args.input.readlines():
+        java_type, name = line.rstrip('\n').split(' ', 1)
+        options.append((name, java_type == 'java.lang.Boolean'))
+    if not options:
+        raise mx.abort("No option found in input file")
+    options.sort(key=lambda x: x[0])
+
+    sys.stdout.write("// Probing for the following options:\n")
+    for suffix, is_boolean in options:
+        if is_boolean:
+            sys.stdout.write(f"// * ±{suffix}\n")
+        else:
+            sys.stdout.write(f"// * {suffix}=\n")
+
+    sys.stdout.write("""
+#define OPTION_UNKNOWN 0
+#define OPTION_BOOLEAN 1
+#define OPTION_STRING 2
+
+static int probe_option_type(const char* option) {
+""")
+    _gen_option_probe_switch(options, sys.stdout, 1)
+    sys.stdout.write("}")
+
+
 # Register new commands which can be used from the commandline with mx
 mx.update_commands(_suite, {
     'espresso': [_run_espresso_launcher, '[args]'],
     'espresso-standalone': [_run_espresso_standalone, '[args]'],
     'java-truffle': [_run_java_truffle, '[args]'],
     'espresso-meta': [_run_espresso_meta, '[args]'],
+    'gen-gc-option-check': [gen_gc_option_check, '[path to isolate-creation-only-options.txt]'],
 })
 
 
@@ -740,7 +839,7 @@ def register_espresso_envs(suite):
     # pylint: disable=bad-whitespace
     # pylint: disable=line-too-long
     tools = ['cov', 'dap', 'ins', 'insight', 'insightheap', 'lsp', 'pro', 'truffle-json']
-    tregex = ['icu4j', 'rgx']
+    tregex = ['icu4j', 'rgx', 'xz']
     _llvm_toolchain_wrappers = ['bgraalvm-native-clang', 'bgraalvm-native-clang-cl', 'bgraalvm-native-clang++', 'bgraalvm-native-flang', 'bgraalvm-native-ld', 'bgraalvm-native-binutil']
     if espresso_llvm_java_home:
         mx_sdk_vm.register_vm_config('espresso-jvm',       ['java', 'ejvm'       , 'ellvm', 'libpoly', 'nfi-libffi', 'nfi', 'sdk', 'sdkni', 'sdkc', 'sdkl', 'tfl', 'tfla', 'tflc'        , 'cmp', 'antlr4', 'llrc', 'llrlf', 'llrn'                                                    , 'elau'                                                                                                                                                ] + tools + tregex, suite, env_file='jvm-llvm')

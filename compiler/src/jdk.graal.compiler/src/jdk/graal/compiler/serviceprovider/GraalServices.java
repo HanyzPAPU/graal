@@ -25,89 +25,82 @@
 package jdk.graal.compiler.serviceprovider;
 
 import static java.lang.Thread.currentThread;
-import static jdk.vm.ci.services.Services.IS_BUILDING_NATIVE_IMAGE;
-import static jdk.vm.ci.services.Services.IS_IN_NATIVE_IMAGE;
+import static org.graalvm.nativeimage.ImageInfo.inImageBuildtimeCode;
+import static org.graalvm.nativeimage.ImageInfo.inImageRuntimeCode;
 
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
-import java.util.concurrent.atomic.AtomicReference;
 
-import jdk.graal.compiler.core.ArchitectureSpecific;
+import jdk.graal.compiler.debug.GraalError;
+import jdk.graal.compiler.options.ExcludeFromJacocoGeneratedReport;
 import jdk.internal.misc.VM;
-import jdk.vm.ci.code.Architecture;
 import jdk.vm.ci.meta.EncodedSpeculationReason;
 import jdk.vm.ci.meta.SpeculationLog.SpeculationReason;
 import jdk.vm.ci.runtime.JVMCI;
 import jdk.vm.ci.services.Services;
+import org.graalvm.nativeimage.ImageInfo;
+import org.graalvm.nativeimage.Platform;
+import org.graalvm.nativeimage.Platforms;
 
 /**
  * Interface to functionality that abstracts over which JDK version Graal is running on.
  */
 public final class GraalServices {
 
-    private static final Map<Class<?>, List<?>> servicesCache = IS_BUILDING_NATIVE_IMAGE ? new HashMap<>() : null;
+    /**
+     * Returns true if code is executing in the context of building libgraal. Note that this is more
+     * specific than {@link ImageInfo#inImageBuildtimeCode()}. The latter will return true when
+     * building any native image, not just libgraal.
+     */
+    public static boolean isBuildingLibgraal() {
+        return Services.IS_BUILDING_NATIVE_IMAGE;
+    }
+
+    /**
+     * Returns true if code is executing in the context of executing libgraal. Note that this is
+     * more specific than {@link ImageInfo#inImageRuntimeCode()}. The latter will return true when
+     * executing any native image, not just libgraal.
+     */
+    public static boolean isInLibgraal() {
+        return Services.IS_IN_NATIVE_IMAGE;
+    }
+
+    /**
+     * The set of services available in libgraal. This field is only non-null when
+     * {@link GraalServices} is loaded by the LibGraalClassLoader.
+     */
+    private static Map<Class<?>, List<?>> libgraalServices;
+
+    @Platforms(Platform.HOSTED_ONLY.class)
+    @ExcludeFromJacocoGeneratedReport("only called when building libgraal")
+    public static void setLibgraalServices(Map<Class<?>, List<?>> services) {
+        GraalError.guarantee(libgraalServices == null, "Libgraal services must be set exactly once");
+        GraalServices.libgraalServices = services;
+    }
 
     private GraalServices() {
     }
 
     /**
-     * Gets an {@link Iterable} of the providers available for {@code service}.
+     * Gets an {@link Iterable} of the providers available for {@code service}. When called within
+     * libgraal, {@code service} must be a {@link LibGraalService} annotated service type.
      */
     @SuppressWarnings("unchecked")
     public static <S> Iterable<S> load(Class<S> service) {
-        if (IS_IN_NATIVE_IMAGE || IS_BUILDING_NATIVE_IMAGE) {
-            List<?> list = servicesCache.get(service);
-            if (list != null) {
-                return (Iterable<S>) list;
+        if (inImageRuntimeCode() || libgraalServices != null) {
+            List<?> list = libgraalServices.get(service);
+            if (list == null) {
+                throw new InternalError(String.format("No %s providers found in libgraal (missing %s annotation on %s?)",
+                                service.getName(), LibGraalService.class.getName(), service.getName()));
             }
-            if (IS_IN_NATIVE_IMAGE) {
-                throw new InternalError(String.format("No %s providers found when building native image", service.getName()));
-            }
+            return (Iterable<S>) list;
         }
-
-        Iterable<S> providers = load0(service);
-
-        if (IS_BUILDING_NATIVE_IMAGE) {
-            synchronized (servicesCache) {
-                ArrayList<S> providersList = new ArrayList<>();
-                for (S provider : providers) {
-                    if (isLibgraalProvider(provider)) {
-                        providersList.add(provider);
-                    }
-                }
-                providers = providersList;
-                servicesCache.put(service, providersList);
-                return providers;
-            }
-        }
-
-        return providers;
-    }
-
-    /**
-     * Determines if {@code provider} is a service provider used in libgraal.
-     */
-    private static boolean isLibgraalProvider(Object provider) {
-        LibgraalConfig config = libgraalConfig();
-        if (config != null) {
-            return config.isLibgraalProvider(provider);
-        }
-        Class<?> c = provider.getClass();
-        Module module = c.getModule();
-        String name = module.getName();
-        if (name != null) {
-            return name.equals("jdk.graal.compiler") ||
-                            name.equals("jdk.graal.compiler.management") ||
-                            name.equals("com.oracle.graal.graal_enterprise");
-        }
-        return false;
+        return load0(service);
     }
 
     /**
@@ -118,7 +111,9 @@ public final class GraalServices {
      * @see VM#getSavedProperties
      */
     public static Map<String, String> getSavedProperties() {
-        if (IS_BUILDING_NATIVE_IMAGE && !IS_IN_NATIVE_IMAGE) {
+        if (inImageBuildtimeCode()) {
+            // Avoid calling down to JVMCI native methods as they will fail to
+            // link in a copy of JVMCI loaded by the LibGraalClassLoader.
             return jdk.internal.misc.VM.getSavedProperties();
         }
         return Services.getSavedProperties();
@@ -128,70 +123,14 @@ public final class GraalServices {
      * Helper method equivalent to {@link #getSavedProperties()}{@code .getOrDefault(name, def)}.
      */
     public static String getSavedProperty(String name, String def) {
-        if (IS_BUILDING_NATIVE_IMAGE && !IS_IN_NATIVE_IMAGE) {
-            return jdk.internal.misc.VM.getSavedProperties().getOrDefault(name, def);
-        }
-        return Services.getSavedProperties().getOrDefault(name, def);
+        return getSavedProperties().getOrDefault(name, def);
     }
 
     /**
      * Helper method equivalent to {@link #getSavedProperties()}{@code .get(name)}.
      */
     public static String getSavedProperty(String name) {
-        if (IS_BUILDING_NATIVE_IMAGE && !IS_IN_NATIVE_IMAGE) {
-            return jdk.internal.misc.VM.getSavedProperty(name);
-        }
-        return Services.getSavedProperty(name);
-    }
-
-    /**
-     * Configuration relevant for building libgraal.
-     *
-     * @param classLoader the class loader used to load libgraal destined classes
-     * @param arch the {@linkplain Architecture#getName() name} of the architecture on which
-     *            libgraal will be deployed
-     */
-    public record LibgraalConfig(ClassLoader classLoader, String arch) {
-
-        /**
-         * Determines if {@code provider} will be used in libgraal.
-         */
-        boolean isLibgraalProvider(Object provider) {
-            if (provider.getClass().getClassLoader() != classLoader) {
-                return false;
-            }
-            if (provider instanceof ArchitectureSpecific as) {
-                return as.getArchitecture().equals(arch);
-            }
-            return true;
-        }
-    }
-
-    /**
-     * Sentinel value for representing "default" initialization of {@link #libgraalConfig}.
-     */
-    private static final LibgraalConfig LIBGRAAL_CONFIG_DEFAULT = new LibgraalConfig(null, null);
-
-    private static final AtomicReference<LibgraalConfig> libgraalConfig = new AtomicReference<>();
-
-    /**
-     * Sets the config for building libgraal. Can only be called at most once. If called, it must be
-     * before any call to {@link #load(Class)}.
-     */
-    public static void setLibgraalConfig(LibgraalConfig config) {
-        if (!IS_BUILDING_NATIVE_IMAGE) {
-            throw new InternalError("Can only set libgraal config when building libgraal");
-        }
-        LibgraalConfig expectedValue = libgraalConfig.compareAndExchange(null, config);
-        if (expectedValue != null) {
-            throw new InternalError("Libgraal config already initialized: " + expectedValue);
-        }
-    }
-
-    private static LibgraalConfig libgraalConfig() {
-        libgraalConfig.compareAndSet(null, LIBGRAAL_CONFIG_DEFAULT);
-        LibgraalConfig config = libgraalConfig.get();
-        return config == LIBGRAAL_CONFIG_DEFAULT ? null : config;
+        return getSavedProperties().get(name);
     }
 
     private static <S> Iterable<S> load0(Class<S> service) {
@@ -202,37 +141,28 @@ public final class GraalServices {
             module.addUses(service);
         }
 
-        LibgraalConfig config = libgraalConfig();
-        Iterable<S> iterable;
-        if (config != null && config.classLoader != null) {
-            iterable = ServiceLoader.load(service, config.classLoader);
-        } else {
-            iterable = ServiceLoader.load(module.getLayer(), service);
-        }
-        return new Iterable<>() {
-            @Override
-            public Iterator<S> iterator() {
-                Iterator<S> iterator = iterable.iterator();
-                return new Iterator<>() {
-                    @Override
-                    public boolean hasNext() {
-                        return iterator.hasNext();
-                    }
+        return () -> {
+            ModuleLayer layer = module.getLayer();
+            Iterator<S> iterator = ServiceLoader.load(layer, service).iterator();
+            return new Iterator<>() {
+                @Override
+                public boolean hasNext() {
+                    return iterator.hasNext();
+                }
 
-                    @Override
-                    public S next() {
-                        S provider = iterator.next();
-                        // Allow Graal extensions to access JVMCI
-                        openJVMCITo(provider.getClass());
-                        return provider;
-                    }
+                @Override
+                public S next() {
+                    S provider = iterator.next();
+                    // Allow Graal extensions to access JVMCI
+                    openJVMCITo(provider.getClass());
+                    return provider;
+                }
 
-                    @Override
-                    public void remove() {
-                        iterator.remove();
-                    }
-                };
-            }
+                @Override
+                public void remove() {
+                    iterator.remove();
+                }
+            };
         };
     }
 
@@ -243,7 +173,7 @@ public final class GraalServices {
      * @param other all JVMCI packages will be opened to the module defining this class
      */
     static void openJVMCITo(Class<?> other) {
-        if (IS_IN_NATIVE_IMAGE) {
+        if (inImageRuntimeCode()) {
             return;
         }
 
@@ -264,7 +194,9 @@ public final class GraalServices {
     }
 
     /**
-     * Gets the provider for a given service for which at most one provider must be available.
+     * Gets the provider for {@code service} for which at most one provider must be available. When
+     * called within libgraal, {@code service} must be a {@link LibGraalService} annotated service
+     * type.
      *
      * @param service the service whose provider is being requested
      * @param required specifies if an {@link InternalError} should be thrown if no provider of
@@ -317,7 +249,7 @@ public final class GraalServices {
      * trusted code.
      */
     public static boolean isToStringTrusted(Class<?> c) {
-        if (IS_IN_NATIVE_IMAGE) {
+        if (inImageRuntimeCode()) {
             return true;
         }
 

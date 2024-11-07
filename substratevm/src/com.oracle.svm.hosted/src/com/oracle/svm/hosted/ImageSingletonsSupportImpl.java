@@ -97,7 +97,7 @@ public final class ImageSingletonsSupportImpl extends ImageSingletonsSupport imp
          * Marker for ImageSingleton keys which cannot have a value installed. This can happen when
          * a {@link LayeredImageSingleton} specified {@link PersistFlags#FORBIDDEN}.
          */
-        private static final Object SINGLETON_INSTALLATION_FOBIDDEN = new Object();
+        private static final Object SINGLETON_INSTALLATION_FORBIDDEN = new Object();
 
         /**
          * The {@link ImageSingletons} removes static state from the image generator, and in theory
@@ -133,6 +133,13 @@ public final class ImageSingletonsSupportImpl extends ImageSingletonsSupport imp
                  * to prevent circular dependency complications.
                  */
                 singletonDuringImageBuild.doAddInternal(ImageLayerBuildingSupport.class, support);
+            } else {
+                /*
+                 * Create a placeholder ImageLayerBuilding support to indicate this is not a layered
+                 * build.
+                 */
+                singletonDuringImageBuild.doAddInternal(ImageLayerBuildingSupport.class, new ImageLayerBuildingSupport(false, false, false) {
+                });
             }
             if (support != null && support.getLoader() != null) {
                 /*
@@ -146,7 +153,7 @@ public final class ImageSingletonsSupportImpl extends ImageSingletonsSupport imp
         }
 
         private void installPriorSingletonInfo(SVMImageLayerLoader info) {
-            var result = info.loadImageSingletons(SINGLETON_INSTALLATION_FOBIDDEN);
+            var result = info.loadImageSingletons(SINGLETON_INSTALLATION_FORBIDDEN);
             Set<Class<?>> installedKeys = new HashSet<>();
             for (var entry : result.entrySet()) {
                 Object singletonToInstall = entry.getKey();
@@ -203,17 +210,17 @@ public final class ImageSingletonsSupportImpl extends ImageSingletonsSupport imp
                     throw UserError.abort("Unsupported image singleton is being installed %s %s", key.getTypeName(), singleton);
                 }
 
-                if (singleton instanceof MultiLayeredImageSingleton || singleton instanceof ApplicationLayerOnlyImageSingleton) {
+                if (singleton instanceof MultiLayeredImageSingleton || ApplicationLayerOnlyImageSingleton.isSingletonInstanceOf(singleton)) {
 
                     if (!key.equals(singleton.getClass())) {
                         throw UserError.abort("The implementation class must be the same as the key class. key: %s, singleton: %s", key, singleton);
                     }
 
-                    if (singleton instanceof MultiLayeredImageSingleton && singleton instanceof ApplicationLayerOnlyImageSingleton) {
+                    if (singleton instanceof MultiLayeredImageSingleton && ApplicationLayerOnlyImageSingleton.isSingletonInstanceOf(singleton)) {
                         throw UserError.abort("Singleton cannot implement both %s and %s. singleton: %s", MultiLayeredImageSingleton.class, ApplicationLayerOnlyImageSingleton.class, singleton);
                     }
 
-                    if (singleton instanceof ApplicationLayerOnlyImageSingleton && !ImageLayerBuildingSupport.lastImageBuild()) {
+                    if (ApplicationLayerOnlyImageSingleton.isSingletonInstanceOf(singleton) && !ImageLayerBuildingSupport.lastImageBuild()) {
                         throw UserError.abort("Application layer only image singleton can only be installed in the final layer: %s", singleton);
                     }
 
@@ -247,7 +254,7 @@ public final class ImageSingletonsSupportImpl extends ImageSingletonsSupport imp
             Object result = configObjects.get(key);
             if (result == null) {
                 throw UserError.abort("ImageSingletons do not contain key %s", key.getTypeName());
-            } else if (result == SINGLETON_INSTALLATION_FOBIDDEN) {
+            } else if (result == SINGLETON_INSTALLATION_FORBIDDEN) {
                 throw UserError.abort("A LayeredImageSingleton was installed in a prior layer which forbids creating the singleton in a subsequent layer. Key %s", key.getTypeName());
             } else if (result instanceof RuntimeOnlyWrapper wrapper) {
                 if (!stripRuntimeOnly) {
@@ -263,7 +270,7 @@ public final class ImageSingletonsSupportImpl extends ImageSingletonsSupport imp
         boolean doContains(Class<?> key) {
             checkKey(key);
             var value = configObjects.get(key);
-            return value != null && value != SINGLETON_INSTALLATION_FOBIDDEN;
+            return value != null && value != SINGLETON_INSTALLATION_FORBIDDEN;
         }
 
         private static void checkKey(Class<?> key) {

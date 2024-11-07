@@ -60,7 +60,6 @@ import jdk.graal.compiler.core.common.spi.ForeignCallDescriptor;
 import jdk.graal.compiler.graph.Node;
 import jdk.graal.compiler.graph.Node.ConstantNodeParameter;
 import jdk.graal.compiler.graph.Node.NodeIntrinsic;
-import jdk.graal.compiler.nodes.GraphState;
 import jdk.graal.compiler.nodes.NodeView;
 import jdk.graal.compiler.nodes.StructuredGraph;
 import jdk.graal.compiler.nodes.ValueNode;
@@ -127,7 +126,7 @@ public final class SubstrateObjectCloneSnippets extends SubstrateTemplates imple
         int firstFieldOffset = ConfigurationValues.getObjectLayout().getFirstFieldOffset();
         int curOffset = firstFieldOffset;
 
-        NonmovableArray<Byte> referenceMapEncoding = DynamicHubSupport.getReferenceMapEncoding();
+        NonmovableArray<Byte> referenceMapEncoding = DynamicHubSupport.forLayer(hub.getLayerId()).getReferenceMapEncoding();
         int referenceSize = ConfigurationValues.getObjectLayout().getReferenceSize();
         int referenceMapIndex = hub.getReferenceMapIndex();
         int entryCount = NonmovableByteArrayReader.getS4(referenceMapEncoding, referenceMapIndex);
@@ -228,7 +227,7 @@ public final class SubstrateObjectCloneSnippets extends SubstrateTemplates imple
     final class ObjectCloneLowering implements NodeLoweringProvider<SubstrateObjectCloneNode> {
         @Override
         public void lower(SubstrateObjectCloneNode node, LoweringTool tool) {
-            if (node.graph().getGuardsStage() != GraphState.GuardsStage.AFTER_FSA) {
+            if (node.graph().getGuardsStage().areFrameStatesAtSideEffects()) {
                 return;
             }
 

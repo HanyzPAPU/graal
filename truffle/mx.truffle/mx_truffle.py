@@ -195,6 +195,24 @@ def _open_module_exports_args():
         args.append('--add-exports=' + truffle_api_module_name + '/' + package + '=' + targets)
     return args
 
+def enable_truffle_native_access(vmArgs):
+    """
+    Enables native access to Truffle to allow usage of the Optimized Runtime
+    and delegation of native access to all languages and tools.
+
+    This function checks the provided VM arguments to determine if a module path
+    is used. If so, it enables the native access to `org.graalvm.truffle` module.
+    Otherwise, it enables native access to `ALL-UNNAMED`.
+
+    The function appends the appropriate `--enable-native-access` option to the list of
+    VM arguments and also returns the updated list.
+    """
+    if '-p' in vmArgs or '--module-path' in vmArgs:
+        native_access_target_module = 'org.graalvm.truffle'
+    else:
+        native_access_target_module = 'ALL-UNNAMED'
+    vmArgs.extend([f'--enable-native-access={native_access_target_module}'])
+    return vmArgs
 
 class TruffleUnittestConfig(mx_unittest.MxUnittestConfig):
 
@@ -227,7 +245,7 @@ class TruffleUnittestConfig(mx_unittest.MxUnittestConfig):
 
         # Disable VirtualThread warning
         vmArgs = vmArgs + ['-Dpolyglot.engine.WarnVirtualThreadSupport=false']
-
+        enable_truffle_native_access(vmArgs)
         return (vmArgs, mainClass, mainClassArgs)
 
 
@@ -365,7 +383,13 @@ def _sl_command(jdk, vm_args, sl_args, use_optimized_runtime=True, use_enterpris
         main_class = ["com.oracle.truffle.sl.launcher.SLMain"]
     else:
         main_class = ["--module", "org.graalvm.sl_launcher/com.oracle.truffle.sl.launcher.SLMain"]
-    return [jdk.java] + vm_args + mx.get_runtime_jvm_args(names=dist_names, force_cp=force_cp) + main_class + sl_args
+
+    if force_cp:
+        vm_args += ["--enable-native-access=ALL-UNNAMED"]
+    else:
+        vm_args += ["--enable-native-access=org.graalvm.truffle"]
+
+    return [jdk.java] + jdk.processArgs(vm_args + mx.get_runtime_jvm_args(names=dist_names, force_cp=force_cp) + main_class + sl_args)
 
 
 def slnative(args):
@@ -398,6 +422,11 @@ def _native_image_sl(jdk, vm_args, target_dir, use_optimized_runtime=True, use_e
     if hosted_assertions:
         native_image_args += ["-J-ea", "-J-esa"]
 
+    # Even when Truffle is on the classpath, it is loaded as a named module due to
+    # the ForceOnModulePath option in its native-image.properties
+    # GR-58290: Fixed when ForceOnModulePath is removed
+    native_image_args += ["--enable-native-access=org.graalvm.truffle"]
+
     native_image_args += mx.get_runtime_jvm_args(names=dist_names, force_cp=force_cp)
     if force_cp:
         native_image_args += ["com.oracle.truffle.sl.launcher.SLMain"]
@@ -408,28 +437,38 @@ def _native_image_sl(jdk, vm_args, target_dir, use_optimized_runtime=True, use_e
     mx.run([native_image_path] + native_image_args)
     return target_path
 
+class TruffleGateTags:
+    style = ['style']
+    javadoc = ['javadoc']
+    sigtest = ['sigtest', 'test', 'fulltest']
+    truffle_test = ['truffle-test', 'test', 'fulltest']
+    panama_test = ['panama-test', 'test', 'fulltest']
+    string_test = ['string-test', 'test', 'fulltest']
+    dsl_max_state_bit_test = ['dsl-max-state-bit-test', 'fulltest']
+    parser_test = ['parser-test', 'test', 'fulltest']
+
 def _truffle_gate_runner(args, tasks):
     jdk = mx.get_jdk(tag=mx.DEFAULT_JDK_TAG)
     if jdk.javaCompliance < '9':
-        with Task('Truffle Javadoc', tasks) as t:
+        with Task('Truffle Javadoc', tasks, tags=TruffleGateTags.javadoc) as t:
             if t: javadoc([])
-    with Task('File name length check', tasks) as t:
+    with Task('File name length check', tasks, tags=TruffleGateTags.style) as t:
         if t: check_filename_length([])
-    with Task('Truffle Signature Tests', tasks) as t:
+    with Task('Truffle Signature Tests', tasks, tags=TruffleGateTags.sigtest) as t:
         if t: sigtest(['--check', 'binary'])
-    with Task('Truffle UnitTests', tasks) as t:
+    with Task('Truffle UnitTests', tasks, tags=TruffleGateTags.truffle_test) as t:
         if t: unittest(list(['--suite', 'truffle', '--enable-timing', '--verbose', '--max-class-failures=25']))
     if jdk.javaCompliance >= '22':
-        with Task('Truffle NFI tests with Panama Backend', tasks) as t:
+        with Task('Truffle NFI tests with Panama Backend', tasks, tags=TruffleGateTags.panama_test) as t:
             if t:
                 unittest(['com.oracle.truffle.nfi.test', '--enable-timing', '--verbose', '--nfi-config=panama'])
-    with Task('TruffleString UnitTests without Java String Compaction', tasks) as t:
+    with Task('TruffleString UnitTests without Java String Compaction', tasks, tags=TruffleGateTags.string_test) as t:
         if t: unittest(list(['-XX:-CompactStrings', '--suite', 'truffle', '--enable-timing', '--verbose', '--max-class-failures=25', 'com.oracle.truffle.api.strings.test']))
     if os.getenv('DISABLE_DSL_STATE_BITS_TESTS', 'false').lower() != 'true':
-        with Task('Truffle DSL max state bit tests', tasks) as t:
+        with Task('Truffle DSL max state bit tests', tasks, tags=TruffleGateTags.dsl_max_state_bit_test) as t:
             if t:
                 _truffle_gate_state_bitwidth_tests()
-    with Task('Validate parsers', tasks) as t:
+    with Task('Validate parsers', tasks, tags=TruffleGateTags.parser_test) as t:
         if t: validate_parsers()
 
 
@@ -678,7 +717,7 @@ def _sl_jvm_gate_tests(jdk, force_cp=False, supports_optimization=True):
 
 
 def _sl_jvm_comiler_on_upgrade_module_path_gate_tests(jdk):
-    if _is_graalvm(jdk):
+    if mx_sdk.GraalVMJDKConfig.is_graalvm(jdk.home) or mx_sdk.GraalVMJDKConfig.is_libgraal_jdk(jdk.home):
         # Ignore tests for Truffle LTS gate using GraalVM as a base JDK
         mx.log(f'Ignoring SL JVM Optimized with Compiler on Upgrade Module Path on {jdk.home} because JDK is GraalVM')
         return
@@ -799,6 +838,7 @@ def truffle_native_unit_tests_gate(use_optimized_runtime=True, quick_build=False
         '-H:+AddAllCharsets',
         '--add-exports=org.graalvm.polyglot/org.graalvm.polyglot.impl=ALL-UNNAMED',
         '--add-exports=org.graalvm.truffle/com.oracle.truffle.api.impl.asm=ALL-UNNAMED',
+        '--enable-native-access=org.graalvm.truffle',
     ]
     run_args = run_truffle_runtime_args + [
         mx_subst.path_substitutions.substitute('-Dnative.test.path=<path:truffle:TRUFFLE_TEST_NATIVE>'),
@@ -878,16 +918,6 @@ mx.update_commands(_suite, {
     'sl' : [sl, '[SL args|@VM options]'],
     'slnative': [slnative, '[--target-folder <folder>|SL args|@VM options]'],
 })
-
-def _is_graalvm(jdk):
-    releaseFile = os.path.join(jdk.home, "release")
-    if exists(releaseFile):
-        with open(releaseFile) as f:
-            pattern = re.compile('^GRAALVM_VERSION=*')
-            for line in f.readlines():
-                if pattern.match(line):
-                    return True
-    return False
 
 def _collect_distributions(dist_filter, dist_collector):
     def import_visitor(suite, suite_import, predicate, collector, seenSuites, **extra_args):
@@ -1114,7 +1144,7 @@ def tck(args):
             jdk = mx.get_jdk(tag='graalvm')
         else:
             jdk = mx.get_jdk()
-        if not _is_graalvm(jdk):
+        if not mx_sdk.GraalVMJDKConfig.is_graalvm(jdk.home):
             mx.abort("The 'compile' TCK configuration requires graalvm execution, "
                      "run with --java-home=<path_to_graalvm> or run with --use-graalvm.")
         compileOptions = [
@@ -1766,6 +1796,9 @@ truffle_nfi_component = mx_sdk_vm.GraalVmLanguage(
 )
 mx_sdk_vm.register_graalvm_component(truffle_nfi_component)
 
+_libffi_jars = ['truffle:TRUFFLE_NFI_LIBFFI']
+if mx.get_jdk().javaCompliance >= "22":
+    _libffi_jars += ['truffle:TRUFFLE_NFI_PANAMA']
 mx_sdk_vm.register_graalvm_component(mx_sdk_vm.GraalVmLanguage(
     suite=_suite,
     name='Truffle NFI LIBFFI',
@@ -1774,7 +1807,7 @@ mx_sdk_vm.register_graalvm_component(mx_sdk_vm.GraalVmLanguage(
     license_files=[],
     third_party_license_files=[],
     dependencies=['Truffle NFI'],
-    truffle_jars=['truffle:TRUFFLE_NFI_LIBFFI', 'truffle:TRUFFLE_NFI_PANAMA'],
+    truffle_jars=_libffi_jars,
     installable=False,
     stability="supported",
 ))
@@ -1786,7 +1819,7 @@ mx_sdk_vm.register_graalvm_component(mx_sdk_vm.GraalVmLanguage(
     dir_name='icu4j',
     license_files=[],
     third_party_license_files=[],
-    dependencies=['Truffle'],
+    dependencies=['Truffle', 'XZ'],
     truffle_jars=[
         'truffle:TRUFFLE_ICU4J',
     ],

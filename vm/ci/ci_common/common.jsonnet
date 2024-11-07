@@ -88,6 +88,9 @@ local devkits = graal_common.devkits;
   # GRAALPYTHON
   graalpy: self.sulong + graal_common.deps.graalpy,
 
+  # WASM
+  wasm: graal_common.deps.wasm,
+
   vm_linux_amd64_common: graal_common.deps.svm {
     capabilities+: ['manycores', 'ram16gb', 'fast'],
   },
@@ -605,7 +608,6 @@ local devkits = graal_common.devkits;
      name: 'gate-vm-style-jdk21-linux-amd64',
     },
 
-    vm.vm_java_21 + sulong_vm_tests,
     vm.vm_java_Latest + sulong_vm_tests,
   ] + (import 'libgraal.jsonnet').builds,
 

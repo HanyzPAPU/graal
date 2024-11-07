@@ -51,6 +51,7 @@ import com.oracle.graal.pointsto.meta.AnalysisField;
 import com.oracle.graal.pointsto.meta.AnalysisMetaAccess;
 import com.oracle.graal.pointsto.meta.AnalysisType;
 import com.oracle.graal.pointsto.meta.AnalysisUniverse;
+import com.oracle.graal.pointsto.meta.PointsToAnalysisField;
 import com.oracle.graal.pointsto.util.AnalysisError;
 import com.oracle.graal.pointsto.util.AnalysisFuture;
 import com.oracle.graal.pointsto.util.CompletionExecutor;
@@ -139,12 +140,10 @@ public abstract class ImageHeapScanner {
                  * 
                  * GR-52421: the field state needs to be serialized from the base layer analysis
                  */
-                if (field.getJavaKind().isObject()) {
-                    AnalysisType fieldType = field.getType();
-                    if (fieldType.isArray() || (fieldType.isInstanceClass() && !fieldType.isAbstract())) {
-                        fieldType.registerAsInstantiated(field);
-                    }
-                    bb.injectFieldTypes(field, List.of(fieldType), true);
+                if (field.getStorageKind().isObject()) {
+                    bb.injectFieldTypes(field, List.of(field.getType()), true);
+                } else if (bb.trackPrimitiveValues() && field.getStorageKind().isPrimitive()) {
+                    ((PointsToAnalysisField) field).saturatePrimitiveField();
                 }
                 return;
             }
@@ -163,6 +162,10 @@ public abstract class ImageHeapScanner {
         for (AnalysisType subtype : type.getSubTypes()) {
             for (ImageHeapConstant imageHeapConstant : imageHeap.getReachableObjects(subtype)) {
                 FieldScan reason = new FieldScan(field, imageHeapConstant);
+                if (imageHeapConstant instanceof ImageHeapRelocatableConstant) {
+                    // This constant has no contents to be scanned.
+                    continue;
+                }
                 ImageHeapInstance imageHeapInstance = (ImageHeapInstance) imageHeapConstant;
                 updateInstanceField(field, imageHeapInstance, reason, null);
             }
@@ -345,7 +348,7 @@ public abstract class ImageHeapScanner {
         return array;
     }
 
-    public void linkBaseLayerValue(ImageHeapConstant constant, Object reason) {
+    public void registerBaseLayerValue(ImageHeapConstant constant, Object reason) {
         JavaConstant hostedValue = constant.getHostedObject();
         Object existingSnapshot = imageHeap.getSnapshot(hostedValue);
         if (existingSnapshot != null) {
@@ -421,7 +424,7 @@ public abstract class ImageHeapScanner {
                 /* Enhance the unsupported feature message with the object trace and rethrow. */
                 StringBuilder backtrace = new StringBuilder();
                 ObjectScanner.buildObjectBacktrace(bb, reason, backtrace);
-                throw new UnsupportedFeatureException(e.getMessage() + System.lineSeparator() + backtrace);
+                throw new UnsupportedFeatureException(e.getMessage() + System.lineSeparator() + backtrace, e);
             }
 
         }
@@ -607,6 +610,11 @@ public abstract class ImageHeapScanner {
                     updateInstanceField(field, imageHeapInstance, new FieldScan(field, imageHeapInstance, reason), onAnalysisModified);
                 }
             }
+        } else if (imageHeapConstant instanceof ImageHeapRelocatableConstant) {
+            /*
+             * Currently we expect any type registration needed for ImageHeapRelocatableConstants to
+             * be manually implemented by the user.
+             */
         }
     }
 

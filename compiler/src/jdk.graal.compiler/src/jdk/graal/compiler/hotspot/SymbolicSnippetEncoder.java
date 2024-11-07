@@ -42,6 +42,7 @@ import java.util.Optional;
 import java.util.Set;
 import java.util.function.BiFunction;
 
+import jdk.graal.compiler.serviceprovider.GraalServices;
 import org.graalvm.collections.EconomicMap;
 import org.graalvm.collections.EconomicSet;
 import org.graalvm.collections.MapCursor;
@@ -142,8 +143,7 @@ import jdk.vm.ci.meta.UnresolvedJavaType;
  * method references into a symbolic form that can be resolved at graph decode time using
  * {@link SymbolicJVMCIReference}.
  * <p>
- * An instance of this class only exist when
- * {@link jdk.vm.ci.services.Services#IS_BUILDING_NATIVE_IMAGE} is true.
+ * An instance of this class only exist when {@link GraalServices#isBuildingLibgraal()} is true.
  */
 public class SymbolicSnippetEncoder {
 
@@ -475,13 +475,9 @@ public class SymbolicSnippetEncoder {
                     }
                 }
             }
-            pendingSnippetGraphs.put(key, new BiFunction<>() {
-                @Override
-                public StructuredGraph apply(OptionValues cmopileOptions, HotSpotSnippetReplacementsImpl snippetReplacements) {
-                    return buildGraph(method, original, receiver, SnippetParameterInfo.getNonNullParameters(info), trackNodeSourcePosition,
-                                    cmopileOptions, snippetReplacements);
-                }
-            });
+            pendingSnippetGraphs.put(key, (compileOptions, snippetReplacements) -> buildGraph(method, original, receiver,
+                            SnippetParameterInfo.getNonNullParameters(info), trackNodeSourcePosition,
+                            compileOptions, snippetReplacements));
         }
     }
 
@@ -1073,7 +1069,8 @@ public class SymbolicSnippetEncoder {
 
     /**
      * To prevent this field being considered as an <i>externalValue</i> by
-     * {@link ObjectCopier#encode(Object, List)}, it must <b>not</b> be {@code final}.
+     * {@link ObjectCopier#encode(ObjectCopier.Encoder, Object)}, it must <b>not</b> be
+     * {@code final}.
      */
     private static Map<Class<?>, SnippetResolvedJavaType> snippetTypes = new HashMap<>();
 

@@ -1,5 +1,5 @@
 suite = {
-  "mxversion": "7.27.1",
+  "mxversion": "7.33.0",
   "name" : "compiler",
   "sourceinprojectwhitelist" : [],
 
@@ -65,8 +65,8 @@ suite = {
       "packedResource": True,
     },
     "IDEALGRAPHVISUALIZER_DIST" : {
-      "urls" : ["https://lafo.ssw.uni-linz.ac.at/pub/idealgraphvisualizer/idealgraphvisualizer-0.31-cb98bbf5fef-all.zip"],
-      "digest" : "sha512:ca30052094ce03a8ab88b4666261cfe66ee369c4e876528efd42facd98e53dea3ee1ae622dda6234cf79fe16698f2418e40f025ee859ca3534308be70a47794a",
+      "urls" : ["https://lafo.ssw.uni-linz.ac.at/pub/idealgraphvisualizer/idealgraphvisualizer-1.20-ea624c6066a.zip"],
+      "digest" : "sha512:263aefe418be987fc4e9a84cc301d0cc23858175ff0688791468ca31bae91e3fd51409a6167e1e6bd596e7ebe0fab1f26a025fcd6aac0b750fde62edaec33c0a",
       "packedResource": True,
     },
 
@@ -192,11 +192,11 @@ suite = {
       "dependencies" : [
         "sdk:WORD",
         "sdk:COLLECTIONS",
+        "sdk:NATIVEIMAGE",
         "truffle:TRUFFLE_COMPILER",
       ],
       "requires" : [
         "jdk.internal.vm.ci",
-        "jdk.unsupported",
         "java.logging",
       ],
       "requiresConcealed" : {
@@ -211,19 +211,24 @@ suite = {
           "jdk.vm.ci.common",
           "jdk.vm.ci.amd64",
           "jdk.vm.ci.aarch64",
+          "jdk.vm.ci.riscv64",
           "jdk.vm.ci.services",
           "jdk.vm.ci.runtime",
           "jdk.vm.ci.hotspot",
           "jdk.vm.ci.hotspot.amd64",
           "jdk.vm.ci.hotspot.aarch64",
+          "jdk.vm.ci.hotspot.riscv64",
         ],
       },
       "uses" : [
+        "jdk.graal.compiler.hotspot.meta.DefaultHotSpotLoweringProvider.Extensions",
         "jdk.graal.compiler.hotspot.meta.HotSpotInvocationPluginProvider",
         "jdk.graal.compiler.lir.LIRInstructionVerifier",
         "jdk.graal.compiler.core.common.CompilerProfiler",
         "jdk.graal.compiler.truffle.substitutions.GraphBuilderInvocationPluginProvider",
         "jdk.graal.compiler.truffle.phases.inlining.InliningPolicyProvider",
+        "jdk.graal.compiler.truffle.host.TruffleHostEnvironment.Lookup",
+        "jdk.graal.compiler.truffle.substitutions.GraphDecoderInvocationPluginProvider"
       ],
       "annotationProcessors" : [
         "GRAAL_PROCESSOR"
@@ -372,6 +377,7 @@ suite = {
           "sun.security.util.math.intpoly",
         ],
         "jdk.internal.vm.ci" : [
+          "jdk.vm.ci.code",
           "jdk.vm.ci.meta",
         ],
       },
@@ -407,6 +413,7 @@ suite = {
       "requiresConcealed" : {
         "jdk.internal.vm.ci" : [
           "jdk.vm.ci.meta",
+          "jdk.vm.ci.code"
         ],
       },
       "checkstyle" : "jdk.graal.compiler",
@@ -610,9 +617,6 @@ suite = {
       # This distribution defines a module.
       "moduleInfo" : {
         "name" : "jdk.graal.compiler",
-        "requires" : [
-          "jdk.unsupported" # sun.misc.Unsafe
-        ],
         "exports" : [
           """* to com.oracle.graal.graal_enterprise,
                   org.graalvm.nativeimage.pointsto,
@@ -636,6 +640,7 @@ suite = {
           "jdk.graal.compiler.options                to org.graalvm.nativeimage.driver,org.graalvm.nativeimage.junitsupport",
           "jdk.graal.compiler.phases.common          to org.graalvm.nativeimage.agent.tracing,org.graalvm.nativeimage.configure",
           "jdk.graal.compiler.serviceprovider        to jdk.graal.compiler.management,org.graalvm.nativeimage.driver,org.graalvm.nativeimage.agent.jvmtibase,org.graalvm.nativeimage.agent.diagnostics",
+          "jdk.graal.compiler.util.args",
           "jdk.graal.compiler.util.json",
         ],
         "uses" : [
@@ -644,7 +649,6 @@ suite = {
           "jdk.graal.compiler.debug.DebugHandlersFactory",
           "jdk.graal.compiler.debug.TTYStreamProvider",
           "jdk.graal.compiler.debug.PathUtilitiesProvider",
-          "jdk.graal.compiler.hotspot.HotSpotCodeCacheListener",
           "jdk.graal.compiler.hotspot.HotSpotBackendFactory",
           "jdk.graal.compiler.hotspot.meta.HotSpotInvocationPluginProvider",
           "jdk.graal.compiler.nodes.graphbuilderconf.GeneratedPluginFactory",
@@ -662,6 +666,7 @@ suite = {
       "distDependencies" : [
         "sdk:COLLECTIONS",
         "sdk:WORD",
+        "sdk:NATIVEIMAGE",
         "truffle:TRUFFLE_COMPILER",
       ],
       "allowsJavadocWarnings": True,

@@ -27,29 +27,28 @@ package com.oracle.svm.core.os;
 import static org.graalvm.word.WordFactory.nullPointer;
 import static org.graalvm.word.WordFactory.zero;
 
-import org.graalvm.nativeimage.CurrentIsolate;
 import org.graalvm.nativeimage.ImageSingletons;
 import org.graalvm.nativeimage.Platform;
 import org.graalvm.nativeimage.Platforms;
 import org.graalvm.nativeimage.c.type.WordPointer;
-import org.graalvm.word.PointerBase;
 
+import com.oracle.svm.core.IsolateArguments;
 import com.oracle.svm.core.Isolates;
 import com.oracle.svm.core.SubstrateOptions;
 import com.oracle.svm.core.Uninterruptible;
-import com.oracle.svm.core.c.function.CEntryPointCreateIsolateParameters;
 import com.oracle.svm.core.c.function.CEntryPointErrors;
 import com.oracle.svm.core.feature.AutomaticallyRegisteredFeature;
 import com.oracle.svm.core.feature.InternalFeature;
+import com.oracle.svm.core.snippets.KnownIntrinsics;
 
-public class OSCommittedMemoryProvider extends AbstractCommittedMemoryProvider {
+public class OSCommittedMemoryProvider extends ChunkBasedCommittedMemoryProvider {
     @Platforms(Platform.HOSTED_ONLY.class)
     public OSCommittedMemoryProvider() {
     }
 
     @Override
     @Uninterruptible(reason = "Still being initialized.")
-    public int initialize(WordPointer heapBasePointer, CEntryPointCreateIsolateParameters parameters) {
+    public int initialize(WordPointer heapBasePointer, IsolateArguments arguments) {
         if (!SubstrateOptions.SpawnIsolates.getValue()) {
             int result = protectSingleIsolateImageHeap();
             if (result == CEntryPointErrors.NO_ERROR) {
@@ -66,9 +65,7 @@ public class OSCommittedMemoryProvider extends AbstractCommittedMemoryProvider {
         if (!SubstrateOptions.SpawnIsolates.getValue()) {
             return CEntryPointErrors.NO_ERROR;
         }
-
-        PointerBase heapBase = Isolates.getHeapBase(CurrentIsolate.getIsolate());
-        return ImageHeapProvider.get().freeImageHeap(heapBase);
+        return ImageHeapProvider.get().freeImageHeap(KnownIntrinsics.heapBase());
     }
 }
 
