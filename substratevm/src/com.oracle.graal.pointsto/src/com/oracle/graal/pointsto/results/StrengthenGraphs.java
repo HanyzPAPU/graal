@@ -256,6 +256,9 @@ public abstract class StrengthenGraphs {
         if (afterCounters != null) {
             afterCounters.collect(graph);
         }
+
+        postStrengthenGraphs(graph, method);
+
         method.setAnalyzedGraph(GraphEncoder.encodeSingleGraph(graph, AnalysisParsedGraph.HOST_ARCHITECTURE));
 
         persistStrengthenGraph(method);
@@ -267,6 +270,8 @@ public abstract class StrengthenGraphs {
             }
         }
     }
+
+    protected abstract void postStrengthenGraphs(StructuredGraph graph, AnalysisMethod method);
 
     protected abstract void useSharedLayerGraph(AnalysisMethod method);
 
@@ -589,8 +594,11 @@ public abstract class StrengthenGraphs {
 
             Collection<AnalysisMethod> callees = invokeFlow.getOriginalCallees();
             if (callees.isEmpty()) {
-                unreachableInvoke(invoke, tool);
-                /* Invoke is unreachable, there is no point in improving any types further. */
+                if (isClosedTypeWorld) {
+                    /* Invoke is unreachable, there is no point in improving any types further. */
+                    unreachableInvoke(invoke, tool);
+                }
+                /* In open world we cannot make any assumptions about an invoke with 0 callees. */
                 return;
             }
             assert invokeFlow.isFlowEnabled() : "Disabled invoke should have no callees: " + invokeFlow + ", in method " + getQualifiedName(graph);
@@ -675,7 +683,7 @@ public abstract class StrengthenGraphs {
                 /* Last resort, try to inject profiles optimistically. */
                 TypeState receiverTypeState = null;
                 if (invokeFlow.getTargetMethod().hasReceiver()) {
-                    if (invokeFlow.isSaturated()) {
+                    if (methodFlow.isSaturated((PointsToAnalysis) bb, invokeFlow)) {
                         /*
                          * For saturated invokes use all seen instantiated subtypes of target method
                          * declaring class. In an open world this is incomplete as new types may be

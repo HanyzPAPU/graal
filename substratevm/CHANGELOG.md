@@ -3,12 +3,14 @@
 This changelog summarizes major changes to GraalVM Native Image.
 
 ## GraalVM for JDK 24 (Internal Version 24.2.0)
+* (GR-59717) Added `DuringSetupAccess.registerObjectReachabilityHandler` to allow registering a callback that is executed when an object of a specified type is marked as reachable during heap scanning.
 * (GR-55708) (Alibaba contribution) Support for running premain methods of Java agents at runtime as an experimental feature. At build time, `-H:PremainClasses` is used to set the premain classes.
 At runtime, premain runtime options are set along with main class' arguments in the format of `-XXpremain:[class]:[options]`.
 * (GR-54476): Issue a deprecation warning on first use of a legacy `graal.` prefix (see GR-49960 in [Compiler changelog](../compiler/CHANGELOG.md)).
   The warning is planned to be replaced by an error in GraalVM for JDK 25.
 * (GR-48384) Added a GDB Python script (`gdb-debughelpers.py`) to improve the Native Image debugging experience.
 * (GR-49517) Add support for emitting Windows x64 unwind info. This enables stack walking in native tooling such as debuggers and profilers.
+* (GR-56601) Together with Red Hat, we added experimental support for `jcmd` on Linux and macOS. Add `--enable-monitoring=jcmd` to your build arguments to try it out.
 * (GR-57384) Preserve the origin of a resource included in a native image. The information is included in the report produced by -H:+GenerateEmbeddedResourcesFile.
 * (GR-58000) Support for `GetStringUTFLengthAsLong` added in JNI_VERSION_24 ([JDK-8328877](https://bugs.openjdk.org/browse/JDK-8328877))
 * (GR-58383) The length of the printed stack trace when using `-XX:MissingRegistrationReportingMode=Warn` can now be set with `-XX:MissingRegistrationWarnContextLines=` and its default length is now 8.

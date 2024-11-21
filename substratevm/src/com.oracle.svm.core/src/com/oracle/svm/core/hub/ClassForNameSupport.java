@@ -32,6 +32,7 @@ import java.util.Objects;
 import org.graalvm.collections.EconomicMap;
 import org.graalvm.nativeimage.ImageSingletons;
 import org.graalvm.nativeimage.Platform;
+import org.graalvm.nativeimage.Platform.HOSTED_ONLY;
 import org.graalvm.nativeimage.Platforms;
 import org.graalvm.nativeimage.impl.ConfigurationCondition;
 
@@ -47,6 +48,12 @@ import com.oracle.svm.core.util.VMError;
 
 @AutomaticallyRegisteredImageSingleton
 public final class ClassForNameSupport implements MultiLayeredImageSingleton, UnsavedSingleton {
+
+    private ClassLoader libGraalLoader;
+
+    public void setLibGraalLoader(ClassLoader libGraalLoader) {
+        this.libGraalLoader = libGraalLoader;
+    }
 
     public static ClassForNameSupport singleton() {
         return ImageSingletons.lookup(ClassForNameSupport.class);
@@ -115,12 +122,9 @@ public final class ClassForNameSupport implements MultiLayeredImageSingleton, Un
         }
     }
 
-    private static boolean isLibGraalClass(Class<?> clazz) {
-        var loader = clazz.getClassLoader();
-        if (loader == null) {
-            return false;
-        }
-        return "LibGraalClassLoader".equals(loader.getName());
+    @Platforms(HOSTED_ONLY.class)
+    private boolean isLibGraalClass(Class<?> clazz) {
+        return libGraalLoader != null && clazz.getClassLoader() == libGraalLoader;
     }
 
     public static ConditionalRuntimeValue<Object> updateConditionalValue(ConditionalRuntimeValue<Object> existingConditionalValue, Object newValue,

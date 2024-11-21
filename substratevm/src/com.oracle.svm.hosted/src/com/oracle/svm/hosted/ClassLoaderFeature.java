@@ -32,13 +32,16 @@ import com.oracle.svm.core.BuildPhaseProvider;
 import com.oracle.svm.core.feature.AutomaticallyRegisteredFeature;
 import com.oracle.svm.core.feature.InternalFeature;
 import com.oracle.svm.core.fieldvaluetransformer.FieldValueTransformerWithAvailability;
+import com.oracle.svm.core.hub.ClassForNameSupport;
 import com.oracle.svm.core.imagelayer.ImageLayerBuildingSupport;
 import com.oracle.svm.core.util.VMError;
+import com.oracle.svm.hosted.FeatureImpl.DuringSetupAccessImpl;
 import com.oracle.svm.hosted.imagelayer.CrossLayerConstantRegistry;
 import com.oracle.svm.hosted.imagelayer.ObjectToConstantFieldValueTransformer;
 import com.oracle.svm.hosted.jdk.HostedClassLoaderPackageManagement;
 import com.oracle.svm.util.ReflectionUtil;
 
+import jdk.graal.compiler.hotspot.libgraal.LibGraalClassLoaderBase;
 import jdk.internal.loader.ClassLoaders;
 import jdk.vm.ci.meta.JavaConstant;
 
@@ -118,6 +121,20 @@ public class ClassLoaderFeature implements InternalFeature {
 
         var config = (FeatureImpl.DuringSetupAccessImpl) access;
         if (ImageLayerBuildingSupport.firstImageBuild()) {
+            LibGraalClassLoaderBase libGraalLoader = ((DuringSetupAccessImpl) access).imageClassLoader.classLoaderSupport.getLibGraalLoader();
+            if (libGraalLoader != null) {
+                ClassLoader libGraalClassLoader = libGraalLoader.getClassLoader();
+                ClassForNameSupport.singleton().setLibGraalLoader(libGraalClassLoader);
+
+                ClassLoader runtimeLibGraalClassLoader = libGraalLoader.getRuntimeClassLoader();
+                if (runtimeLibGraalClassLoader != null) {
+                    /*
+                     * LibGraalLoader provides runtime-replacement ClassLoader instance. Make sure
+                     * LibGraalLoader gets replaced by runtimeLibGraalClassLoader instance in image.
+                     */
+                    access.registerObjectReplacer(obj -> obj == libGraalClassLoader ? runtimeLibGraalClassLoader : obj);
+                }
+            }
             access.registerObjectReplacer(this::runtimeClassLoaderObjectReplacer);
             if (ImageLayerBuildingSupport.buildingInitialLayer()) {
                 config.registerObjectReachableCallback(ClassLoader.class, (a1, classLoader, reason) -> {

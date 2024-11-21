@@ -64,8 +64,6 @@ import jdk.vm.ci.common.NativeImageReinitialize;
 import jdk.vm.ci.meta.MetaAccessProvider;
 import jdk.vm.ci.meta.ResolvedJavaMethod;
 import jdk.vm.ci.meta.ResolvedJavaType;
-import org.graalvm.nativeimage.Platform;
-import org.graalvm.nativeimage.Platforms;
 
 /**
  * Filters certain method substitutions based on whether there is underlying hardware support for
@@ -134,18 +132,27 @@ public class HotSpotReplacementsImpl extends ReplacementsImpl {
 
     public static class HotSpotIntrinsicGraphBuilder extends IntrinsicGraphBuilder {
 
-        public HotSpotIntrinsicGraphBuilder(OptionValues options, DebugContext debug, CoreProviders providers, Bytecode code, int invokeBci, AllowAssumptions allowAssumptions) {
+        private final boolean isInOOMETry;
+
+        public HotSpotIntrinsicGraphBuilder(OptionValues options, DebugContext debug, CoreProviders providers, Bytecode code, int invokeBci, AllowAssumptions allowAssumptions, boolean isInOOMETry) {
             super(options, debug, providers, code, invokeBci, allowAssumptions);
+            this.isInOOMETry = isInOOMETry;
         }
 
         public HotSpotIntrinsicGraphBuilder(OptionValues options, DebugContext debug, CoreProviders providers, Bytecode code, int invokeBci, AllowAssumptions allowAssumptions,
                         GraphBuilderConfiguration graphBuilderConfig) {
             super(options, debug, providers, code, invokeBci, allowAssumptions, graphBuilderConfig);
+            this.isInOOMETry = false;
         }
 
         @Override
         public GuardingNode intrinsicRangeCheck(LogicNode condition, boolean negated) {
             return HotSpotBytecodeParser.doIntrinsicRangeCheck(this, condition, negated);
+        }
+
+        @Override
+        public boolean currentBlockCatchesOOME() {
+            return isInOOMETry;
         }
     }
 
@@ -156,8 +163,8 @@ public class HotSpotReplacementsImpl extends ReplacementsImpl {
     }
 
     @Override
-    public StructuredGraph getInlineSubstitution(ResolvedJavaMethod method, int invokeBci, Invoke.InlineControl inlineControl, boolean trackNodeSourcePosition, NodeSourcePosition replaceePosition,
-                    AllowAssumptions allowAssumptions, OptionValues options) {
+    public StructuredGraph getInlineSubstitution(ResolvedJavaMethod method, int invokeBci, boolean isInOOMETry, Invoke.InlineControl inlineControl, boolean trackNodeSourcePosition,
+                    NodeSourcePosition replaceePosition, AllowAssumptions allowAssumptions, OptionValues options) {
         assert invokeBci >= 0 : method;
         if (!inlineControl.allowSubstitution()) {
             return null;
@@ -167,7 +174,7 @@ public class HotSpotReplacementsImpl extends ReplacementsImpl {
         if (plugin != null) {
             Bytecode code = new ResolvedJavaMethodBytecode(method);
             try (DebugContext debug = openSnippetDebugContext("Substitution_", method, options)) {
-                result = new HotSpotIntrinsicGraphBuilder(options, debug, providers, code, invokeBci, allowAssumptions).buildGraph(plugin);
+                result = new HotSpotIntrinsicGraphBuilder(options, debug, providers, code, invokeBci, allowAssumptions, isInOOMETry).buildGraph(plugin);
             }
         } else {
             result = null;
@@ -276,7 +283,6 @@ public class HotSpotReplacementsImpl extends ReplacementsImpl {
         return super.getInjectedArgument(capability);
     }
 
-    @Platforms(Platform.HOSTED_ONLY.class)
     public ResolvedJavaMethod findSnippetMethod(ResolvedJavaMethod thisMethod) {
         if (snippetEncoder == null) {
             throw new GraalError("findSnippetMethod called before initialization of Replacements");

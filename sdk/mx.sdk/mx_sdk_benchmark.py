@@ -1189,6 +1189,7 @@ _baristaConfig = {
         "micronaut-hello-world": {},
         "micronaut-shopcart": {},
         "micronaut-similarity": {},
+        "micronaut-pegasus": {},
         "quarkus-hello-world": {},
         "quarkus-tika-odt": {
             "barista-bench-name": "quarkus-tika",
@@ -1260,7 +1261,10 @@ class BaristaBenchmarkSuite(mx_benchmark.CustomHarnessBenchmarkSuite):
         return "graal-compiler"
 
     def benchmarkList(self, bmSuiteArgs):
-        return self.completeBenchmarkList(bmSuiteArgs)
+        exclude = []
+        # Barista currently does not support running 'micronaut-pegasus' on the JVM - running it results in a crash
+        exclude.append("micronaut-pegasus")
+        return [b for b in self.completeBenchmarkList(bmSuiteArgs) if not b in exclude]
 
     def completeBenchmarkList(self, bmSuiteArgs):
         return _baristaConfig["benchmarks"].keys()
@@ -1650,9 +1654,6 @@ class RenaissanceBenchmarkSuite(mx_benchmark.JavaBenchmarkSuite, mx_benchmark.Av
 
     def vmArgs(self, bmSuiteArgs):
         vm_args = super(RenaissanceBenchmarkSuite, self).vmArgs(bmSuiteArgs)
-
-        # Renaissance issue #439
-        vm_args.append("-Djava.security.manager=allow")
         return vm_args
 
     def createCommandLineArgs(self, benchmarks, bmSuiteArgs):

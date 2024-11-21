@@ -279,8 +279,8 @@ final class LanguageAccessor extends Accessor {
         }
 
         @Override
-        public TruffleContext createTruffleContext(Object impl, boolean creator) {
-            return new TruffleContext(impl, creator);
+        public TruffleContext createTruffleContext(Object impl, TruffleContext parentContext) {
+            return new TruffleContext(impl, parentContext);
         }
 
         @Override
@@ -564,6 +564,15 @@ final class LanguageAccessor extends Accessor {
         @Override
         public void performTLAction(ThreadLocalAction action, ThreadLocalAction.Access access) {
             action.perform(access);
+        }
+
+        @Override
+        public void notifyTLActionBlocked(ThreadLocalAction action, ThreadLocalAction.Access access, boolean blocked) {
+            if (blocked) {
+                action.notifyBlocked(access);
+            } else {
+                action.notifyUnblocked(access);
+            }
         }
 
         @Override

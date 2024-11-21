@@ -301,7 +301,7 @@ public final class CEntryPointSnippets extends SubstrateTemplates implements Sni
 
         IsolateArguments arguments = StackValue.get(IsolateArguments.class);
         UnmanagedMemoryUtil.fill((Pointer) arguments, SizeOf.unsigned(IsolateArguments.class), (byte) 0);
-        CLongPointer parsedArgs = StackValue.get(IsolateArgumentParser.singleton().getParsedArgsSize());
+        CLongPointer parsedArgs = StackValue.get(IsolateArgumentParser.getParsedArgsSize());
         arguments.setParsedArgs(parsedArgs);
 
         IsolateArgumentParser.singleton().parse(parameters, arguments);
@@ -323,6 +323,7 @@ public final class CEntryPointSnippets extends SubstrateTemplates implements Sni
     @Uninterruptible(reason = "Thread state not yet set up.")
     @NeverInline(value = "Ensure this code cannot rise above where heap base is set.")
     private static int createIsolate0(Isolate isolate, IsolateArguments arguments) {
+        assert Heap.getHeap().verifyImageHeapMapping();
         IsolateArgumentParser.singleton().persistOptions(arguments);
         IsolateListenerSupport.singleton().afterCreateIsolate(isolate);
 

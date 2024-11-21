@@ -41,7 +41,7 @@ import jdk.vm.ci.meta.AllocatableValue;
  * Returns -1, 0, or 1 if either x &lt; y, x == y, or x &gt; y.
  */
 // @formatter:off
-@SyncPort(from = "https://github.com/openjdk/jdk/blob/dcac4b0a532f2ca6cb374da7ece331e8266ab351/src/hotspot/cpu/aarch64/aarch64.ad#L9120-L9202",
+@SyncPort(from = "https://github.com/openjdk/jdk/blob/d52d13648612546ef4458579aff6daf965586a03/src/hotspot/cpu/aarch64/aarch64.ad#L9160-L9242",
           sha1 = "84da421c1489e188366d61bb4298e0425ccac14b")
 // @formatter:on
 public class AArch64NormalizedUnsignedCompareOp extends AArch64LIRInstruction {

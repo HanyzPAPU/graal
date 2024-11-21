@@ -493,6 +493,22 @@ suite = {
       "workingSets" : "Graal,Test",
       "graalCompilerSourceEdition": "ignore",
     },
+
+    "jdk.graal.compiler.libgraal.loader" : {
+      "subDir" : "src",
+      "sourceDirs" : ["src"],
+      "workingSets" : "Graal",
+      "javaCompliance" : "21+",
+      "dependencies" : [
+        "jdk.graal.compiler",
+      ],
+      "requiresConcealed" : {
+        "java.base" : [
+          "jdk.internal.module",
+          "jdk.internal.jimage",
+        ],
+      },
+    },
     
     # ------------- Bytecode Fuzzing -------------
     
@@ -772,6 +788,17 @@ suite = {
       ],
       "maven" : False,
       "graalCompilerSourceEdition": "ignore",
+    },
+
+    "LIBGRAAL_LOADER" : {
+      "subDir": "src",
+      "dependencies" : [
+        "jdk.graal.compiler.libgraal.loader",
+      ],
+      "distDependencies" : [
+        "GRAAL",
+      ],
+      "maven": False,
     },
 
     "GRAAL_PROFDIFF_TEST" : {

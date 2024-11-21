@@ -35,7 +35,6 @@ import jdk.graal.compiler.core.common.CompressEncoding;
 import jdk.graal.compiler.debug.Assertions;
 import jdk.graal.compiler.debug.GraalError;
 import jdk.graal.compiler.options.OptionValues;
-import jdk.graal.compiler.serviceprovider.JavaVersionUtil;
 import jdk.vm.ci.hotspot.HotSpotResolvedJavaMethod;
 import jdk.vm.ci.hotspot.HotSpotVMConfigStore;
 import jdk.vm.ci.meta.MetaAccessProvider;
@@ -67,7 +66,6 @@ public class GraalHotSpotVMConfig extends GraalHotSpotVMConfigAccess {
     GraalHotSpotVMConfig(HotSpotVMConfigStore store) {
         super(store);
 
-        assert narrowKlassShift <= logKlassAlignment : Assertions.errorMessageContext("narrowKlassShift", narrowKlassShift, "logKlassAlignment", logKlassAlignment);
         int logMinObjAlignment = logMinObjAlignment();
         assert narrowOopShift <= logMinObjAlignment : Assertions.errorMessageContext("narrowOopShift", narrowOopShift, "logMinObjAlignment", logMinObjAlignment);
         oopEncoding = new CompressEncoding(narrowOopBase, narrowOopShift);
@@ -96,18 +94,6 @@ public class GraalHotSpotVMConfig extends GraalHotSpotVMConfigAccess {
 
     public boolean useG1GC() {
         return gc == HotSpotGraalRuntime.HotSpotGC.G1;
-    }
-
-    /*
-     * There's no direct way to test for the presence of the boolean flag ZGenerational since there
-     * aren't any notPresent values which are distinct from the possible values. Instead use true
-     * and false as the notPresent value and check if it returns different answers.
-     */
-    public final boolean isZGenerationalDefault = JavaVersionUtil.JAVA_SPEC > 21 &&
-                    (!access.getFlag("ZGenerational", Boolean.class, false).equals(access.getFlag("ZGenerational", Boolean.class, true)));
-
-    public boolean useXGC() {
-        return gc == HotSpotGraalRuntime.HotSpotGC.X;
     }
 
     public final HotSpotGraalRuntime.HotSpotGC gc = getSelectedGC();
@@ -214,6 +200,11 @@ public class GraalHotSpotVMConfig extends GraalHotSpotVMConfigAccess {
     // Compressed Oops related values.
     public final boolean useCompressedOops = getFlag("UseCompressedOops", Boolean.class);
     public final boolean useCompressedClassPointers = getFlag("UseCompressedClassPointers", Boolean.class);
+    // JDK-8305895 allows storing the compressed class pointer in the upper 22 bits of the mark
+    // word. This runtime optimization is guarded by the flag UseCompactObjectHeaders. It depends
+    // on compressed class pointers, meaning that if useCompactObjectHeaders is true,
+    // useCompressedClassPointers is certainly true.
+    public final boolean useCompactObjectHeaders = getFlag("UseCompactObjectHeaders", Boolean.class, false, JDK >= 24);
 
     public final long narrowOopBase = getFieldValue("CompilerToVM::Data::Universe_narrow_oop_base", Long.class, "address");
     public final int narrowOopShift = getFieldValue("CompilerToVM::Data::Universe_narrow_oop_shift", Integer.class, "int");
@@ -226,7 +217,6 @@ public class GraalHotSpotVMConfig extends GraalHotSpotVMConfigAccess {
     public final int narrowKlassSize = getFieldValue("CompilerToVM::Data::sizeof_narrowKlass", Integer.class, "int");
     public final long narrowKlassBase = getFieldValue("CompilerToVM::Data::Universe_narrow_klass_base", Long.class, "address");
     public final int narrowKlassShift = getFieldValue("CompilerToVM::Data::Universe_narrow_klass_shift", Integer.class, "int");
-    public final int logKlassAlignment = getConstant("LogKlassAlignmentInBytes", Integer.class);
 
     public final int stackShadowPages = getFlag("StackShadowPages", Integer.class);
     public final int vmPageSize = getFieldValue("CompilerToVM::Data::vm_page_size", Integer.class, "size_t");
@@ -243,7 +233,7 @@ public class GraalHotSpotVMConfig extends GraalHotSpotVMConfigAccess {
     public final int secondarySuperCacheOffset = getFieldOffset("Klass::_secondary_super_cache", Integer.class, "Klass*");
     public final int secondarySupersOffset = getFieldOffset("Klass::_secondary_supers", Integer.class, "Array<Klass*>*");
     public final int klassHashSlotOffset = getFieldOffset("Klass::_hash_slot", Integer.class, "uint8_t", 0, JDK >= 23);
-    public final int klassBitmapOffset = getFieldOffset("Klass::_bitmap", Integer.class, "uintx", 0, JDK >= 23);
+    public final int klassBitmapOffset = getFieldOffset("Klass::_secondary_supers_bitmap", Integer.class, "uintx", 0, JDK >= 24);
 
     // JDK-8186777
     public final int classMirrorOffset = getFieldOffset("Klass::_java_mirror", Integer.class, "OopHandle");
@@ -268,12 +258,17 @@ public class GraalHotSpotVMConfig extends GraalHotSpotVMConfigAccess {
 
     public final int arrayOopDescSize = getFieldValue("CompilerToVM::Data::sizeof_arrayOopDesc", Integer.class, "int");
 
+    public final int arrayLengthOffsetInBytes = getFieldValue("CompilerToVM::Data::arrayOopDesc_length_offset_in_bytes", Integer.class, "int", -1, JDK >= 24);
+
     /**
      * The offset of the array length word in an array object's header.
      * <p>
      * See {@code arrayOopDesc::length_offset_in_bytes()}.
      */
     public final int arrayOopDescLengthOffset() {
+        if (JDK >= 24) {
+            return arrayLengthOffsetInBytes;
+        }
         return useCompressedClassPointers ? hubOffset + narrowKlassSize : arrayOopDescSize;
     }
 
@@ -307,8 +302,10 @@ public class GraalHotSpotVMConfig extends GraalHotSpotVMConfigAccess {
     public final int threadCarrierThreadObjectOffset = getFieldOffset("JavaThread::_threadObj", Integer.class, "OopHandle");
     public final int threadScopedValueCacheOffset = getFieldOffset("JavaThread::_scopedValueCache", Integer.class, "OopHandle");
 
+    public final int javaThreadLockIDOffset = getFieldOffset("JavaThread::_lock_id", Integer.class, "int64_t", -1, JDK > 21);
+
     public final int threadIsInVTMSTransitionOffset = getFieldOffset("JavaThread::_is_in_VTMS_transition", Integer.class, "bool");
-    public final int threadIsInTmpVTMSTransitionOffset = getFieldOffset("JavaThread::_is_in_tmp_VTMS_transition", Integer.class, "bool");
+    public final int threadIsInTmpVTMSTransitionOffset = getFieldOffset("JavaThread::_is_in_tmp_VTMS_transition", Integer.class, "bool", -1, JDK == 21);
     public final int threadIsDisableSuspendOffset = getFieldOffset("JavaThread::_is_disable_suspend", Integer.class, "bool", -1, JDK >= 22);
 
     public final int javaLangThreadJFREpochOffset = getFieldValue("java_lang_Thread::_jfr_epoch_offset", Integer.class, "int");
@@ -378,36 +375,34 @@ public class GraalHotSpotVMConfig extends GraalHotSpotVMConfigAccess {
     public final int frameInterpreterFrameSenderSpOffset = getConstant("frame::interpreter_frame_sender_sp_offset", Integer.class, 0, osArch.equals("amd64"));
     public final int frameInterpreterFrameLastSpOffset = getConstant("frame::interpreter_frame_last_sp_offset", Integer.class, 0, osArch.equals("amd64"));
 
-    public final int lockMaskInPlace = getConstant("markWord::lock_mask_in_place", Integer.class);
+    public final long markWordLockMaskInPlace = getConstant("markWord::lock_mask_in_place", Long.class);
+    public final long markWordHashMask = getConstant("markWord::hash_mask", Long.class);
+
+    public final long markWordNoHashInPlace = getConstant("markWord::no_hash_in_place", Long.class);
+    public final long markWordNoLockInPlace = getConstant("markWord::no_lock_in_place", Long.class);
+
+    // Mark word right shift to get identity hash code.
+    public final int markWordHashCodeShift = getConstant("markWord::hash_shift", Integer.class);
+    // Mark word right shift to get compressed klass pointer
+    public final int markWordKlassShift = getConstant("markWord::klass_shift", Integer.class, 0, JDK >= 24);
+
+    // The following three constants are declared as 64 bits uintptr_t, but known to be 32 bits
     public final int unlockedValue = getConstant("markWord::unlocked_value", Integer.class);
     public final int monitorValue = getConstant("markWord::monitor_value", Integer.class);
+    public final int ageMaskInPlace = getConstant("markWord::age_mask_in_place", Integer.class);
+    public final int unusedMark = getConstant("markWord::marked_value", Integer.class, 3, JDK > 21);
+    // Identity hash code value when uninitialized.
+    public final int uninitializedIdentityHashCodeValue = getConstant("markWord::no_hash", Integer.class);
 
     // This field has no type in vmStructs.cpp
-    public final int objectMonitorOwner = getFieldOffset("ObjectMonitor::_owner", Integer.class, null);
+    public final int objectMonitorOwner = getFieldOffset("ObjectMonitor::_owner", Integer.class, JDK > 21 ? "int64_t" : null);
     public final int objectMonitorRecursions = getFieldOffset("ObjectMonitor::_recursions", Integer.class, "intptr_t");
     public final int objectMonitorCxq = getFieldOffset("ObjectMonitor::_cxq", Integer.class, "ObjectWaiter*");
     public final int objectMonitorEntryList = getFieldOffset("ObjectMonitor::_EntryList", Integer.class, "ObjectWaiter*");
-    public final int objectMonitorSucc = getFieldOffset("ObjectMonitor::_succ", Integer.class, "JavaThread*");
-
-    public final int markWordNoHashInPlace = getConstant("markWord::no_hash_in_place", Integer.class);
-    public final int markWordNoLockInPlace = getConstant("markWord::no_lock_in_place", Integer.class);
-
-    public long defaultPrototypeMarkWord() {
-        return this.markWordNoHashInPlace | this.markWordNoLockInPlace;
-    }
-
-    /**
-     * Mark word right shift to get identity hash code.
-     */
-    public final int identityHashCodeShift = getConstant("markWord::hash_shift", Integer.class);
+    public final int objectMonitorSucc = getFieldOffset("ObjectMonitor::_succ", Integer.class, JDK > 21 ? "int64_t" : "JavaThread*");
 
     public final int contEntry = getFieldOffset("JavaThread::_cont_entry", Integer.class, "ContinuationEntry*", -1, JDK >= 24);
     public final int pinCount = getFieldOffset("ContinuationEntry::_pin_count", Integer.class, "uint32_t", -1, JDK >= 24);
-
-    /**
-     * Identity hash code value when uninitialized.
-     */
-    public final int uninitializedIdentityHashCodeValue = getConstant("markWord::no_hash", Integer.class);
 
     public final int methodCompiledEntryOffset = getFieldOffset("Method::_from_compiled_entry", Integer.class, "address");
 
@@ -622,44 +617,6 @@ public class GraalHotSpotVMConfig extends GraalHotSpotVMConfigAccess {
     public final long zBarrierSetRuntimeStoreBarrierOnOopFieldWithoutHealing = getZGCAddressField("ZBarrierSetRuntime::store_barrier_on_oop_field_without_healing");
     public final long zBarrierSetRuntimeLoadBarrierOnOopArray = getZGCAddressField("ZBarrierSetRuntime::load_barrier_on_oop_array");
     public final int zPointerLoadShift = getConstant("ZPointerLoadShift", Integer.class, -1, osArch.equals("aarch64") && zgcSupport);
-
-    private long getXGCAddressField(String name) {
-        if (JavaVersionUtil.JAVA_SPEC == 21 || isZGenerationalDefault) {
-            /*
-             * Graal does not support single gen ZGC in JDK 21 and it's no longer supported in 24
-             * once the ZGenerational global flag has been removed.
-             */
-            return 0;
-        }
-        String realName = name;
-        long address = 0;
-        if (zgcSupport) {
-            /*
-             * Generational ZGC support exports the required functions as address using the new
-             * XBarrierSetRuntime names.
-             */
-            address = getAddress(name);
-        } else {
-            /*
-             * Use the old names which are exported as fields in CompilerToVM::Data. This logic can
-             * be deleted once the transition is complete.
-             */
-            realName = name.replace("XBarrierSetRuntime::", "CompilerToVM::Data::ZBarrierSetRuntime_");
-            address = getFieldValue(realName, Long.class, "address");
-        }
-        GraalError.guarantee(gc != HotSpotGraalRuntime.HotSpotGC.X || address != 0, "Unexpected null value for %s", realName);
-        return address;
-    }
-
-    /*
-     * Single generation ZGC support
-     */
-    public final int threadAddressBadMaskOffset = getFieldValue("CompilerToVM::Data::thread_address_bad_mask_offset", Integer.class, "int");
-    public final long xBarrierSetRuntimeLoadBarrierOnOopFieldPreloaded = getXGCAddressField("XBarrierSetRuntime::load_barrier_on_oop_field_preloaded");
-    public final long xBarrierSetRuntimeLoadBarrierOnWeakOopFieldPreloaded = getXGCAddressField("XBarrierSetRuntime::load_barrier_on_weak_oop_field_preloaded");
-    public final long xBarrierSetRuntimeWeakLoadBarrierOnWeakOopFieldPreloaded = getXGCAddressField("XBarrierSetRuntime::weak_load_barrier_on_weak_oop_field_preloaded");
-    public final long xBarrierSetRuntimeWeakLoadBarrierOnPhantomOopFieldPreloaded = getXGCAddressField("XBarrierSetRuntime::weak_load_barrier_on_phantom_oop_field_preloaded");
-    public final long xBarrierSetRuntimeLoadBarrierOnOopArray = getXGCAddressField("XBarrierSetRuntime::load_barrier_on_oop_array");
 
     // aarch64 specific nmethod entry barrier support
     // @formatter:off
