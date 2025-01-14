@@ -53,7 +53,6 @@ public final class Mutator {
             new SplitConstantMutation(),
             new InsertDeadCodeMutation(),
             new InsertLocalVariableMutation(),
-            new InsertSwapMutation(),
             new InsertEscapeMutation(),
             new InsertMethodCallMutation()
         ));
@@ -73,6 +72,7 @@ public final class Mutator {
         // Add aggresive mutations
         mutations.addAll(Arrays.asList(
             new ConstantMutation(false),
+            new InsertSwapMutation(),
             new InsertWriteMutation(),
             new InsertOperationMutation()
         ));
